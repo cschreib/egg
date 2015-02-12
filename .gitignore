@@ -1,0 +1,8 @@
+gencat
+*.fits
+*.cat
+*.sh
+archive
+maps*
+work
+calibrate
