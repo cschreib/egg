@@ -503,8 +503,8 @@ int main(int argc, char* argv[]) {
         sfr += rsb;
         append(out.sfr, e10(sfr));
 
-        sfr = 0.7*(out.m[idp] - 11)
-            + min(4.3*az[idp] - 0.35, 1.5)
+        sfr = 0.5*(out.m[idp] - 11)
+            + az[idp] - 0.6
             + 0.45*randomn(seed, npassive);
         append(out.rsb, replicate(0.0, npassive));
         append(out.sfr, e10(sfr));
