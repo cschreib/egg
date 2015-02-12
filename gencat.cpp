@@ -301,12 +301,12 @@ int main(int argc, char* argv[]) {
 
         // Remove extrapolations at the borders of the bins
         vec1u idzb = where(mf.zx < old_zx.front());
-        for (uint_t iz : idzb) mf.mz_active(idzb[iz],_)  = mf.mz_active(idzb.back()+1,_);
-        for (uint_t iz : idzb) mf.mz_passive(idzb[iz],_) = mf.mz_passive(idzb.back()+1,_);
+        for (uint_t iz : idzb) mf.mz_active(iz,_)  = mf.mz_active(idzb.back()+1,_);
+        for (uint_t iz : idzb) mf.mz_passive(iz,_) = mf.mz_passive(idzb.back()+1,_);
 
         idzb = where(mf.zx > old_zx.back());
-        for (uint_t iz : idzb) mf.mz_active(idzb[iz],_)  = mf.mz_active(idzb.front()-1,_);
-        for (uint_t iz : idzb) mf.mz_passive(idzb[iz],_) = mf.mz_passive(idzb.front()-1,_);
+        for (uint_t iz : idzb) mf.mz_active(iz,_)  = mf.mz_active(idzb.front()-1,_);
+        for (uint_t iz : idzb) mf.mz_passive(iz,_) = mf.mz_passive(idzb.front()-1,_);
 
         // Build redshift functions by integrating over stellar mass
         vec2d tvb = vuniverse(mf.zb, cosmo);
