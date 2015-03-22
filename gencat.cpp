@@ -631,7 +631,7 @@ if (!no_opt_sed) {
                     sed[idl] = ised;
                 }
 
-                progress(pg);
+                if (verbose) progress(pg);
             }
         }
 
@@ -697,7 +697,7 @@ if (!no_opt_flux) {
                 flux(i,b) = e10(m[i])*sed2flux(filters[b], lam, sed);
             }
 
-            progress(pg1, 127);
+            if (verbose) progress(pg1, 127);
         }
     };
 
@@ -727,7 +727,7 @@ if (!no_ir_flux) {
             out.flux_disk(i,b) = out.lir[i]*sed2flux(filters[b], lam, sed);
         }
 
-        progress(pg1, 127);
+        if (verbose) progress(pg1, 127);
     }
 
     // Manually correct the SPIRE fluxes up
@@ -791,7 +791,7 @@ if (!no_pos) {
         append(out.ra, ra[rid]);
         append(out.dec, dec[rid]);
 
-        progress(pg);
+        if (verbose) progress(pg);
     }
 }
 
