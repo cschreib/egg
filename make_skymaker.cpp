@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
     file::mkdir(file::get_directory(out_file));
 
     file::write_table_hdr(out_file, 16,
-        {"type", "ra", "dec", "mag", "bt",
+        {"type", "x", "y", "mag", "bt",
         "bulge_radius", "bulge_ratio", "bulge_angle",
         "disk_radius", "disk_ratio", "disk_angle"},
         replicate(200u, ids.size()), x[ids], y[ids],
