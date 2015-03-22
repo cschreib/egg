@@ -23,7 +23,12 @@ int main(int argc, char* argv[]) {
         vec1s bands;
     } cat;
 
-    fits::read_table(argv[1], cat);
+    fits::read_table(argv[1], ftable(
+        cat.ra, cat.dec,
+        cat.disk_angle, cat.disk_radius, cat.disk_ratio,
+        cat.bulge_angle, cat.bulge_radius, cat.bulge_ratio,
+        cat.flux_disk, cat.flux_bulge, cat.bands
+    ));
 
     vec1u idb = where(cat.bands == band);
     if (idb.empty()) {
@@ -53,7 +58,6 @@ int main(int argc, char* argv[]) {
 
     vec1d x, y;
     fits::ad2xy(fits::wcs(hdr), cat.ra, cat.dec, x, y);
-
 
     vec1u ids;
     if (finite(maglim)) {
