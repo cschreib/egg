@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
         vec2d lam, sed;
     } ir_lib;
 
-    fits::read_table(ir_lib_file, ir_lib);
+    fits::read_table(ir_lib_file, ftable(ir_lib.lam, ir_lib.sed));
 
     // The optical library. Each template must be normalized to unit stellar mass.
     // The library is binned in redshift, U-V and V-J colors.
@@ -122,7 +122,9 @@ int main(int argc, char* argv[]) {
         vec2f bvj, buv;
     } opt_lib;
 
-    fits::read_table(opt_lib_file, opt_lib);
+    fits::read_table(opt_lib_file, ftable(
+        opt_lib.lam, opt_lib.sed, opt_lib.use, opt_lib.bvj, opt_lib.buv
+    ));
 
     // Make sure that it contains at least one valid SED
     if (count(opt_lib.use) == 0) {
