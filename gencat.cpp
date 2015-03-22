@@ -113,12 +113,19 @@ int main(int argc, char* argv[]) {
     // The optical library. Each template must be normalized to unit stellar mass.
     // The library is binned in redshift, U-V and V-J colors.
     struct {
-        vec4f lam, mean_sed, med_sed, rms_sed;
-        vec3u nsrc;
-        vec2f bvj, buv, bz;
+        vec3f lam, sed;
+        vec2b use;
+        vec2f bvj, buv;
     } opt_lib;
 
     fits::read_table(opt_lib_file, opt_lib);
+
+    // Make sure that it contains at least one valid SED
+    if (count(opt_lib.use) == 0) {
+        error("the provided optical SED library does not contain any valid SED");
+        note("'use' was false for all the UVJ positions");
+        return 1;
+    }
 
     // Initialize redshift bins
     // ------------------------
@@ -184,28 +191,28 @@ int main(int argc, char* argv[]) {
 
         double comp = 0.9;
         uint_t bsel = where(bands == selection_band)[0];
-        double flim = e10(0.4*(23.9 - maglim));
-        vec1f szx = bin_center(opt_lib.bz);
+        double flim = mag2uJy(maglim);
         uint_t nb = opt_lib.buv.dims[1];
 
         for (uint_t z : range(nz)) {
             double tz = bin_center(zb(_,z));
             double td = lumdist(tz, cosmo);
 
-            uint_t iz = min_id(fabs(szx - tz));
-
             vec1f tm;
             for (uint_t iu : range(nb))
             for (uint_t iv : range(nb)) {
-                if (opt_lib.nsrc(iz,iu,iv) < 20) continue;
+                if (!opt_lib.use(iu,iv)) continue;
 
-                vec1f rlam = opt_lib.lam(iz,iu,iv,_);
-                vec1f rsed = opt_lib.mean_sed(iz,iu,iv,_);
+                vec1f rlam = opt_lib.lam(iu,iv,_);
+                vec1f rsed = opt_lib.sed(iu,iv,_);
 
                 vec1f lam = rlam*(1.0 + tz);
                 vec1f sed = lsun2uJy(tz, td, rlam, rsed);
 
-                tm.push_back(log10(flim/sed2flux(filters[bsel], lam, sed)));
+                double funitmass = sed2flux(filters[bsel], lam, sed);
+                double mlim = log10(flim/funitmass);
+
+                tm.push_back(mlim);
             }
 
             z_mmin[z] = percentile(tm, 1.0 - comp);
@@ -583,53 +590,48 @@ if (!no_opt_sed) {
         note("assigning optical SEDs...");
     }
 
-    auto get_sed = [&opt_lib](const vec1f& z, const vec1f& uv, const vec1f& vj, vec1u& sed) {
-        const uint_t min_nsrc = 10u;
+    auto get_sed = [&opt_lib](const vec1f& uv, const vec1f& vj, vec1u& sed) {
         uint_t snb = opt_lib.buv.dims[1];
-        uint_t snz = opt_lib.bz.dims[1];
 
         sed.resize(uv.size());
         sed[_] = npos;
 
-        auto pg = progress_start(snz*snb*snb);
-        for (uint_t iz : range(snz)) {
-            vec1b ibz = in_bin_open(z, opt_lib.bz, iz);
-            for (uint_t u  : range(snb)) {
-                vec1b ibu = ibz && in_bin_open(uv, opt_lib.buv, u);
-                for (uint_t v  : range(snb)) {
-                    // Find galaxies which are in this bin
-                    vec1u idl = where(ibu && in_bin_open(vj, opt_lib.bvj, v));
+        auto pg = progress_start(snb*snb);
+        for (uint_t u  : range(snb)) {
+            vec1b ibu = in_bin_open(uv, opt_lib.buv, u);
+            for (uint_t v  : range(snb)) {
+                // Find galaxies which are in this bin
+                vec1u idl = where(ibu && in_bin_open(vj, opt_lib.bvj, v));
 
-                    if (!idl.empty()) {
-                        // Find the closest "good" SED in the library
-                        // "good" == number of galaxies that were used to build the
-                        // average SED is larger or equal to 'min_nsrc'
-                        uint_t lu = u, lv = v;
-                        if (!astar_find(opt_lib.nsrc(iz,_,_) >= min_nsrc, lu, lv)) {
-                            error("could not find good SEDs in the optical library!");
-                            note("no SED was build with at least ", min_nsrc, " galaxies");
-                            note(u, ", ", v);
-                            return false;
-                        }
-
-                        // Assign the SED to these galaxies
-                        uint_t ised = opt_lib.nsrc.flat_id(iz, lu, lv);
-                        sed[idl] = ised;
+                if (!idl.empty()) {
+                    // Find the closest "good" SED in the library
+                    // "good" == number of galaxies that were used to build the
+                    // average SED is larger or equal to 'min_nsrc'
+                    uint_t lu = u, lv = v;
+                    if (!astar_find(opt_lib.use, lu, lv)) {
+                        error("could not find good SEDs in the optical library!");
+                        note("this should not have happened...");
+                        note(u, ", ", v);
+                        return false;
                     }
 
-                    progress(pg);
+                    // Assign the SED to these galaxies
+                    uint_t ised = flat_id(opt_lib.use, lu, lv);
+                    sed[idl] = ised;
                 }
+
+                progress(pg);
             }
         }
 
         return true;
     };
 
-    if (!get_sed(out.z, out.rfuv_bulge, out.rfvj_bulge, out.opt_sed_bulge)) {
+    if (!get_sed(out.rfuv_bulge, out.rfvj_bulge, out.opt_sed_bulge)) {
         return 1;
     }
 
-    if (!get_sed(out.z, out.rfuv_disk,  out.rfvj_disk,  out.opt_sed_disk)) {
+    if (!get_sed(out.rfuv_disk,  out.rfvj_disk,  out.opt_sed_disk)) {
         return 1;
     }
 }
@@ -674,9 +676,9 @@ if (!no_opt_flux) {
         vec1u idg = where(m > 0.0);
         auto pg1 = progress_start(idg.size());
         for (uint_t i : idg) {
-            vec1u did = opt_lib.nsrc.ids(ised[i]);
-            const vec1f rlam = opt_lib.lam(did[0],did[1],did[2],_);
-            const vec1f rsed = opt_lib.mean_sed(did[0],did[1],did[2],_);
+            vec1u did = mult_ids(opt_lib.use, ised[i]);
+            const vec1f rlam = opt_lib.lam(did[0],did[1],_);
+            const vec1f rsed = opt_lib.sed(did[0],did[1],_);
             const vec1f lam = rlam*(1.0 + z[i]);
             const vec1f sed = lsun2uJy(z[i], d[i], rlam, rsed);
 
@@ -773,7 +775,7 @@ if (!no_pos) {
         append(ra, tra);
         append(dec, tdec);
 
-        vec1u rid = shuffle(uindgen(z_ngal), seed);
+        vec1u rid = shuffle(seed, uindgen(z_ngal));
 
         append(out.ra, ra[rid]);
         append(out.dec, dec[rid]);
