@@ -42,7 +42,8 @@ int main(int argc, char* argv[]) {
     // ---------------------------
     read_args(argc, argv, arg_list(
         ra0, dec0, area, mmin, maglim, zmin, zmax, name(bin_dz, "dz"), min_dz,
-        ms_disp, no_pos, no_clust, no_opt_sed, no_opt_flux, no_ir_flux,
+        name(bin_dm, "dm"), ms_disp,
+        no_pos, no_clust, no_opt_sed, no_opt_flux, no_ir_flux,
         name(mass_func_file, "mass_func"),
         name(ir_lib_file, "ir_lib"), name(opt_lib_file, "opt_lib"),
         name(out_file, "out"), name(filter_db_file, "filter_db"),
