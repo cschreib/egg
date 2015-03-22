@@ -27,6 +27,7 @@ int main(int argc, char* argv[]) {
     std::string ir_lib_file = "ir_lib_ce01.fits";
     std::string opt_lib_file = "opt_lib_fast.fits";
     std::string out_file = "gencat-"+today()+".fits";
+    std::string filter_db_file = data_dir+"fits/filter-db/db.dat";
 
     uint_t tseed = 42;
     std::string tcosmo = "std";
@@ -44,7 +45,7 @@ int main(int argc, char* argv[]) {
         ms_disp, no_pos, no_clust, no_opt_sed, no_opt_flux, no_ir_flux,
         name(mass_func_file, "mass_func"),
         name(ir_lib_file, "ir_lib"), name(opt_lib_file, "opt_lib"),
-        name(out_file, "out"),
+        name(out_file, "out"), name(filter_db_file, "filter_db"),
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
         selection_band, bands
     ));
@@ -67,7 +68,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    auto filter_db = read_filter_db(data_dir+"fits/filters/db.dat");
+    auto filter_db = read_filter_db(filter_db_file);
 
     // Sort the bands by increasing wavelength
     vec1f lambda;
