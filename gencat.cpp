@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
     double mmax = 12.0;
     double maglim = dnan;
     double zmin = 0.01;
-    double zmax = 8.0;
+    double zmax = 7.0;
     double min_dz = 0.05;
     double bin_dz = 0.1;
     double bin_dm = 0.05;
@@ -151,13 +151,18 @@ int main(int argc, char* argv[]) {
     // To prevent too narrow bins with very little galaxies, we impose a minimum
     // redshift width.
     vec2d zb = [&](){
-        vec1d tzb = {zmin};
+        vec1d tzb;
         double z1 = zmin;
         while (z1 < zmax) {
-            double new_z = z1*(1.0 + bin_dz/2.0)/(1.0 - bin_dz/2.0);
-            if (new_z - z1 < min_dz) new_z = z1 + min_dz;
-            tzb.push_back(new_z);
-            z1 = new_z;
+            tzb.push_back(z1);
+            z1 *= (1.0 + bin_dz/2.0)/(1.0 - bin_dz/2.0);
+            if (z1 - tzb.back() < min_dz) z1 = tzb.back() + min_dz;
+        }
+
+        if ((zmax - tzb.back())/(1.0 + zmax) > 0.5*bin_dz && zmax - tzb.back() > min_dz) {
+            tzb.push_back(zmax);
+        } else {
+            tzb.back() = zmax;
         }
 
         return make_bins(tzb);
@@ -601,7 +606,7 @@ if (!no_opt_sed) {
         note("assigning optical SEDs...");
     }
 
-    auto get_sed = [&opt_lib](const vec1f& uv, const vec1f& vj, vec1u& sed) {
+    auto get_sed = [&](const vec1f& uv, const vec1f& vj, vec1u& sed) {
         uint_t snb = opt_lib.buv.dims[1];
 
         sed.resize(uv.size());
