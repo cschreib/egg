@@ -1,5 +1,7 @@
 #include <phypp.hpp>
 
+void print_help(std::string filter_db_file);
+
 int main(int argc, char* argv[]) {
     // Initialization
     // --------------
@@ -32,6 +34,7 @@ int main(int argc, char* argv[]) {
     uint_t tseed = 42;
     std::string tcosmo = "std";
     bool verbose = false;
+    bool help = false;
 
     std::string selection_band = "f160w";
     vec1s bands = {"vimos_u", "f435w", "f606w", "f775w", "f814w", "f850lp",
@@ -50,6 +53,11 @@ int main(int argc, char* argv[]) {
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
         selection_band, bands
     ));
+
+    if (help) {
+        print_help(filter_db_file);
+        return 0;
+    }
 
     if (no_opt_sed) no_opt_flux = true;
 
@@ -811,4 +819,85 @@ if (!no_pos) {
     ));
 
     return 0;
+}
+
+void print_help(std::string filter_db_file) {
+    using namespace format;
+
+    print("gencat v1.0");
+    paragraph("usage: gencat [options]");
+
+    header("List of generic options:");
+    bullet("verbose", "[flag] print additional information in the standard output while "
+        "the program is running");
+    bullet("help", "[flag] print this text and exit");
+    bullet("cosmo", "[string] set of cosmological parameters (possible values: "+
+        collapse(cosmo_list(), ", ")+", default: std)");
+    bullet("seed", "[uint] number used to initialize the random number generator "
+        "(default: 42)");
+    bullet("out", "[string] number used to initialize the random number generator "
+        "(default: gencat-"+today()+".fits)");
+    print("");
+
+    header("List of library related options:");
+    bullet("mass_func", "[string] FITS file containing the mass functions (default: "
+        "mass_func_candels.fits)");
+    bullet("ir_lib", "[string] FITS file containing the IR SED library (default: "
+        "ir_lib_ce01.fits)");
+    bullet("opt_lib", "[string] FITS file containing the optical SED library (default: "
+        "opt_lib_fast.fits)");
+    bullet("filter_db", "[string] location of the filter database file (default: "+
+        data_dir+"fits/filter-db/db.dat)");
+    print("");
+
+    header("List of component related options:");
+    bullet("no_pos", "[flag] do not generate galaxy positions on the sky");
+    bullet("no_clust", "[flag] do not generate clustering in galaxy positions");
+    bullet("no_opt_flux", "[flag] do not generate optical fluxes");
+    bullet("no_ir_flux", "[flag] do not generate IR fluxes");
+    print("");
+
+    header("List of sky position related options:");
+    bullet("ra0", "[double, degrees] sky position of the center of the field "
+        "(right ascension, default: 53.558750)");
+    bullet("dec0", "[double, degrees] sky position of the center of the field "
+        "(declination, default: -27.176001)");
+    bullet("area", "[double, square degrees] sky area occupied by the generated field "
+        "(default: 0.08)");
+    print("");
+
+    header("List of galaxy properties related options:");
+    bullet("mmin", "[double, log10 msun] minimum stellar mass generated (default: 7)");
+    bullet("mmax", "[double, log10 msun] maximum stellar mass generated (default: 12)");
+    bullet("maglim", "[double, AB mag] maximum magnitude that will be generated "
+        "(default: none). Note that, when set, this parameter overrides 'mmin'.");
+    bullet("zmin", "[double] minimum redshift generated (default: 0.01)");
+    bullet("zmax", "[double] maximum redshift generated (default: 10)");
+    bullet("min_dz", "[double] minimum size of a redshift bin (default: 0.05)");
+    bullet("dz", "[double] size of a redshift bin, as a fraction of (1+z) "
+        "(default: 0.1)");
+    bullet("dm", "[double, dex] size of a mass bin (default: 0.05)");
+    bullet("ms_disp", "[double, dex] scatter of the main sequence (default: 0.3)");
+    print("");
+
+    header("List of flux related options:");
+    bullet("selection_band", "[string] if 'maglim' is set, name of band in which the "
+        "magnitude cut is applied (default: none)");
+    bullet("bands", "[string array] optical and IR bands for which to generate fluxes");
+    print("");
+
+    header("List of available bands:");
+    if (!file::exists(filter_db_file)) {
+        warning("could not find filter database file '", filter_db_file, "'");
+        note("when running gencat, please set the options 'no_opt_flux' and 'no_ir_flux'");
+        note("and do not use the 'maglim' feature");
+    } else {
+        vec1s fils;
+        auto filter_db = read_filter_db(filter_db_file);
+        for (auto fil : filter_db) {
+            fils.push_back(fil.first);
+        }
+
+        paragraph(collapse(fils, ", "));
+    }
 }
