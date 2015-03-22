@@ -114,7 +114,9 @@ int main(int argc, char* argv[]) {
             p_mstar1[z], p_index1[z], p_phistar1[z], p_mstar1[z], p_index2[z], p_phistar2[z]);
     }
 
-    fits::write_table("mass_func_candels.fits", out);
+    fits::write_table("mass_func_candels.fits", ftable(
+        out.zb, out.mb, out.active, out.passive, out.imf
+    ));
 
     return 0;
 }

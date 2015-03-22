@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
     std::string mass_func_file = "mass_func.fits";
     std::string ir_lib_file = "ir_lib_ce01.fits";
     std::string opt_lib_file = "opt_lib_fast.fits";
-    std::string out_file = "gencat-"+today()+".fits";
+    std::string out_file = "";
     std::string filter_db_file = data_dir+"fits/filter-db/db.dat";
 
     uint_t tseed = 42;
@@ -784,11 +784,30 @@ if (!no_pos) {
     }
 }
 
+    // Save the catalog to a file
+    // --------------------------
+
     if (verbose) {
         note("saving catalog...");
     }
 
-    fits::write_table(out_file, out);
+    if (out_file.empty()) {
+        out_file = "gencat-"+today()+".fits";
+    }
+
+    file::mkdir(file::get_directory(out_file));
+
+    fits::write_table(out_file, ftable(
+        out.id, out.ra, out.dec, out.z, out.d, out.m, out.sfr, out.rsb,
+        out.disk_angle, out.disk_radius, out.disk_ratio,
+        out.bulge_angle, out.bulge_radius, out.bulge_ratio,
+        out.bt, out.m_disk, out.m_bulge, out.passive,
+        out.rfuv_bulge, out.rfuv_disk, out.rfvj_bulge, out.rfvj_disk,
+        out.sfrir, out.sfruv, out.irx, out.lir, out.ir_sed,
+        out.opt_sed_bulge, out.opt_sed_disk,
+        out.flux, out.flux_disk, out.flux_bulge,
+        out.bands, out.lambda, out.zb
+    ));
 
     return 0;
 }
