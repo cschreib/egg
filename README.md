@@ -7,6 +7,13 @@ This set of tools can be used to test source extraction codes, or to evaluate th
 You must have the [phy++] library installed on your machine to compile gencat.
 [CMake] is used as a build system to handle dependency checks and compilation in a cross-platform way.
 
+One you have installed all the dependencies, create yourself a directory called 'build' within this directory. Navigate to the 'build' directory with your terminal, and call:
+
+    cmake ../
+    make install
+
+The binaries will be generated in the 'bin' folder.
+
 # Usage
 See the output of 'gencat help'.
 For further and more detailed help, see the documentation in the 'doc/' folder.
