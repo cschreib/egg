@@ -64,11 +64,6 @@ int main(int argc, char* argv[]) {
         note("initializing filters...");
     }
 
-    if (count(bands == selection_band) == 0) {
-        error("selection_band (", selection_band, ") is not found in bands");
-        return 1;
-    }
-
     auto filter_db = read_filter_db(filter_db_file);
 
     // Sort the bands by increasing wavelength
@@ -178,7 +173,12 @@ int main(int argc, char* argv[]) {
 
     if (finite(maglim)) {
         if (verbose) {
-            note("estimating redshift-dependend mass limit");
+            note("estimating redshift-dependend mass limit...");
+        }
+
+        if (count(bands == selection_band) == 0) {
+            error("selection_band (", selection_band, ") is not found in bands");
+            return 1;
         }
 
         // A magnitude limite was requested.
