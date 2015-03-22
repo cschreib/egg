@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
     bool no_opt_sed = false;
     bool no_ir_flux = false;
 
-    std::string mass_func_file = "mass_func.fits";
+    std::string mass_func_file = "mass_func_candels.fits";
     std::string ir_lib_file = "ir_lib_ce01.fits";
     std::string opt_lib_file = "opt_lib_fast.fits";
     std::string out_file = "";
