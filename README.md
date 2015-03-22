@@ -7,10 +7,10 @@ This set of tools can be used to test source extraction codes, or to evaluate th
 You must have the phy++ library[2] installed on your machine to compile gencat.
 CMake[3] is used as a build system to handle dependency checks and compilation in a cross-platform way.
 
-[1] http://www.astromatic.net/software/skymaker
-[2] http://cschreib.github.io/phypp/
-[3] http://www.cmake.org/
-
 # Usage
 See the output of 'gencat help'.
 For further and more detailed help, see the documentation in the 'doc/' folder.
+
+[1]: http://www.astromatic.net/software/skymaker
+[2]: http://cschreib.github.io/phypp/
+[3]: http://www.cmake.org/
