@@ -29,12 +29,12 @@ function(add_phypp_target CPP_FILE_NAME)
 
     # Define the command to generate the binary file
     if(CMAKE_BUILD_TYPE MATCHES Debug)
-        add_custom_command(OUTPUT ${FILE_BASE}-make VERBATIM COMMAND
-            ${PHYPP_COMPILER} debug ${PROJECT_SOURCE_DIR}/${CPP_FILE_NAME} -o ${CMAKE_CURRENT_BINARY_DIR}/${FILE_BASE}-make
+        add_custom_command(OUTPUT "${FILE_BASE}-make" VERBATIM COMMAND
+            ${PHYPP_COMPILER} debug "${PROJECT_SOURCE_DIR}/${CPP_FILE_NAME}" -o "${CMAKE_CURRENT_BINARY_DIR}/${FILE_BASE}-make"
             DEPENDS ${PROJECT_SOURCE_DIR}/${CPP_FILE_NAME} ${PHYPP_HEADERS})
     else()
-        add_custom_command(OUTPUT ${FILE_BASE}-make VERBATIM COMMAND
-            ${PHYPP_COMPILER} optimize ${PROJECT_SOURCE_DIR}/${CPP_FILE_NAME} -o ${CMAKE_CURRENT_BINARY_DIR}/${FILE_BASE}-make
+        add_custom_command(OUTPUT "${FILE_BASE}-make" VERBATIM COMMAND
+            ${PHYPP_COMPILER} optimize "${PROJECT_SOURCE_DIR}/${CPP_FILE_NAME}" -o "${CMAKE_CURRENT_BINARY_DIR}/${FILE_BASE}-make"
             DEPENDS ${PROJECT_SOURCE_DIR}/${CPP_FILE_NAME} ${PHYPP_HEADERS})
     endif()
 
