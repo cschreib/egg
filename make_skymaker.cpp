@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
     fits::ad2xy(fits::wcs(hdr), cat.ra, cat.dec, x, y);
 
     vec1u ids;
-    if (finite(maglim)) {
+    if (is_finite(maglim)) {
         ids = where(mag < maglim);
         if (ids.empty()) {
             error("no source brighter than ", maglim);
@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
         }
     } else {
         ids = uindgen(x.size());
-        vec1u idbad = where(!finite(mag));
+        vec1u idbad = where(!is_finite(mag));
         mag[idbad] = 99;
     }
 

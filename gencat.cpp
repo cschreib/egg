@@ -186,7 +186,7 @@ int main(int argc, char* argv[]) {
     // ---------------------------
     vec1f z_mmin(nz);
 
-    if (finite(maglim)) {
+    if (is_finite(maglim)) {
         if (verbose) {
             note("estimating redshift-dependend mass limit...");
         }
@@ -468,10 +468,10 @@ int main(int argc, char* argv[]) {
     vec1f pbt = clamp(e10(0.1*(out.m[idp] - 10.0) - 0.3 + 0.2*randomn(seed, npassive)), 0.0, 1.0);
     append(out.bt, pbt);
     out.m_bulge = out.m + log10(out.bt);
-    vec1u idnf = where(!finite(out.m_bulge));
+    vec1u idnf = where(!is_finite(out.m_bulge));
     out.m_bulge[idnf] = 0;
     out.m_disk = out.m + log10(1.0-out.bt);
-    idnf = where(!finite(out.m_disk));
+    idnf = where(!is_finite(out.m_disk));
     out.m_disk[idnf] = 0;
 
     // Generate morphology
@@ -716,7 +716,7 @@ if (!no_ir_flux) {
     }
 
     out.lir = out.sfrir/1.72e-10;
-    vec1u idb = where(!finite(out.lir));
+    vec1u idb = where(!is_finite(out.lir));
     out.lir[idb] = 0.0;
 
     vec1u idg = where(out.lir > 0.0);
