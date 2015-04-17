@@ -95,12 +95,37 @@ int main(int argc, char* argv[]) {
     // ------------------------
 
     // The IR library. Each template must be normalized to unit LIR.
-    // For now, this must be the Chary & Elbaz library.
     struct {
         vec2d lam, sed;
     } ir_lib;
 
-    fits::read_table(ir_lib_file, ftable(ir_lib.lam, ir_lib.sed));
+    auto cols = fits::read_table_columns(ir_lib_file);
+    for (auto& c : cols) {
+        if (c.name == "sed") {
+            if (c.dims.size() == 1) {
+                struct {
+                    vec1d lam, sed;
+                } tmp;
+
+                fits::read_table(ir_lib_file, tmp);
+
+                ir_lib.lam.resize(1, tmp.lam.size());
+                ir_lib.sed.resize(1, tmp.lam.size());
+
+                ir_lib.lam(0,_) = tmp.lam;
+                ir_lib.sed(0,_) = tmp.sed;
+            } else if (c.dims.size() == 2) {
+                fits::read_table(ir_lib_file, ftable(ir_lib.lam, ir_lib.sed));
+            } else {
+                error("IR library must contain either 1D or 2D columns LAM and SED");
+                return 1;
+            }
+
+            break;
+        }
+    }
+
+    uint_t nirsed = ir_lib.sed.dims[0];
 
     // The optical library. Each template must be normalized to unit stellar mass.
     // The library is binned in redshift, U-V and V-J colors.
@@ -647,13 +672,23 @@ if (!no_opt_sed) {
         note("assigning IR SED...");
     }
 
-    vec1u ir_sed = round(clamp(
-        // Observed (deboosted)
-        interpolate({35, 40, 50, 55, 65, 80}, {0.5, 1.0, 1.6, 2.3, 3.0, 4.0}, out.z[ida])
-        // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
-        + 15*clamp(out.rsb[ida]/ms_disp, -2.0, 2.0),
-        0, ir_lib.sed.dims[0]-1
-    ));
+    vec1u ir_sed;
+
+    if (nirsed == 1) {
+        ir_sed = replicate(0, nactive);
+    } else if (ir_lib_file == "ir_lib_ce01.fits") {
+        // The Chary & Elbaz 2001 library, redshift evolution calibrated from stacks
+        ir_sed = round(clamp(
+            // Observed (deboosted)
+            interpolate({35, 40, 50, 55, 65, 80}, {0.5, 1.0, 1.6, 2.3, 3.0, 4.0}, out.z[ida])
+            // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
+            + 15*clamp(out.rsb[ida]/ms_disp, -2.0, 2.0),
+            0, nirsed-1
+        ));
+    } else {
+        error("no calibration code available for the IR library '", ir_lib_file, "'");
+        return 1;
+    }
 
     append(out.ir_sed, ir_sed);
     append(out.ir_sed, replicate(0u, npassive));
