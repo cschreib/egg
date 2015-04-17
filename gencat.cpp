@@ -90,18 +90,6 @@ int main(int argc, char* argv[]) {
     // Split bands into optical and IR based on wavelength (10um is the pivot point)
     // Fluxes in optical bands will be computed from the optical SED, while the fluxes
     // in the IR bands will be computed from the IR SED (see below).
-    vec1u id_opt, id_ir;
-    for (uint_t i : range(filters)) {
-        if (filters[i].rlam > 10.0) {
-            id_ir.push_back(i);
-        } else {
-            id_opt.push_back(i);
-        }
-    }
-
-    if (verbose) {
-        note(id_opt.size(), " optical bands and ", id_ir.size(), " IR bands");
-    }
 
     // Initialize SED libraries
     // ------------------------
@@ -698,8 +686,10 @@ if (!no_opt_flux) {
             const vec1f lam = rlam*(1.0 + z[i]);
             const vec1f sed = lsun2uJy(z[i], d[i], rlam, rsed);
 
-            for (uint_t b : id_opt) {
-                flux(i,b) = e10(m[i])*sed2flux(filters[b], lam, sed);
+            for (uint_t b : range(filters)) {
+                if (filters[b].rlam/(1.0+z[i]) < 6.0) {
+                    flux(i,b) = e10(m[i])*sed2flux(filters[b], lam, sed);
+                }
             }
 
             if (verbose) progress(pg1, 127);
@@ -727,9 +717,11 @@ if (!no_ir_flux) {
             ir_lib.lam(out.ir_sed[i],_), ir_lib.sed(out.ir_sed[i],_)
         );
 
-        for (uint_t b : id_ir) {
-            // out the IR flux goes to the disk
-            out.flux_disk(i,b) = out.lir[i]*sed2flux(filters[b], lam, sed);
+        for (uint_t b : range(filters)) {
+            // all the IR flux goes to the disk
+            if (filters[b].rlam/(1.0+out.z[i]) >= 6.0) {
+                out.flux_disk(i,b) = out.lir[i]*sed2flux(filters[b], lam, sed);
+            }
         }
 
         if (verbose) progress(pg1, 127);
