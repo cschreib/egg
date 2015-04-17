@@ -101,13 +101,13 @@ int main(int argc, char* argv[]) {
 
     auto cols = fits::read_table_columns(ir_lib_file);
     for (auto& c : cols) {
-        if (c.name == "sed") {
+        if (c.name == "SED") {
             if (c.dims.size() == 1) {
                 struct {
                     vec1d lam, sed;
                 } tmp;
 
-                fits::read_table(ir_lib_file, tmp);
+                fits::read_table(ir_lib_file, ftable(tmp.lam, tmp.sed));
 
                 ir_lib.lam.resize(1, tmp.lam.size());
                 ir_lib.sed.resize(1, tmp.lam.size());
@@ -123,6 +123,11 @@ int main(int argc, char* argv[]) {
 
             break;
         }
+    }
+
+    if (ir_lib.sed.empty() || ir_lib.lam.empty()) {
+        error("missing LAM and/or SED columns in the IR library file");
+        return 1;
     }
 
     uint_t nirsed = ir_lib.sed.dims[0];
