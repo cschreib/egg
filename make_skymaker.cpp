@@ -44,6 +44,10 @@ int main(int argc, char* argv[]) {
     vec1f mag = uJy2mag(cat.flux_disk(_,b)+cat.flux_bulge(_,b));
     vec1f bt = cat.flux_bulge(_,b)/(cat.flux_disk(_,b)+cat.flux_bulge(_,b));
 
+    // Convert effective radius to scale length, which is what SkyMaker expects
+    // (NB: only for the disk, the bulge size has to be the effective radius)
+    cat.disk_radius /= 1.678;
+
     fits::make_wcs_header_params wcs_params;
     wcs_params.pixel_scale = aspix;
     wcs_params.pixel_ref_x = 0.0; wcs_params.pixel_ref_y = 0.0;
