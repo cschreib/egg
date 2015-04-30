@@ -780,7 +780,16 @@ if (!no_ir_flux) {
         for (uint_t b : range(filters)) {
             // all the IR flux goes to the disk
             if (filters[b].rlam/(1.0+out.z[i]) >= 6.0) {
-                out.flux_disk(i,b) = out.lir[i]*sed2flux(filters[b], lam, sed);
+                double x = log10(filters[b].rlam/(1.0+out.z[i])/90.0);
+                double disp = clamp(0.325*exp(x/0.585) + 1.49*exp(-x/3.81) +
+                    0.098*exp(-sqr(x+0.432)/0.068) - 1.75, 0.0, 0.3);
+                double rr = randomn(seed);
+                while (fabs(rr) > 1.5) {
+                    rr = randomn(seed);
+                }
+
+                out.flux_disk(i,b) = out.lir[i]*sed2flux(filters[b], lam, sed)
+                    *e10(rr*disp);
             }
         }
 
