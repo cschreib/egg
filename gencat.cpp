@@ -702,6 +702,14 @@ if (!no_opt_sed) {
             + 15*clamp(out.rsb[ida]/ms_disp, -2.0, 2.0),
             0, nirsed-1
         ));
+    } else if (ir_lib_file == "ir_lib_m12.fits") {
+        // The Magdis et al. 2012 library, using their reported redshift evolution
+        ir_sed = round(clamp(
+            interpolate(findgen(nirsed), {0.0125, 0.1625, 0.4625, 0.8125, 1.15, 1.525, 2.0, 2.635}, out.z[ida])
+            // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
+            + clamp(out.rsb[ida]/ms_disp, -2.0, 2.0),
+            0, nirsed-1
+        ));
     } else {
         error("no calibration code available for the IR library '", ir_lib_file, "'");
         return 1;
