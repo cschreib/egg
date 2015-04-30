@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
     double mmax = 12.0;
     double maglim = dnan;
     double zmin = 0.01;
-    double zmax = 7.0;
+    double zmax = 9.0;
     double min_dz = 0.05;
     double bin_dz = 0.1;
     double bin_dm = 0.05;
