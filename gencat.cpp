@@ -697,7 +697,7 @@ if (!no_opt_sed) {
         // The Chary & Elbaz 2001 library, redshift evolution calibrated from stacks
         ir_sed = round(clamp(
             // Observed (deboosted)
-            interpolate({35, 40, 50, 55, 65, 80}, {0.5, 1.0, 1.6, 2.3, 3.0, 4.0}, out.z[ida])
+            interpolate({26, 26, 40, 54, 53, 52, 52}, {0.57, 1.0, 1.5, 2.1, 2.9, 4.0, 6.0}, out.z[ida])
             // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
             + 15*clamp(out.rsb[ida]/ms_disp, -2.0, 2.0),
             0, nirsed-1
