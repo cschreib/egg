@@ -397,6 +397,8 @@ int main(int argc, char* argv[]) {
         vec1f lambda;
 
         vec2f zb;
+
+        std::string cmd;
     } out;
 
     out.zb = zb;
@@ -843,6 +845,8 @@ if (!no_pos) {
         out_file = "gencat-"+today()+".fits";
     }
 
+    out.cmd = make_cmd(argc, argv);
+
     file::mkdir(file::get_directory(out_file));
 
     fits::write_table(out_file, ftable(
@@ -854,7 +858,7 @@ if (!no_pos) {
         out.sfrir, out.sfruv, out.irx, out.lir, out.ir_sed,
         out.opt_sed_bulge, out.opt_sed_disk,
         out.flux, out.flux_disk, out.flux_bulge,
-        out.bands, out.lambda, out.zb
+        out.bands, out.lambda, out.zb, out.cmd
     ));
 
     return 0;
