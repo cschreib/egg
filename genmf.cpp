@@ -43,8 +43,8 @@ int main(int argc, char* argv[]) {
 
     read_args(argc, argv, arg_list(mmin, mmax, dm));
 
-    vec1f zl = {0.0, 0.3, 0.7, 1.2, 1.9, 2.5, 3.5, 4.5, 5.5, 6.5};
-    vec1f zu = {0.3, 0.7, 1.2, 1.9, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5};
+    vec1f zl = {0.0, 0.3, 0.7, 1.2, 1.9, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5};
+    vec1f zu = {0.3, 0.7, 1.2, 1.9, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5};
 
     // Active
     // Note: first redshift bin is from Baldry et al. (2012) (converted to Salpeter)
@@ -56,10 +56,10 @@ int main(int argc, char* argv[]) {
     vec1f a_index2   = {0.500000, 0.500000, 0.500000, 0.500000, 0.500000, 0.500000, 0.500000};
 
     // Note: z > 4.0 is obtained by keeping the shape of the z=[3.0,4.0] bin and
-    //       decreasing phistar, more or less following Grazian et al. (2014)
+    //       decreasing phistar, more or less following the trend of Grazian et al. (2015)
     uint_t ilast = a_mstar.size()-1;
-    vec1f decrease = {0.63, 0.32, 0.13};
-    for (uint_t i : range(3)) {
+    vec1f decrease = {0.63, 0.32, 0.13, 0.061, 0.028, 0.013};
+    for (uint_t i : range(decrease)) {
         a_mstar.push_back(a_mstar[ilast]);
         a_index1.push_back(a_index1[ilast]);
         a_index2.push_back(a_index2[ilast]);
@@ -77,9 +77,9 @@ int main(int argc, char* argv[]) {
     vec1f p_index2 = {0.08, -0.136292, 0.0702109, 0.261546, -0.334458, -0.262291, -0.30000};
 
     // Note: z > 4.0 is obtained by keeping the shape of the z=[3.0,4.0] bin and
-    //       decreasing phistar, more or less following the trend of Grazian et al. (2014)
+    //       decreasing phistar, more or less following the trend of Grazian et al. (2015)
     ilast = p_mstar1.size()-1;
-    for (uint_t i : range(3)) {
+    for (uint_t i : range(decrease)) {
         p_mstar1.push_back(p_mstar1[ilast]);
         p_mstar2.push_back(p_mstar2[ilast]);
         p_index1.push_back(p_index1[ilast]);
