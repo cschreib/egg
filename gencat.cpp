@@ -537,16 +537,26 @@ int main(int argc, char* argv[]) {
     }
 
     {
+        // Active galaxies
         vec1f az = log10(1.0 + out.z);
         vec1f sfr = out.m[ida] - 9.5 + 1.5*az[ida]
             - 0.30*sqr(max(0.0, out.m[ida] - 9.36 - 2.5*az[ida]))
             - 0.5*log(10)*sqr(0.3); // mean -> median
 
+        // Add dispersion
         vec1f rsb = ms_disp*randomn(seed, nactive);
+
+        // Add starbursts
+        vec1u idsb = where(random_coin(seed, 0.033, nactive));
+        rsb[idsb] += 0.72;
+
         append(out.rsb, rsb);
+
+        // Make final SFR
         sfr += rsb;
         append(out.sfr, e10(sfr));
 
+        // Passive galaxies
         sfr = 0.5*(out.m[idp] - 11)
             + az[idp] - 0.6
             + 0.45*randomn(seed, npassive);
