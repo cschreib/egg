@@ -795,10 +795,6 @@ if (!no_ir_flux) {
 
         if (verbose) progress(pg1, 127);
     }
-
-    // Manually correct the SPIRE fluxes up
-    vec1u idspire = where(is_any_of(bands, {"s1", "s2", "s3"}));
-    out.flux_disk(_,idspire) *= 1.3;
 }
 
 if (!no_opt_flux || !no_ir_flux) {
