@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
     bool no_ir_flux = false;
 
     std::string mass_func_file = "mass_func_candels.fits";
-    std::string ir_lib_file = "ir_lib_ce01.fits";
+    std::string ir_lib_file = "ir_lib_cs15.fits";
     std::string opt_lib_file = "opt_lib_fast.fits";
     std::string out_file = "";
     std::string filter_db_file = data_dir+"fits/filter-db/db.dat";
@@ -87,50 +87,65 @@ int main(int argc, char* argv[]) {
 
     auto filters = get_filters(filter_db, bands);
 
-    // Split bands into optical and IR based on wavelength (10um is the pivot point)
-    // Fluxes in optical bands will be computed from the optical SED, while the fluxes
-    // in the IR bands will be computed from the IR SED (see below).
-
     // Initialize SED libraries
     // ------------------------
 
-    // The IR library. Each template must be normalized to unit LIR.
+    // The IR library. When using the generic code for IR libraries, each template must
+    // be normalized to unit LIR. If a more subtle calibration needs to be used, then
+    // a custom code has to be written.
     struct {
         vec2d lam, sed;
     } ir_lib;
 
-    auto cols = fits::read_table_columns(ir_lib_file);
-    for (auto& c : cols) {
-        if (c.name == "SED") {
-            if (c.dims.size() == 1) {
-                struct {
-                    vec1d lam, sed;
-                } tmp;
+    struct {
+        vec2d lam, dust, pah;
+        vec1d tdust, lir_dust, lir_pah;
+    } ir_lib_cs15;
 
-                fits::read_table(ir_lib_file, ftable(tmp.lam, tmp.sed));
+    uint_t nirsed;
+    if (ir_lib_file == "ir_lib_cs15.fits") {
+        // My library, calibrated in unit Mdust
+        fits::read_table(ir_lib_file, ftable(
+            ir_lib_cs15.lam, ir_lib_cs15.dust, ir_lib_cs15.pah,
+            ir_lib_cs15.tdust, ir_lib_cs15.lir_dust, ir_lib_cs15.lir_pah
+        ));
 
-                ir_lib.lam.resize(1, tmp.lam.size());
-                ir_lib.sed.resize(1, tmp.lam.size());
+        nirsed = ir_lib_cs15.lam.dims[0];
+    } else {
+        // Generic library
+        auto cols = fits::read_table_columns(ir_lib_file);
+        for (auto& c : cols) {
+            if (c.name == "SED") {
+                if (c.dims.size() == 1) {
+                    struct {
+                        vec1d lam, sed;
+                    } tmp;
 
-                ir_lib.lam(0,_) = tmp.lam;
-                ir_lib.sed(0,_) = tmp.sed;
-            } else if (c.dims.size() == 2) {
-                fits::read_table(ir_lib_file, ftable(ir_lib.lam, ir_lib.sed));
-            } else {
-                error("IR library must contain either 1D or 2D columns LAM and SED");
-                return 1;
+                    fits::read_table(ir_lib_file, ftable(tmp.lam, tmp.sed));
+
+                    ir_lib.lam.resize(1, tmp.lam.size());
+                    ir_lib.sed.resize(1, tmp.lam.size());
+
+                    ir_lib.lam(0,_) = tmp.lam;
+                    ir_lib.sed(0,_) = tmp.sed;
+                } else if (c.dims.size() == 2) {
+                    fits::read_table(ir_lib_file, ftable(ir_lib.lam, ir_lib.sed));
+                } else {
+                    error("IR library must contain either 1D or 2D columns LAM and SED");
+                    return 1;
+                }
+
+                break;
             }
-
-            break;
         }
-    }
 
-    if (ir_lib.sed.empty() || ir_lib.lam.empty()) {
-        error("missing LAM and/or SED columns in the IR library file");
-        return 1;
-    }
+        if (ir_lib.sed.empty() || ir_lib.lam.empty()) {
+            error("missing LAM and/or SED columns in the IR library file");
+            return 1;
+        }
 
-    uint_t nirsed = ir_lib.sed.dims[0];
+        nirsed = ir_lib.sed.dims[0];
+    }
 
     // The optical library. Each template must be normalized to unit stellar mass.
     // The library is binned in redshift, U-V and V-J colors.
@@ -380,6 +395,8 @@ int main(int argc, char* argv[]) {
         vec1f bulge_angle, bulge_radius, bulge_ratio;
         vec1f bt, m_disk, m_bulge;
 
+        vec1f tdust, fpah;
+
         vec1b passive;
 
         // Flux properties
@@ -539,9 +556,8 @@ int main(int argc, char* argv[]) {
     {
         // Active galaxies
         vec1f az = log10(1.0 + out.z);
-        vec1f sfr = out.m[ida] - 9.5 + 1.5*az[ida]
-            - 0.30*sqr(max(0.0, out.m[ida] - 9.36 - 2.5*az[ida]))
-            - 0.5*log(10)*sqr(0.3); // mean -> median
+        vec1f sfr = out.m[ida] - 9.67 + 1.82*az[ida]
+            - 0.38*sqr(max(0.0, out.m[ida] - 9.59 - 2.22*az[ida]));
 
         // Add dispersion
         vec1f rsb = ms_disp*randomn(seed, nactive);
@@ -689,27 +705,41 @@ if (!no_opt_sed) {
         note("assigning IR SED...");
     }
 
+    // Tdust and f_PAH as observed in stacks and detections of Herschel galaxies
+    out.tdust.resize(ngal);
+    out.fpah.resize(ngal);
+
+    out.tdust[ida] = 27.54*pow(1.0+out.z[ida], 0.34)
+        // Starbursts are warmer
+        + 5.79*max(0.0, out.rsb[ida])
+        // Add some random scatter
+        + 5.1*randomn(seed, ida.size());
+
+    out.fpah[ida] = (0.02 + 0.035*(1.0-min(2.0, out.z[ida])/2.0))
+        // Starburst have weaker PAH
+        *e10(-0.23*max(0.0, out.rsb[ida]))
+        // Add some random scatter
+        *e10(0.2*randomn(seed, ida.size()));
+
+    out.fpah = clamp(out.fpah, 0.0, 1.0);
+
     vec1u ir_sed;
 
     if (nirsed == 1) {
         ir_sed = replicate(0, nactive);
     } else if (ir_lib_file == "ir_lib_ce01.fits") {
         // The Chary & Elbaz 2001 library, redshift evolution calibrated from stacks
-        ir_sed = round(clamp(
-            // Observed (deboosted)
-            interpolate({26, 26, 40, 54, 53, 52, 52}, {0.57, 1.0, 1.5, 2.1, 2.9, 4.0, 6.0}, out.z[ida])
+        ir_sed = interpolate({26, 26, 40, 54, 53, 52, 52}, {0.57, 1.0, 1.5, 2.1, 2.9, 4.0, 6.0}, out.z[ida])
             // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
-            + 15*clamp(out.rsb[ida]/ms_disp, -2.0, 2.0),
-            0, nirsed-1
-        ));
+            + 15*clamp(out.rsb[ida]/ms_disp, -2.0, 2.0);
     } else if (ir_lib_file == "ir_lib_m12.fits") {
         // The Magdis et al. 2012 library, using their reported redshift evolution
-        ir_sed = round(clamp(
-            interpolate(findgen(nirsed), {0.0125, 0.1625, 0.4625, 0.8125, 1.15, 1.525, 2.0, 2.635}, out.z[ida])
+        ir_sed = interpolate(findgen(nirsed), {0.0125, 0.1625, 0.4625, 0.8125, 1.15, 1.525, 2.0, 2.635}, out.z[ida])
             // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
-            + clamp(out.rsb[ida]/ms_disp, -2.0, 2.0),
-            0, nirsed-1
-        ));
+            + clamp(out.rsb[ida]/ms_disp, -2.0, 2.0);
+    } else if (ir_lib_file == "ir_lib_cs15.fits") {
+        // My own library, using calibration from stacks and detections
+        ir_sed = interpolate(findgen(nirsed), ir_lib_cs15.tdust, out.tdust[ida]);
     } else {
         error("no calibration code available for the IR library '", ir_lib_file, "'");
         return 1;
@@ -717,6 +747,8 @@ if (!no_opt_sed) {
 
     append(out.ir_sed, ir_sed);
     append(out.ir_sed, replicate(0u, npassive));
+
+    out.ir_sed = round(clamp(out.ir_sed, 0, nirsed-1));
 
     // Compute fluxes
     // --------------
@@ -772,24 +804,33 @@ if (!no_ir_flux) {
     vec1u idg = where(out.lir > 0.0);
     auto pg1 = progress_start(idg.size());
     for (uint_t i : idg) {
-        const vec1d lam = ir_lib.lam(out.ir_sed[i],_)*(1.0 + out.z[i]);
-        const vec1d sed = lsun2uJy(out.z[i], out.d[i],
-            ir_lib.lam(out.ir_sed[i],_), ir_lib.sed(out.ir_sed[i],_)
-        );
+        vec1d lam, sed;
+        if (ir_lib_file == "ir_lib_cs15.fits") {
+            // My library
+            lam = ir_lib_cs15.lam(out.ir_sed[i],_);
+            sed = ir_lib_cs15.dust(out.ir_sed[i],_)*(1.0 - out.fpah[i])
+                + ir_lib_cs15.pah(out.ir_sed[i],_)*out.fpah[i];
+
+            // SED is in unit Mdust, make it unit LIR
+            sed /= ir_lib_cs15.lir_dust[out.ir_sed[i]]*(1.0 - out.fpah[i])
+                + ir_lib_cs15.lir_pah[out.ir_sed[i]]*out.fpah[i];
+
+            // Finally multiply by LIR
+            sed *= out.lir[i];
+        } else {
+            // Generic library, SEDs in units of LIR
+            lam = ir_lib.lam(out.ir_sed[i],_);
+            sed = out.lir[i]*ir_lib.sed(out.ir_sed[i],_);
+        }
+
+        // Redshift the SED
+        sed = lsun2uJy(out.z[i], out.d[i], lam, sed);
+        lam *= (1.0 + out.z[i]);
 
         for (uint_t b : range(filters)) {
             // all the IR flux goes to the disk
             if (filters[b].rlam/(1.0+out.z[i]) >= 6.0) {
-                double x = log10(filters[b].rlam/(1.0+out.z[i])/90.0);
-                double disp = clamp(0.325*exp(x/0.585) + 1.49*exp(-x/3.81) +
-                    0.098*exp(-sqr(x+0.432)/0.068) - 1.75, 0.0, 0.3);
-                double rr = randomn(seed);
-                while (fabs(rr) > 1.5) {
-                    rr = randomn(seed);
-                }
-
-                out.flux_disk(i,b) = out.lir[i]*sed2flux(filters[b], lam, sed)
-                    *e10(rr*disp);
+                out.flux_disk(i,b) = sed2flux(filters[b], lam, sed);
             }
         }
 
@@ -809,12 +850,20 @@ if (!no_pos) {
         note("generating sky positions...");
     }
 
+    out.ra.resize(ngal);
+    out.dec.resize(ngal);
+
     auto pg = progress_start(nz);
+    for (uint_t im : range(2))
     for (uint_t iz : range(nz)) {
-        vec1u idz = where(in_bin_open(out.z, zb, iz));
+        // Per redshift bin, we treat massive and low mass galaxies separately.
+        // Assuming more clustering for the most massive objects (im == 0).
+
+        vec1u idz = where(in_bin_open(out.z, zb, iz) && (im == 0 ? out.m < 10.5 : out.m >= 10.5));
         uint_t z_ngal = idz.size();
 
-        double rnd_frac = (no_clust ? 1.0 : 0.6); // use clustering for only 40% of the sample
+        // Use clustering for only 40% of the sample (low mass) or 60% (high mass)
+        double rnd_frac = (no_clust ? 1.0 : im == 0 ? 0.6 : 0.3);
         uint_t nrnd = std::min(z_ngal, uint_t(ceil(rnd_frac*z_ngal)));
         uint_t nclust = z_ngal - nrnd;
 
@@ -850,8 +899,8 @@ if (!no_pos) {
 
         vec1u rid = shuffle(seed, uindgen(z_ngal));
 
-        append(out.ra, ra[rid]);
-        append(out.dec, dec[rid]);
+        out.ra[idz] = ra[rid];
+        out.dec[idz] = dec[rid];
 
         if (verbose) progress(pg);
     }
@@ -881,6 +930,7 @@ if (!no_pos) {
         out.sfrir, out.sfruv, out.irx, out.lir, out.ir_sed,
         out.opt_sed_bulge, out.opt_sed_disk,
         out.flux, out.flux_disk, out.flux_bulge,
+        out.tdust, out.fpah,
         out.bands, out.lambda, out.zb, out.cmd
     ));
 
