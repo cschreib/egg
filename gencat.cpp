@@ -589,7 +589,7 @@ int main(int argc, char* argv[]) {
         double airx = 1.2;
         double ss = 0.45, so = 0.35;
         vec1f slope = ss*min(out.z, 3.0) + so;
-        out.irx = e10(slope*(out.m - am) + airx);
+        out.irx = e10(slope*(out.m - am) + airx + 0.4*randomn(seed, ngal));
 
         out.sfrir = out.sfr/(1.0 + 1.0/out.irx);
         out.sfruv = out.sfr/(1.0 + out.irx);
