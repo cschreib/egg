@@ -862,7 +862,7 @@ if (!no_pos) {
         vec1u idz = where(in_bin_open(out.z, zb, iz) && (im == 0 ? out.m < 10.5 : out.m >= 10.5));
         uint_t z_ngal = idz.size();
 
-        // Use clustering for only 40% of the sample (low mass) or 60% (high mass)
+        // Use clustering for only 40% of the sample (low mass) or 70% (high mass)
         double rnd_frac = (no_clust ? 1.0 : im == 0 ? 0.6 : 0.3);
         uint_t nrnd = std::min(z_ngal, uint_t(ceil(rnd_frac*z_ngal)));
         uint_t nclust = z_ngal - nrnd;
