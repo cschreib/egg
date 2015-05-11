@@ -715,7 +715,7 @@ if (!no_opt_sed) {
         // Add some random scatter
         + 5.1*randomn(seed, ida.size());
 
-    out.fpah[ida] = (0.02 + 0.035*(1.0-min(2.0, out.z[ida])/2.0))
+    out.fpah[ida] = (0.02 + 0.035*(1.0-min(1.0, out.z[ida])/2.0))
         // Starburst have weaker PAH
         *e10(-0.23*max(0.0, out.rsb[ida]))
         // Add some random scatter
