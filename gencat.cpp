@@ -280,9 +280,11 @@ int main(int argc, char* argv[]) {
     // Initialize sky positions
     // ------------------------
 
-    // We will generate a square of requested area around the reference position
+    // The shape of the generated survey can be changed here. The survey boundaries
+    // are defined as a *convex* polygon whose vertices are given in RA and Dec
+    // coordinates below.
+    // The default is to generate a square of requested area around the reference position
     // given by ra0 and dec0.
-    vec1u hull = uindgen(5);
     vec1d hra, hdec; {
         double dd = sqrt(area)/2.0;
         double dr = sqrt(area)/2.0/cos(dec0*dpi/180.0);
@@ -290,6 +292,8 @@ int main(int argc, char* argv[]) {
         hdec = {dec0-dd, dec0-dd, dec0+dd, dec0+dd, dec0-dd};
         hra = {ra0-dr, ra0+dr, ra0+dr, ra0-dr, ra0-dr};
     }
+
+    vec1u hull = uindgen(hra.size());
 
     // Initialize mass functions
     // -------------------------
