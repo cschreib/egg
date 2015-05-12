@@ -711,13 +711,14 @@ if (!no_opt_sed) {
 
     out.tdust[ida] = 27.54*pow(1.0+out.z[ida], 0.34)
         // Starbursts are warmer
-        + 5.79*max(0.0, out.rsb[ida])
+        + 5.79*out.rsb[ida]
         // Add some random scatter
         + 5.1*randomn(seed, ida.size());
 
-    out.fpah[ida] = (0.02 + 0.035*(1.0-min(1.0, out.z[ida])/2.0))
+    // out.fpah[ida] = (0.02 + 0.035*(1.0-min(1.0, out.z[ida])/2.0))
+    out.fpah[ida] = (0.04 + 0.035*(1.0-0.85*clamp(out.z[ida], 1.0, 2.0)))
         // Starburst have weaker PAH
-        *e10(-0.23*max(0.0, out.rsb[ida]))
+        *e10(-0.23*out.rsb[ida])
         // Add some random scatter
         *e10(0.2*randomn(seed, ida.size()));
 
