@@ -630,7 +630,6 @@ int main(int argc, char* argv[]) {
         vec1f a0 = 0.58*erf(m-10) + 1.39;
         vec1f as = -0.34 + 0.3*max(m-10.35, 0.0);
         vec1f a = min(a0 + as*z, 2.0) + 0.1*randomn(seed, m.size());
-        // vec1f a = min(a0 + as*min(z, 3.0), 2.0) + 0.1*randomn(seed, m.size());
 
         // Move in the UVJ diagram according to "attenuation"
         double slope = 0.65;
