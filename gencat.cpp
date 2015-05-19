@@ -716,6 +716,35 @@ if (!no_opt_sed) {
     }
 }
 
+    // Generate IR properties
+    // ---------------------
+
+    if (verbose) {
+        note("generate IR properties...");
+    }
+
+    // Tdust and f_PAH as observed in stacks and detections of Herschel galaxies
+    out.tdust.resize(ngal);
+    out.fpah.resize(ngal);
+
+    out.tdust[ida] = min(24.6*pow(1.0+out.z[ida], 0.37), 29.7*pow(1.0+out.z[ida], 0.20))
+        // Starbursts are warmer
+        + 6.53*out.rsb[ida]
+        // Add some random scatter
+        + (4.05 + 1.43*min(out.z[ida], 2.5))*randomn(seed, ida.size());
+
+    out.fpah[ida] = (0.04 + 0.035*(1.0-0.85*clamp(out.z[ida], 1.0, 2.0)))
+        // Starburst have weaker PAH
+        *e10(-0.34*out.rsb[ida])
+        // Add some random scatter
+        *e10(0.20*randomn(seed, ida.size()));
+
+    out.fpah = clamp(out.fpah, 0.0, 1.0);
+
+    out.lir = out.sfrir/1.72e-10;
+    vec1u idb = where(!is_finite(out.lir));
+    out.lir[idb] = 0.0;
+
     // Assign IR SED
     // -------------
 
@@ -723,51 +752,31 @@ if (!no_opt_sed) {
         note("assigning IR SED...");
     }
 
-    // Tdust and f_PAH as observed in stacks and detections of Herschel galaxies
-    out.tdust.resize(ngal);
-    out.fpah.resize(ngal);
-
-    out.tdust[ida] = 27.54*pow(1.0+out.z[ida], 0.34)
-        // Starbursts are warmer
-        + 5.79*out.rsb[ida]
-        // Add some random scatter
-        + 5.1*randomn(seed, ida.size());
-
-    // out.fpah[ida] = (0.02 + 0.035*(1.0-min(1.0, out.z[ida])/2.0))
-    out.fpah[ida] = (0.04 + 0.035*(1.0-0.85*clamp(out.z[ida], 1.0, 2.0)))
-        // Starburst have weaker PAH
-        *e10(-0.23*out.rsb[ida])
-        // Add some random scatter
-        *e10(0.2*randomn(seed, ida.size()));
-
-    out.fpah = clamp(out.fpah, 0.0, 1.0);
-
-    vec1u ir_sed;
+    // Floating point SED index, we will arrange it into a integer later
+    vec1d fir_sed;
 
     if (nirsed == 1) {
-        ir_sed = replicate(0, nactive);
+        fir_sed = replicate(0, nactive);
     } else if (ir_lib_file == "ir_lib_ce01.fits") {
         // The Chary & Elbaz 2001 library, redshift evolution calibrated from stacks
-        ir_sed = interpolate({26, 26, 40, 54, 53, 52, 52}, {0.57, 1.0, 1.5, 2.1, 2.9, 4.0, 6.0}, out.z[ida])
+        fir_sed = interpolate({26, 26, 40, 54, 53, 52, 52}, {0.57, 1.0, 1.5, 2.1, 2.9, 4.0, 6.0}, out.z[ida])
             // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
             + 15*clamp(out.rsb[ida]/ms_disp, -2.0, 2.0);
     } else if (ir_lib_file == "ir_lib_m12.fits") {
         // The Magdis et al. 2012 library, using their reported redshift evolution
-        ir_sed = interpolate(findgen(nirsed), {0.0125, 0.1625, 0.4625, 0.8125, 1.15, 1.525, 2.0, 2.635}, out.z[ida])
+        fir_sed = interpolate(findgen(nirsed), {0.0125, 0.1625, 0.4625, 0.8125, 1.15, 1.525, 2.0, 2.635}, out.z[ida])
             // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
             + clamp(out.rsb[ida]/ms_disp, -2.0, 2.0);
     } else if (ir_lib_file == "ir_lib_cs15.fits") {
         // My own library, using calibration from stacks and detections
-        ir_sed = interpolate(findgen(nirsed), ir_lib_cs15.tdust, out.tdust[ida]);
+        fir_sed = interpolate(findgen(nirsed), ir_lib_cs15.tdust, out.tdust[ida]);
     } else {
         error("no calibration code available for the IR library '", ir_lib_file, "'");
         return 1;
     }
 
-    append(out.ir_sed, ir_sed);
+    append(out.ir_sed, clamp(round(fir_sed), 0, nirsed-1));
     append(out.ir_sed, replicate(0u, npassive));
-
-    out.ir_sed = round(clamp(out.ir_sed, 0, nirsed-1));
 
     // Compute fluxes
     // --------------
@@ -815,10 +824,6 @@ if (!no_ir_flux) {
     if (verbose) {
         note("computing IR fluxes...");
     }
-
-    out.lir = out.sfrir/1.72e-10;
-    vec1u idb = where(!is_finite(out.lir));
-    out.lir[idb] = 0.0;
 
     vec1u idg = where(out.lir > 0.0);
     auto pg1 = progress_start(idg.size());
