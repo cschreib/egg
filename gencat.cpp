@@ -21,9 +21,11 @@ int main(int argc, char* argv[]) {
 
     bool no_pos = false;
     bool no_clust = false;
-    bool no_opt_flux = false;
-    bool no_opt_sed = false;
-    bool no_ir_flux = false;
+    bool no_flux = false;
+    bool no_stellar = false;
+    bool no_dust = false;
+
+    bool save_sed = false;
 
     std::string mass_func_file = "mass_func_candels.fits";
     std::string ir_lib_file = "ir_lib_cs15.fits";
@@ -46,7 +48,7 @@ int main(int argc, char* argv[]) {
     read_args(argc, argv, arg_list(
         ra0, dec0, area, mmin, maglim, zmin, zmax, name(bin_dz, "dz"), min_dz,
         name(bin_dm, "dm"), ms_disp,
-        no_pos, no_clust, no_opt_sed, no_opt_flux, no_ir_flux,
+        no_pos, no_clust, no_flux, no_stellar, no_dust, save_sed,
         name(mass_func_file, "mass_func"),
         name(ir_lib_file, "ir_lib"), name(opt_lib_file, "opt_lib"),
         name(out_file, "out"), name(filter_db_file, "filter_db"),
@@ -59,7 +61,9 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    if (no_opt_sed) no_opt_flux = true;
+    if (no_dust && no_stellar) {
+        no_flux = true;
+    }
 
     if (out_file.empty()) {
         out_file = "gencat-"+today()+".fits";
@@ -403,7 +407,7 @@ int main(int argc, char* argv[]) {
         vec1f bulge_angle, bulge_radius, bulge_ratio;
         vec1f bt, m_disk, m_bulge;
 
-        vec1f tdust, fpah;
+        vec1f tdust, fpah, mdust;
 
         vec1b passive;
 
@@ -626,6 +630,7 @@ int main(int argc, char* argv[]) {
         vec1f a0 = 0.58*erf(m-10) + 1.39;
         vec1f as = -0.34 + 0.3*max(m-10.35, 0.0);
         vec1f a = min(a0 + as*z, 2.0) + 0.1*randomn(seed, m.size());
+        // vec1f a = min(a0 + as*min(z, 3.0), 2.0) + 0.1*randomn(seed, m.size());
 
         // Move in the UVJ diagram according to "attenuation"
         double slope = 0.65;
@@ -665,7 +670,7 @@ int main(int argc, char* argv[]) {
     // Assign optical SED
     // ------------------
 
-if (!no_opt_sed) {
+if (!no_flux) {
     if (verbose) {
         note("assigning optical SEDs...");
     }
@@ -684,9 +689,7 @@ if (!no_opt_sed) {
                 vec1u idl = where(ibu && in_bin_open(vj, opt_lib.bvj, v));
 
                 if (!idl.empty()) {
-                    // Find the closest "good" SED in the library
-                    // "good" == number of galaxies that were used to build the
-                    // average SED is larger or equal to 'min_nsrc'
+                    // Find the closest usable SED in the library
                     uint_t lu = u, lv = v;
                     if (!astar_find(opt_lib.use, lu, lv)) {
                         error("could not find good SEDs in the optical library!");
@@ -778,92 +781,116 @@ if (!no_opt_sed) {
     append(out.ir_sed, clamp(round(fir_sed), 0, nirsed-1));
     append(out.ir_sed, replicate(0u, npassive));
 
+
+if (!no_flux) {
+
     // Compute fluxes
     // --------------
 
-if (!no_opt_flux || !no_ir_flux) {
-    out.flux.resize(ngal, bands.size());
-    out.flux_disk = out.flux;
-    out.flux_bulge = out.flux;
-}
+    out.flux_disk.resize(ngal, bands.size());
+    out.flux_bulge.resize(ngal, bands.size());
 
-if (!no_opt_flux) {
     if (verbose) {
         note("computing fluxes...");
     }
 
-    if (verbose) {
-        note("computing optical fluxes...");
+    if (ir_lib_file == "ir_lib_cs15.fits") {
+        out.mdust.resize(ngal);
     }
 
-    auto get_flux = [&](const vec1f& m, const vec1f& z, const vec1f& d, const vec1u& ised, vec2f& flux) {
-        vec1u idg = where(m > 0.0);
-        auto pg1 = progress_start(idg.size());
-        for (uint_t i : idg) {
-            vec1u did = mult_ids(opt_lib.use, ised[i]);
-            const vec1f rlam = opt_lib.lam(did[0],did[1],_);
-            const vec1f rsed = opt_lib.sed(did[0],did[1],_);
-            const vec1f lam = rlam*(1.0 + z[i]);
-            const vec1f sed = lsun2uJy(z[i], d[i], rlam, rsed);
+    vec2f slam, ssed;
+    if (save_sed) {
+        double l0 = 0.5*min(lambda);
+        double l1 = 2.0*max(lambda);
+        vec1f x = rgen_log(l0, l1, 800*min(1.0, log10(l1/l0)/4.6));
+        slam = replicate(x, ngal);
+        ssed.resize(slam.dims);
+    }
 
+    auto get_opt_sed = [&](double m, uint_t ised, vec1f& orlam, vec1f& orsed) {
+        vec1u did = mult_ids(opt_lib.use, ised);
+        orlam = opt_lib.lam(did[0],did[1],_);
+        orsed = e10(m)*opt_lib.sed(did[0],did[1],_);
+    };
+
+    auto get_ir_sed = [&](uint_t i, vec1f& irlam, vec1f& irsed) {
+        if (ir_lib_file == "ir_lib_cs15.fits") {
+            // My library
+            irlam = ir_lib_cs15.lam(out.ir_sed[i],_);
+            irsed = ir_lib_cs15.dust(out.ir_sed[i],_)*(1.0 - out.fpah[i])
+                + ir_lib_cs15.pah(out.ir_sed[i],_)*out.fpah[i];
+
+            // SED is in unit Mdust
+            out.mdust[i] = out.lir[i]/(ir_lib_cs15.lir_dust[out.ir_sed[i]]*(1.0 - out.fpah[i])
+                + ir_lib_cs15.lir_pah[out.ir_sed[i]]*out.fpah[i]);
+            irsed *= out.mdust[i];
+        } else {
+            // Generic library, SEDs in units of LIR
+            irlam = ir_lib.lam(out.ir_sed[i],_);
+            irsed = out.lir[i]*ir_lib.sed(out.ir_sed[i],_);
+        }
+    };
+
+    auto get_flux = [&](const vec1f& m, const vec1u& optsed, vec2f& flux, bool no_ir) {
+        auto pg1 = progress_start(ngal);
+        for (uint_t i : range(ngal)) {
+            vec1f rlam, rsed;
+            if (no_ir) {
+                // Just the stellar component
+                get_opt_sed(m[i], optsed[i], rlam, rsed);
+            } else if (no_stellar) {
+                // Just the dust component
+                get_ir_sed(i, rlam, rsed);
+            } else {
+                // Both stellar and dust components
+                vec1f orlam, orsed;
+                vec1f irlam, irsed;
+                get_opt_sed(m[i], optsed[i], orlam, orsed);
+                get_ir_sed(i, irlam, irsed);
+
+                // Combine IR SED with optical SED
+                merge_add(orlam, irlam, orsed, irsed, rlam, rsed);
+            }
+
+            // Redshift
+            vec1f lam = rlam*(1.0 + out.z[i]);
+            vec1f sed = lsun2uJy(out.z[i], out.d[i], rlam, rsed);
+
+            if (save_sed) {
+                ssed(i,_) = interpolate(sed, lam, slam(i,_));
+            }
+
+            // Integrate SED to get broadband fluxes
             for (uint_t b : range(filters)) {
-                if (filters[b].rlam/(1.0+z[i]) < 6.0) {
-                    flux(i,b) = e10(m[i])*sed2flux(filters[b], lam, sed);
-                }
+                double flx = sed2flux(filters[b], lam, sed);
+                flux(i,b) = (is_finite(flx) ? flx : 0.0);
             }
 
             if (verbose) progress(pg1, 127);
         }
     };
 
-    get_flux(out.m_bulge, out.z, out.d, out.opt_sed_bulge, out.flux_bulge);
-    get_flux(out.m_disk,  out.z, out.d, out.opt_sed_disk,  out.flux_disk);
-}
-
-if (!no_ir_flux) {
-    if (verbose) {
-        note("computing IR fluxes...");
+    // Get flux for the bulge
+    if (!no_stellar) {
+        get_flux(out.m_bulge, out.opt_sed_bulge, out.flux_bulge, true);
     }
 
-    vec1u idg = where(out.lir > 0.0);
-    auto pg1 = progress_start(idg.size());
-    for (uint_t i : idg) {
-        vec1d lam, sed;
-        if (ir_lib_file == "ir_lib_cs15.fits") {
-            // My library
-            lam = ir_lib_cs15.lam(out.ir_sed[i],_);
-            sed = ir_lib_cs15.dust(out.ir_sed[i],_)*(1.0 - out.fpah[i])
-                + ir_lib_cs15.pah(out.ir_sed[i],_)*out.fpah[i];
+    get_flux(out.m_disk,  out.opt_sed_disk,  out.flux_disk, no_dust);
 
-            // SED is in unit Mdust, make it unit LIR
-            sed /= ir_lib_cs15.lir_dust[out.ir_sed[i]]*(1.0 - out.fpah[i])
-                + ir_lib_cs15.lir_pah[out.ir_sed[i]]*out.fpah[i];
-
-            // Finally multiply by LIR
-            sed *= out.lir[i];
-        } else {
-            // Generic library, SEDs in units of LIR
-            lam = ir_lib.lam(out.ir_sed[i],_);
-            sed = out.lir[i]*ir_lib.sed(out.ir_sed[i],_);
-        }
-
-        // Redshift the SED
-        sed = lsun2uJy(out.z[i], out.d[i], lam, sed);
-        lam *= (1.0 + out.z[i]);
-
-        for (uint_t b : range(filters)) {
-            // all the IR flux goes to the disk
-            if (filters[b].rlam/(1.0+out.z[i]) >= 6.0) {
-                out.flux_disk(i,b) = sed2flux(filters[b], lam, sed);
-            }
-        }
-
-        if (verbose) progress(pg1, 127);
-    }
-}
-
-if (!no_opt_flux || !no_ir_flux) {
     out.flux = out.flux_disk + out.flux_bulge;
+
+    if (save_sed) {
+        if (verbose) {
+            note("saving SEDs...");
+        }
+
+        fits::write_table(file::remove_extension(out_file)+"_seds.fits",
+            "lam", slam, "sed", ssed
+        );
+
+        slam.clear();
+        ssed.clear();
+    }
 }
 
     // Generate random positions
@@ -950,7 +977,7 @@ if (!no_pos) {
         out.sfrir, out.sfruv, out.irx, out.lir, out.ir_sed,
         out.opt_sed_bulge, out.opt_sed_disk,
         out.flux, out.flux_disk, out.flux_bulge,
-        out.tdust, out.fpah,
+        out.tdust, out.fpah, out.mdust,
         out.bands, out.lambda, out.zb, out.cmd
     ));
 
@@ -989,8 +1016,7 @@ void print_help(std::string filter_db_file) {
     header("List of component related options:");
     bullet("no_pos", "[flag] do not generate galaxy positions on the sky");
     bullet("no_clust", "[flag] do not generate clustering in galaxy positions");
-    bullet("no_opt_flux", "[flag] do not generate optical fluxes");
-    bullet("no_ir_flux", "[flag] do not generate IR fluxes");
+    bullet("no_flux", "[flag] do not generate fluxes");
     print("");
 
     header("List of sky position related options:");
@@ -1020,12 +1046,15 @@ void print_help(std::string filter_db_file) {
     bullet("selection_band", "[string] if 'maglim' is set, name of band in which the "
         "magnitude cut is applied (default: none)");
     bullet("bands", "[string array] optical and IR bands for which to generate fluxes");
+    bullet("save_sed", "[flag] save the full SEDs of each simulated galaxies in "
+        "[out]_seds.fits (WARNING: will use a lot of memory, be sure to only use this "
+        "flag for small simulations)");
     print("");
 
     header("List of available bands:");
     if (!file::exists(filter_db_file)) {
         warning("could not find filter database file '", filter_db_file, "'");
-        note("when running gencat, please set the options 'no_opt_flux' and 'no_ir_flux'");
+        note("when running gencat, please set the options 'no_flux'");
         note("and do not use the 'maglim' feature");
     } else {
         vec1s fils;
