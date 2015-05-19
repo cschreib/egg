@@ -61,6 +61,10 @@ int main(int argc, char* argv[]) {
 
     if (no_opt_sed) no_opt_flux = true;
 
+    if (out_file.empty()) {
+        out_file = "gencat-"+today()+".fits";
+    }
+
     // Initialize random seed and cosmology
     // ------------------------------------
     auto seed = make_seed(tseed);
@@ -926,10 +930,6 @@ if (!no_pos) {
 
     if (verbose) {
         note("saving catalog...");
-    }
-
-    if (out_file.empty()) {
-        out_file = "gencat-"+today()+".fits";
     }
 
     out.cmd = make_cmd(argc, argv);
