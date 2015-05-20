@@ -80,6 +80,7 @@ int main(int argc, char* argv[]) {
 
     // Initizalize filters
     // -------------------
+
     if (verbose) {
         note("initializing filters...");
     }
@@ -102,6 +103,10 @@ int main(int argc, char* argv[]) {
     // Initialize SED libraries
     // ------------------------
 
+    if (verbose) {
+        note("initializing SED libraries...");
+    }
+
     // The IR library. When using the generic code for IR libraries, each template must
     // be normalized to unit LIR. If a more subtle calibration needs to be used, then
     // a custom code has to be written.
@@ -115,7 +120,7 @@ int main(int argc, char* argv[]) {
     } ir_lib_cs15;
 
     uint_t nirsed;
-    if (ir_lib_file == "ir_lib_cs15.fits") {
+    if (file::get_basename(ir_lib_file) == "ir_lib_cs15.fits") {
         // My library, calibrated in unit Mdust
         fits::read_table(ir_lib_file, ftable(
             ir_lib_cs15.lam, ir_lib_cs15.dust, ir_lib_cs15.pah,
@@ -865,17 +870,17 @@ if (!no_flux) {
 
     if (nirsed == 1) {
         fir_sed = replicate(0, nactive);
-    } else if (ir_lib_file == "ir_lib_ce01.fits") {
+    } else if (file::get_basename(ir_lib_file) == "ir_lib_ce01.fits") {
         // The Chary & Elbaz 2001 library, redshift evolution calibrated from stacks
         fir_sed = interpolate({26, 26, 40, 54, 53, 52, 52}, {0.57, 1.0, 1.5, 2.1, 2.9, 4.0, 6.0}, out.z[ida])
             // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
             + 15*clamp(out.rsb[ida]/ms_disp, -2.0, 2.0);
-    } else if (ir_lib_file == "ir_lib_m12.fits") {
+    } else if (file::get_basename(ir_lib_file) == "ir_lib_m12.fits") {
         // The Magdis et al. 2012 library, using their reported redshift evolution
         fir_sed = interpolate(findgen(nirsed), {0.0125, 0.1625, 0.4625, 0.8125, 1.15, 1.525, 2.0, 2.635}, out.z[ida])
             // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
             + clamp(out.rsb[ida]/ms_disp, -2.0, 2.0);
-    } else if (ir_lib_file == "ir_lib_cs15.fits") {
+    } else if (file::get_basename(ir_lib_file) == "ir_lib_cs15.fits") {
         // My own library, using calibration from stacks and detections
         fir_sed = interpolate(findgen(nirsed), ir_lib_cs15.tdust, out.tdust[ida]);
     } else {
@@ -899,7 +904,7 @@ if (!no_flux) {
         note("computing fluxes...");
     }
 
-    if (ir_lib_file == "ir_lib_cs15.fits") {
+    if (file::get_basename(ir_lib_file) == "ir_lib_cs15.fits") {
         out.mdust.resize(ngal);
     }
 
@@ -919,7 +924,7 @@ if (!no_flux) {
     };
 
     auto get_ir_sed = [&](uint_t i, vec1f& irlam, vec1f& irsed) {
-        if (ir_lib_file == "ir_lib_cs15.fits") {
+        if (file::get_basename(ir_lib_file) == "ir_lib_cs15.fits") {
             // My library
             irlam = ir_lib_cs15.lam(out.ir_sed[i],_);
             irsed = ir_lib_cs15.dust(out.ir_sed[i],_)*(1.0 - out.fpah[i])
