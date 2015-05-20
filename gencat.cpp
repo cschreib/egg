@@ -1044,6 +1044,8 @@ void print_help(std::string filter_db_file) {
     header("List of flux related options:");
     bullet("selection_band", "[string] if 'maglim' is set, name of band in which the "
         "magnitude cut is applied (default: none)");
+    bullet("no_dust", "[flag] SEDs will not contain the dust continuum and PAH emission");
+    bullet("no_stellar", "[flag] SEDs will not contain the stellar emission");
     bullet("bands", "[string array] optical and IR bands for which to generate fluxes");
     bullet("save_sed", "[flag] save the full SEDs of each simulated galaxies in "
         "[out]_seds.fits (WARNING: will use a lot of memory, be sure to only use this "
