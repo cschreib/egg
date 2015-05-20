@@ -33,6 +33,8 @@ int main(int argc, char* argv[]) {
     std::string out_file = "";
     std::string filter_db_file = data_dir+"fits/filter-db/db.dat";
 
+    std::string input_cat_file = "";
+
     uint_t tseed = 42;
     std::string tcosmo = "std";
     bool verbose = false;
@@ -53,7 +55,7 @@ int main(int argc, char* argv[]) {
         name(ir_lib_file, "ir_lib"), name(opt_lib_file, "opt_lib"),
         name(out_file, "out"), name(filter_db_file, "filter_db"),
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
-        selection_band, bands
+        name(input_cat_file, "input_cat"), selection_band, bands
     ));
 
     if (help) {
@@ -174,226 +176,9 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Initialize redshift bins
-    // ------------------------
-    if (verbose) {
-        note("initializing redshift bins...");
-    }
-
-    if (bin_dz < 0.0) {
-        error("dz cannot be negative");
-        return 1;
-    } else if (bin_dz >= 2.0) {
-        error("dz cannot be >= 2.0");
-        return 1;
-    }
-
-    // Build the redshift bins with logarithmic bins
-    // To prevent too narrow bins with very little galaxies, we impose a minimum
-    // redshift width.
-    vec2d zb = [&](){
-        vec1d tzb;
-        double z1 = zmin;
-        while (z1 < zmax) {
-            tzb.push_back(z1);
-            z1 *= (1.0 + bin_dz/2.0)/(1.0 - bin_dz/2.0);
-            if (z1 - tzb.back() < min_dz) z1 = tzb.back() + min_dz;
-        }
-
-        if ((zmax - tzb.back())/(1.0 + zmax) > 0.5*bin_dz && zmax - tzb.back() > min_dz) {
-            tzb.push_back(zmax);
-        } else {
-            tzb.back() = zmax;
-        }
-
-        return make_bins(tzb);
-    }();
-
-    if (verbose) {
-        vec1f tdz = bin_width(zb);
-        note("min dz: ", min(tdz), ", max dz: ", max(tdz));
-    }
-
-    // Compute the corresponding volume of the Universe
-    vec2d vb = vuniverse(zb, cosmo);
-
-    uint_t nz = zb.dims[1];
-
-    if (verbose) {
-        note(nz, " redshift slices");
-    }
-
-    // Compute evolving mass limit
-    // ---------------------------
-    vec1f z_mmin(nz);
-
-    if (is_finite(maglim)) {
-        if (verbose) {
-            note("estimating redshift-dependend mass limit...");
-        }
-
-        if (count(bands == selection_band) == 0) {
-            error("selection_band (", selection_band, ") is not found in bands");
-            return 1;
-        }
-
-        // A magnitude limite was requested.
-        // Use the optical library to estimate a rough mass completeness, and compute
-        // the minimum mass needed to be 90% complete at the requested magnitude.
-        // To do so, we compute the flux in the selection band of all the templates
-        // in the library (within the corresponding redshift interval). Since the library
-        // is in flux per unit mass, we can just divide the requested flux limit by each
-        // computed flux to estimate the minimum detectable mass for each template. By
-        // picking the 10% lowest value, we should be close to 90% completeness.
-
-        double comp = 0.9;
-        uint_t bsel = where(bands == selection_band)[0];
-        double flim = mag2uJy(maglim);
-        uint_t nb = opt_lib.buv.dims[1];
-
-        for (uint_t z : range(nz)) {
-            double tz = bin_center(zb(_,z));
-            double td = lumdist(tz, cosmo);
-
-            vec1f tm;
-            for (uint_t iu : range(nb))
-            for (uint_t iv : range(nb)) {
-                if (!opt_lib.use(iu,iv)) continue;
-
-                vec1f rlam = opt_lib.lam(iu,iv,_);
-                vec1f rsed = opt_lib.sed(iu,iv,_);
-
-                vec1f lam = rlam*(1.0 + tz);
-                vec1f sed = lsun2uJy(tz, td, rlam, rsed);
-
-                double funitmass = sed2flux(filters[bsel], lam, sed);
-                double mlim = log10(flim/funitmass);
-
-                tm.push_back(mlim);
-            }
-
-            z_mmin[z] = percentile(tm, 1.0 - comp);
-        }
-
-        mmin = min(z_mmin);
-
-        if (verbose) {
-            note("will generate masses from as low as ", mmin, ", up to ", mmax);
-        }
-    } else {
-        // If no magnitude limit is requested, just use a fixed mass limit.
-        z_mmin[_] = mmin;
-    }
-
-    // Initialize sky positions
-    // ------------------------
-
-    // The shape of the generated survey can be changed here. The survey boundaries
-    // are defined as a *convex* polygon whose vertices are given in RA and Dec
-    // coordinates below.
-    // The default is to generate a square of requested area around the reference position
-    // given by ra0 and dec0.
-    vec1d hra, hdec; {
-        double dd = sqrt(area)/2.0;
-        double dr = sqrt(area)/2.0/cos(dec0*dpi/180.0);
-
-        hdec = {dec0-dd, dec0-dd, dec0+dd, dec0+dd, dec0-dd};
-        hra = {ra0-dr, ra0+dr, ra0+dr, ra0-dr, ra0-dr};
-    }
-
-    vec1u hull = uindgen(hra.size());
-
-    // Initialize mass functions
-    // -------------------------
-    if (verbose) {
-        note("reading mass functions...");
-    }
-
-    struct {
-        vec2f zb, mb;
-        vec1f zx, mx;
-        vec2d mz_active, mz_passive;
-        vec1d z_active, z_passive;
-        std::string imf;
-    } mf;
-
-    fits::read_table(mass_func_file, "zb", mf.zb, "mb", mf.mb, "active", mf.mz_active,
-        "passive", mf.mz_passive);
-    fits::read_table_loose(mass_func_file, "imf", mf.imf);
-
-    // Correct for the IMF, if not Salpeter
-    if (mf.imf.empty()) {
-        warning("no IMF specification given in the mass function file, assuming Salpeter");
-        mf.imf = "salpeter";
-    } else {
-        if (mf.imf == "salpeter") {
-            // Nothing to do
-        } else if (mf.imf == "chabrier") {
-            mf.mb += 0.24;
-        }
-    }
-
-    if (verbose) {
-        note("found ", mf.zb.dims[1], " redshift bins and ", mf.mb.dims[1], " mass bins");
-    }
-
-    // Check that the provided mass functions cover all the parameter space we need
-    if (max(mf.zb) < max(zb)) {
-        error("mass functions do not cover redshifts > ", max(mf.zb));
-        note("requested: ", max(zb));
-        return 1;
-    }
-    if (min(mf.zb) > min(zb)) {
-        error("mass functions do not cover redshifts < ", min(mf.zb));
-        note("requested: ", min(zb));
-        return 1;
-    }
-    if (min(mf.mb) > mmin) {
-        error("mass functions do not cover masses < ", min(mf.mb));
-        note("requested: ", mmin);
-        return 1;
-    }
-
-    {
-        // Rebin the mass functions to our chosen redshift and mass bins
-        vec1d old_zx = bin_center(mf.zb);
-        vec1d old_mx = bin_center(mf.mb);
-
-        mf.zb = zb;
-        mf.zx = bin_center(mf.zb);
-
-        mf.mb = make_bins(mmin, mmax, ceil((mmax - mmin)/bin_dm));
-        mf.mx = bin_center(mf.mb);
-
-        mf.mz_active  = e10(rebin(log10(mf.mz_active),  old_zx, old_mx, mf.zx, mf.mx));
-        mf.mz_passive = e10(rebin(log10(mf.mz_passive), old_zx, old_mx, mf.zx, mf.mx));
-
-        // Remove extrapolations at the borders of the bins
-        vec1u idzb = where(mf.zx < old_zx.front());
-        for (uint_t iz : idzb) mf.mz_active(iz,_)  = mf.mz_active(idzb.back()+1,_);
-        for (uint_t iz : idzb) mf.mz_passive(iz,_) = mf.mz_passive(idzb.back()+1,_);
-
-        idzb = where(mf.zx > old_zx.back());
-        for (uint_t iz : idzb) mf.mz_active(iz,_)  = mf.mz_active(idzb.front()-1,_);
-        for (uint_t iz : idzb) mf.mz_passive(iz,_) = mf.mz_passive(idzb.front()-1,_);
-
-        // Build redshift functions by integrating over stellar mass
-        vec2d tvb = vuniverse(mf.zb, cosmo);
-        mf.z_active.resize(mf.zb.dims[1]);
-        mf.z_passive.resize(mf.zb.dims[1]);
-
-        double conv = area*sqr(dpi/180.0)/(4.0*dpi);
-
-        for (uint_t z : range(mf.zb.dims[1])) {
-            vec1u idm = where(mf.mx > z_mmin[z]);
-            double dv_dz = bin_width(tvb(_,z))/bin_width(mf.zb(_,z));
-            mf.z_active[z] = conv*integrate(mf.mb(_,idm), mf.mz_active(z,idm))*dv_dz;
-            mf.z_passive[z] = conv*integrate(mf.mb(_,idm), mf.mz_passive(z,idm))*dv_dz;
-        }
-    }
-
     // Output catalog format
     // ---------------------
+
     struct {
         vec1u id;
 
@@ -430,95 +215,413 @@ int main(int argc, char* argv[]) {
         std::string cmd;
     } out;
 
-    out.zb = zb;
-
     out.lambda = lambda;
     out.bands = bands;
 
-    // Generate redshifts
-    // ------------------
-    if (verbose) {
-        note("generating redshifts...");
+    // Generate redshift, masses, and positions
+    // ----------------------------------------
+
+    // Either generate everything from scratch, or provide
+    // all these data in input, i.e., from an existing catalog.
+
+    if (!input_cat_file.empty()) {
+        // Load data from an existing catalog
+        if (end_with(input_cat_file, ".fits")) {
+            fits::read_table(input_cat_file,
+                "ra", out.ra, "dec", out.dec, "z", out.z, "m", out.m,
+                "passive", out.passive
+            );
+
+            fits::read_table_loose(input_cat_file, "id", out.id);
+            if (out.id.empty()) {
+                out.id = uindgen(out.ra.size());
+            }
+        } else {
+            file::read_table(input_cat_file, file::find_skip(input_cat_file),
+                out.id, out.ra, out.dec, out.z, out.m, out.passive
+            );
+        }
+
+        out.d = lumdist(out.z, cosmo);
+    } else {
+        // Generate all from scratch
+
+        // Initialize redshift bins
+        // ------------------------
+        if (verbose) {
+            note("initializing redshift bins...");
+        }
+
+        if (bin_dz < 0.0) {
+            error("dz cannot be negative");
+            return 1;
+        } else if (bin_dz >= 2.0) {
+            error("dz cannot be >= 2.0");
+            return 1;
+        }
+
+        // Build the redshift bins with logarithmic bins
+        // To prevent too narrow bins with very little galaxies, we impose a minimum
+        // redshift width.
+        vec2d zb = [&](){
+            vec1d tzb;
+            double z1 = zmin;
+            while (z1 < zmax) {
+                tzb.push_back(z1);
+                z1 *= (1.0 + bin_dz/2.0)/(1.0 - bin_dz/2.0);
+                if (z1 - tzb.back() < min_dz) z1 = tzb.back() + min_dz;
+            }
+
+            if ((zmax - tzb.back())/(1.0 + zmax) > 0.5*bin_dz && zmax - tzb.back() > min_dz) {
+                tzb.push_back(zmax);
+            } else {
+                tzb.back() = zmax;
+            }
+
+            return make_bins(tzb);
+        }();
+
+        if (verbose) {
+            vec1f tdz = bin_width(zb);
+            note("min dz: ", min(tdz), ", max dz: ", max(tdz));
+        }
+
+        // Compute the corresponding volume of the Universe
+        vec2d vb = vuniverse(zb, cosmo);
+
+        uint_t nz = zb.dims[1];
+
+        if (verbose) {
+            note(nz, " redshift slices");
+        }
+
+        // Compute evolving mass limit
+        // ---------------------------
+        vec1f z_mmin(nz);
+
+        if (is_finite(maglim)) {
+            if (verbose) {
+                note("estimating redshift-dependend mass limit...");
+            }
+
+            if (count(bands == selection_band) == 0) {
+                error("selection_band (", selection_band, ") is not found in bands");
+                return 1;
+            }
+
+            // A magnitude limite was requested.
+            // Use the optical library to estimate a rough mass completeness, and compute
+            // the minimum mass needed to be 90% complete at the requested magnitude.
+            // To do so, we compute the flux in the selection band of all the templates
+            // in the library (within the corresponding redshift interval). Since the library
+            // is in flux per unit mass, we can just divide the requested flux limit by each
+            // computed flux to estimate the minimum detectable mass for each template. By
+            // picking the 10% lowest value, we should be close to 90% completeness.
+
+            double comp = 0.9;
+            uint_t bsel = where(bands == selection_band)[0];
+            double flim = mag2uJy(maglim);
+            uint_t nb = opt_lib.buv.dims[1];
+
+            for (uint_t z : range(nz)) {
+                double tz = bin_center(zb(_,z));
+                double td = lumdist(tz, cosmo);
+
+                vec1f tm;
+                for (uint_t iu : range(nb))
+                for (uint_t iv : range(nb)) {
+                    if (!opt_lib.use(iu,iv)) continue;
+
+                    vec1f rlam = opt_lib.lam(iu,iv,_);
+                    vec1f rsed = opt_lib.sed(iu,iv,_);
+
+                    vec1f lam = rlam*(1.0 + tz);
+                    vec1f sed = lsun2uJy(tz, td, rlam, rsed);
+
+                    double funitmass = sed2flux(filters[bsel], lam, sed);
+                    double mlim = log10(flim/funitmass);
+
+                    tm.push_back(mlim);
+                }
+
+                z_mmin[z] = percentile(tm, 1.0 - comp);
+            }
+
+            mmin = min(z_mmin);
+
+            if (verbose) {
+                note("will generate masses from as low as ", mmin, ", up to ", mmax);
+            }
+        } else {
+            // If no magnitude limit is requested, just use a fixed mass limit.
+            z_mmin[_] = mmin;
+        }
+
+        // Initialize sky positions
+        // ------------------------
+
+        // The shape of the generated survey can be changed here. The survey boundaries
+        // are defined as a *convex* polygon whose vertices are given in RA and Dec
+        // coordinates below.
+        // The default is to generate a square of requested area around the reference position
+        // given by ra0 and dec0.
+        vec1d hra, hdec; {
+            double dd = sqrt(area)/2.0;
+            double dr = sqrt(area)/2.0/cos(dec0*dpi/180.0);
+
+            hdec = {dec0-dd, dec0-dd, dec0+dd, dec0+dd, dec0-dd};
+            hra = {ra0-dr, ra0+dr, ra0+dr, ra0-dr, ra0-dr};
+        }
+
+        vec1u hull = uindgen(hra.size());
+
+        // Initialize mass functions
+        // -------------------------
+        if (verbose) {
+            note("reading mass functions...");
+        }
+
+        struct {
+            vec2f zb, mb;
+            vec1f zx, mx;
+            vec2d mz_active, mz_passive;
+            vec1d z_active, z_passive;
+            std::string imf;
+        } mf;
+
+        fits::read_table(mass_func_file, "zb", mf.zb, "mb", mf.mb, "active", mf.mz_active,
+            "passive", mf.mz_passive);
+        fits::read_table_loose(mass_func_file, "imf", mf.imf);
+
+        // Correct for the IMF, if not Salpeter
+        if (mf.imf.empty()) {
+            warning("no IMF specification given in the mass function file, assuming Salpeter");
+            mf.imf = "salpeter";
+        } else {
+            if (mf.imf == "salpeter") {
+                // Nothing to do
+            } else if (mf.imf == "chabrier") {
+                mf.mb += 0.24;
+            }
+        }
+
+        if (verbose) {
+            note("found ", mf.zb.dims[1], " redshift bins and ", mf.mb.dims[1], " mass bins");
+        }
+
+        // Check that the provided mass functions cover all the parameter space we need
+        if (max(mf.zb) < max(zb)) {
+            error("mass functions do not cover redshifts > ", max(mf.zb));
+            note("requested: ", max(zb));
+            return 1;
+        }
+        if (min(mf.zb) > min(zb)) {
+            error("mass functions do not cover redshifts < ", min(mf.zb));
+            note("requested: ", min(zb));
+            return 1;
+        }
+        if (min(mf.mb) > mmin) {
+            error("mass functions do not cover masses < ", min(mf.mb));
+            note("requested: ", mmin);
+            return 1;
+        }
+
+        {
+            // Rebin the mass functions to our chosen redshift and mass bins
+            vec1d old_zx = bin_center(mf.zb);
+            vec1d old_mx = bin_center(mf.mb);
+
+            mf.zb = zb;
+            mf.zx = bin_center(mf.zb);
+
+            mf.mb = make_bins(mmin, mmax, ceil((mmax - mmin)/bin_dm));
+            mf.mx = bin_center(mf.mb);
+
+            mf.mz_active  = e10(rebin(log10(mf.mz_active),  old_zx, old_mx, mf.zx, mf.mx));
+            mf.mz_passive = e10(rebin(log10(mf.mz_passive), old_zx, old_mx, mf.zx, mf.mx));
+
+            // Remove extrapolations at the borders of the bins
+            vec1u idzb = where(mf.zx < old_zx.front());
+            for (uint_t iz : idzb) mf.mz_active(iz,_)  = mf.mz_active(idzb.back()+1,_);
+            for (uint_t iz : idzb) mf.mz_passive(iz,_) = mf.mz_passive(idzb.back()+1,_);
+
+            idzb = where(mf.zx > old_zx.back());
+            for (uint_t iz : idzb) mf.mz_active(iz,_)  = mf.mz_active(idzb.front()-1,_);
+            for (uint_t iz : idzb) mf.mz_passive(iz,_) = mf.mz_passive(idzb.front()-1,_);
+
+            // Build redshift functions by integrating over stellar mass
+            vec2d tvb = vuniverse(mf.zb, cosmo);
+            mf.z_active.resize(mf.zb.dims[1]);
+            mf.z_passive.resize(mf.zb.dims[1]);
+
+            double conv = area*sqr(dpi/180.0)/(4.0*dpi);
+
+            for (uint_t z : range(mf.zb.dims[1])) {
+                vec1u idm = where(mf.mx > z_mmin[z]);
+                double dv_dz = bin_width(tvb(_,z))/bin_width(mf.zb(_,z));
+                mf.z_active[z] = conv*integrate(mf.mb(_,idm), mf.mz_active(z,idm))*dv_dz;
+                mf.z_passive[z] = conv*integrate(mf.mb(_,idm), mf.mz_passive(z,idm))*dv_dz;
+            }
+        }
+
+        out.zb = zb;
+
+        // Generate redshifts
+        // ------------------
+        if (verbose) {
+            note("generating redshifts...");
+        }
+
+        // Compute how many active and passive galaxies we will actually generate
+        vec1u z_nactive(nz);
+        vec1u z_npassive(nz);
+        for (uint_t iz : range(nz)) {
+            double dz = bin_width(zb(_,iz));
+
+            double nact = mf.z_active[iz]*dz;
+            z_nactive[iz] = floor(nact);
+            nact -= z_nactive[iz];
+            z_nactive[iz] += random_coin(seed, nact);
+
+            double npas = mf.z_passive[iz]*dz;
+            z_npassive[iz] = floor(npas);
+            npas -= z_npassive[iz];
+            z_npassive[iz] += random_coin(seed, npas);
+        }
+
+        uint_t nactive = total(z_nactive);
+        uint_t npassive = total(z_npassive);
+        uint_t ngal = nactive + npassive;
+
+        if (verbose) {
+            note("generated ", ngal, " galaxies");
+        }
+
+        auto random_pdf_bin = [&seed](const vec2d& b, const vec1d& x, const vec1d& p, uint_t n) {
+            vec1d tx = {b(0,0)};
+            append(tx, x);
+            tx.push_back(b(1,x.size()-1));
+            vec1d tp = {p[0]};
+            append(tp, p);
+            tp.push_back(p.back());
+            return random_pdf(seed, tx, tp, n);
+        };
+
+        vec1f tz = random_pdf_bin(mf.zb, mf.zx, mf.z_active, nactive);
+        append(out.z, tz);
+        append(out.passive, replicate(false, nactive));
+
+        tz = random_pdf_bin(mf.zb, mf.zx, mf.z_passive, npassive);
+        append(out.z, tz);
+        append(out.passive, replicate(true, npassive));
+
+        out.id = uindgen(out.z.size());
+        out.d = lumdist(out.z, cosmo);
+
+        // Generate masses
+        // ---------------
+
+        if (verbose) {
+            note("generating masses...");
+        }
+
+        out.m.resize(ngal);
+
+        for (uint_t iz : range(nz)) {
+            vec1b inz = in_bin_open(out.z, zb, iz);
+            vec1u idm = where(mf.mx > z_mmin[iz]);
+
+            vec1u idl = where(inz && !out.passive);
+            vec1f m = random_pdf_bin(mf.mb(_,idm), mf.mx[idm], mf.mz_active(iz,idm), idl.size());
+            out.m[idl] = m;
+
+            idl = where(inz && out.passive);
+            m = random_pdf_bin(mf.mb(_,idm), mf.mx[idm], mf.mz_passive(iz,idm), idl.size());
+            out.m[idl] = m;
+        }
+
+        // Generate random positions
+        // -------------------------
+
+        if (!no_pos) {
+            if (verbose) {
+                note("generating sky positions...");
+            }
+
+            out.ra.resize(ngal);
+            out.dec.resize(ngal);
+
+            auto pg = progress_start(nz);
+            for (uint_t im : range(2))
+            for (uint_t iz : range(nz)) {
+                // Per redshift bin, we treat massive and low mass galaxies separately.
+                // Assuming more clustering for the most massive objects (im == 0).
+
+                vec1u idz = where(in_bin_open(out.z, zb, iz) && (im == 0 ? out.m < 10.5 : out.m >= 10.5));
+                uint_t z_ngal = idz.size();
+
+                // Use clustering for only 40% of the sample (low mass) or 70% (high mass)
+                double rnd_frac = (no_clust ? 1.0 : im == 0 ? 0.6 : 0.3);
+                uint_t nrnd = std::min(z_ngal, uint_t(ceil(rnd_frac*z_ngal)));
+                uint_t nclust = z_ngal - nrnd;
+
+                randpos_power_options opt;
+                opt.power = 0.5;    // power law of index 0.5
+                opt.levels = 4;     // 4 levels in the Soneira & Pebbles
+                opt.overload = 2.0; // generate twice more than needed, then pick half
+                opt.nsrc = nclust;
+
+                vec1d ra, dec;
+                auto status = randpos_power(seed, hull, hra, hdec, ra, dec, opt);
+                if (!status.success) {
+                    error("failed: ", status.failure);
+                    return 1;
+                }
+
+                randpos_uniform_options opt2;
+                opt2.nsrc = nrnd;
+
+                vec1d tra, tdec;
+                status = randpos_uniform(seed, {min(hra), max(hra)}, {min(hdec), max(hdec)},
+                    [&](const vec1d& xra, const vec1d& xdec) {
+                    return in_convex_hull(xra, xdec, hull, hra, hdec);
+                }, tra, tdec, opt2);
+
+                if (!status.success) {
+                    error("failed: ", status.failure);
+                    return 1;
+                }
+
+                append(ra, tra);
+                append(dec, tdec);
+
+                vec1u rid = shuffle(seed, uindgen(z_ngal));
+
+                out.ra[idz] = ra[rid];
+                out.dec[idz] = dec[rid];
+
+                if (verbose) progress(pg);
+            }
+        }
     }
 
-    // Compute how many active and passive galaxies we will actually generate
-    vec1u z_nactive(nz);
-    vec1u z_npassive(nz);
-    for (uint_t iz : range(nz)) {
-        double dz = bin_width(zb(_,iz));
-
-        double nact = mf.z_active[iz]*dz;
-        z_nactive[iz] = floor(nact);
-        nact -= z_nactive[iz];
-        z_nactive[iz] += random_coin(seed, nact);
-
-        double npas = mf.z_passive[iz]*dz;
-        z_npassive[iz] = floor(npas);
-        npas -= z_npassive[iz];
-        z_npassive[iz] += random_coin(seed, npas);
-    }
-
-    uint_t nactive = total(z_nactive);
-    uint_t npassive = total(z_npassive);
-    uint_t ngal = nactive + npassive;
-
-    vec1u ida = uindgen(nactive);
-    vec1u idp = uindgen(npassive) + nactive;
-
-    if (verbose) {
-        note("generated ", ngal, " galaxies");
-    }
-
-    auto random_pdf_bin = [&seed](const vec2d& b, const vec1d& x, const vec1d& p, uint_t n) {
-        vec1d tx = {b(0,0)};
-        append(tx, x);
-        tx.push_back(b(1,x.size()-1));
-        vec1d tp = {p[0]};
-        append(tp, p);
-        tp.push_back(p.back());
-        return random_pdf(seed, tx, tp, n);
-    };
-
-    vec1f tz = random_pdf_bin(mf.zb, mf.zx, mf.z_active, nactive);
-    append(out.z, tz);
-    append(out.passive, replicate(false, nactive));
-
-    tz = random_pdf_bin(mf.zb, mf.zx, mf.z_passive, npassive);
-    append(out.z, tz);
-    append(out.passive, replicate(true, npassive));
-
-    out.id = uindgen(out.z.size());
-    out.d = lumdist(out.z, cosmo);
-
-    // Generate masses
-    // ---------------
-    if (verbose) {
-        note("generating masses...");
-    }
-
-    out.m.resize(ngal);
-
-    for (uint_t iz : range(nz)) {
-        vec1b inz = in_bin_open(out.z, zb, iz);
-        vec1u idm = where(mf.mx > z_mmin[iz]);
-
-        vec1u idl = where(inz && !out.passive);
-        vec1f m = random_pdf_bin(mf.mb(_,idm), mf.mx[idm], mf.mz_active(iz,idm), idl.size());
-        out.m[idl] = m;
-
-        idl = where(inz && out.passive);
-        m = random_pdf_bin(mf.mb(_,idm), mf.mx[idm], mf.mz_passive(iz,idm), idl.size());
-        out.m[idl] = m;
-    }
+    // Get counts and IDs of the active and passive populations
+    const vec1u ida = where(!out.passive);
+    const vec1u idp = where(out.passive);
+    const uint_t nactive = ida.size();
+    const uint_t npassive = idp.size();
+    const uint_t ngal = out.z.size();
 
     // Bulge to total mass ratio
     // Calibrated from Lang et al. (2014), assuming no redshift evolution
-    out.bt = clamp(e10(0.27*(out.m[ida] - 10.0) - 0.7 + 0.2*randomn(seed, nactive)), 0.0, 1.0);
-    vec1f pbt = clamp(e10(0.1*(out.m[idp] - 10.0) - 0.3 + 0.2*randomn(seed, npassive)), 0.0, 1.0);
-    append(out.bt, pbt);
+    out.bt.resize(ngal);
+    out.bt[ida] = clamp(e10(0.27*(out.m[ida] - 10.0) - 0.7 + 0.2*randomn(seed, nactive)), 0.0, 1.0);
+    out.bt[idp] = clamp(e10(0.1*(out.m[idp] - 10.0) - 0.3 + 0.2*randomn(seed, npassive)), 0.0, 1.0);
+
     out.m_bulge = out.m + log10(out.bt);
     vec1u idnf = where(!is_finite(out.m_bulge));
     out.m_bulge[idnf] = 0;
+
     out.m_disk = out.m + log10(1.0-out.bt);
     idnf = where(!is_finite(out.m_disk));
     out.m_disk[idnf] = 0;
@@ -575,31 +678,32 @@ int main(int argc, char* argv[]) {
         note("generating SFR...");
     }
 
+    out.sfr.resize(ngal);
+    out.rsb.resize(ngal);
+
     {
         // Active galaxies
         vec1f az = log10(1.0 + out.z);
-        vec1f sfr = out.m[ida] - 9.67 + 1.82*az[ida]
-            - 0.38*sqr(max(0.0, out.m[ida] - 9.59 - 2.22*az[ida]));
+        vec1f sfrms = out.m - 9.67 + 1.82*az
+            - 0.38*sqr(max(0.0, out.m - 9.59 - 2.22*az));
+
+        out.sfr[ida] = sfrms[ida];
 
         // Add dispersion
-        vec1f rsb = ms_disp*randomn(seed, nactive);
+        out.sfr[ida] += ms_disp*randomn(seed, nactive);
 
         // Add starbursts
         vec1u idsb = where(random_coin(seed, 0.033, nactive));
-        rsb[idsb] += 0.72;
-
-        append(out.rsb, rsb);
-
-        // Make final SFR
-        sfr += rsb;
-        append(out.sfr, e10(sfr));
+        out.sfr[ida[idsb]] += 0.72;
 
         // Passive galaxies
-        sfr = 0.5*(out.m[idp] - 11)
+        out.sfr[idp] = 0.5*(out.m[idp] - 11)
             + az[idp] - 0.6
             + 0.45*randomn(seed, npassive);
-        append(out.rsb, replicate(0.0, npassive));
-        append(out.sfr, e10(sfr));
+
+        // Compute RSB and get final SFR in linear units
+        out.rsb = out.sfr - sfrms;
+        out.sfr = e10(out.sfr);
     }
 
     // Generate SFR_IR and SFR_UV
@@ -892,70 +996,6 @@ if (!no_flux) {
     }
 }
 
-    // Generate random positions
-    // -------------------------
-
-if (!no_pos) {
-    if (verbose) {
-        note("generating sky positions...");
-    }
-
-    out.ra.resize(ngal);
-    out.dec.resize(ngal);
-
-    auto pg = progress_start(nz);
-    for (uint_t im : range(2))
-    for (uint_t iz : range(nz)) {
-        // Per redshift bin, we treat massive and low mass galaxies separately.
-        // Assuming more clustering for the most massive objects (im == 0).
-
-        vec1u idz = where(in_bin_open(out.z, zb, iz) && (im == 0 ? out.m < 10.5 : out.m >= 10.5));
-        uint_t z_ngal = idz.size();
-
-        // Use clustering for only 40% of the sample (low mass) or 70% (high mass)
-        double rnd_frac = (no_clust ? 1.0 : im == 0 ? 0.6 : 0.3);
-        uint_t nrnd = std::min(z_ngal, uint_t(ceil(rnd_frac*z_ngal)));
-        uint_t nclust = z_ngal - nrnd;
-
-        randpos_power_options opt;
-        opt.power = 0.5;    // power law of index 0.5
-        opt.levels = 4;     // 4 levels in the Soneira & Pebbles
-        opt.overload = 2.0; // generate twice more than needed, then pick half
-        opt.nsrc = nclust;
-
-        vec1d ra, dec;
-        auto status = randpos_power(seed, hull, hra, hdec, ra, dec, opt);
-        if (!status.success) {
-            error("failed: ", status.failure);
-            return 1;
-        }
-
-        randpos_uniform_options opt2;
-        opt2.nsrc = nrnd;
-
-        vec1d tra, tdec;
-        status = randpos_uniform(seed, {min(hra), max(hra)}, {min(hdec), max(hdec)},
-            [&](const vec1d& xra, const vec1d& xdec) {
-            return in_convex_hull(xra, xdec, hull, hra, hdec);
-        }, tra, tdec, opt2);
-
-        if (!status.success) {
-            error("failed: ", status.failure);
-            return 1;
-        }
-
-        append(ra, tra);
-        append(dec, tdec);
-
-        vec1u rid = shuffle(seed, uindgen(z_ngal));
-
-        out.ra[idz] = ra[rid];
-        out.dec[idz] = dec[rid];
-
-        if (verbose) progress(pg);
-    }
-}
-
     // Save the catalog to a file
     // --------------------------
 
@@ -1013,6 +1053,10 @@ void print_help(std::string filter_db_file) {
     print("");
 
     header("List of component related options:");
+    bullet("input_cat", "[string] name of the file containing the input catalog. Must be "
+        "either (a) a FITS table containing: RA & DEC (degrees), Z, M (log Msun, Salpeter "
+        "IMF), PASSIVE (0 or 1), and an optional ID column, or (b) an ASCII table "
+        "containing the columns ID, RA, DEC, Z, M and PASSIVE, in that specific order.");
     bullet("no_pos", "[flag] do not generate galaxy positions on the sky");
     bullet("no_clust", "[flag] do not generate clustering in galaxy positions");
     bullet("no_flux", "[flag] do not generate fluxes");
