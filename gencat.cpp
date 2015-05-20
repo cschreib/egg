@@ -1,5 +1,7 @@
 #include <phypp.hpp>
 
+const std::string gencat_dir = file::directorize(system_var("GENCAT_PATH"));
+
 void print_help(std::string filter_db_file);
 
 int main(int argc, char* argv[]) {
@@ -27,9 +29,9 @@ int main(int argc, char* argv[]) {
 
     bool save_sed = false;
 
-    std::string mass_func_file = "mass_func_candels.fits";
-    std::string ir_lib_file = "ir_lib_cs15.fits";
-    std::string opt_lib_file = "opt_lib_fast.fits";
+    std::string mass_func_file = gencat_dir+"mass_func_candels.fits";
+    std::string ir_lib_file = gencat_dir+"ir_lib_cs15.fits";
+    std::string opt_lib_file = gencat_dir+"opt_lib_fast.fits";
     std::string out_file = "";
     std::string filter_db_file = data_dir+"fits/filter-db/db.dat";
 
