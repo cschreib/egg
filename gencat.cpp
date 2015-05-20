@@ -232,6 +232,10 @@ int main(int argc, char* argv[]) {
     // all these data in input, i.e., from an existing catalog.
 
     if (!input_cat_file.empty()) {
+        if (verbose) {
+            note("reading input catalog '", input_cat_file, "'...");
+        }
+
         // Load data from an existing catalog
         if (end_with(input_cat_file, ".fits")) {
             fits::read_table(input_cat_file,
@@ -247,6 +251,10 @@ int main(int argc, char* argv[]) {
             file::read_table(input_cat_file, file::find_skip(input_cat_file),
                 out.id, out.ra, out.dec, out.z, out.m, out.passive
             );
+        }
+
+        if (verbose) {
+            note("found ", out.z.size(), " galaxies");
         }
 
         out.d = lumdist(out.z, cosmo);
