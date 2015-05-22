@@ -543,8 +543,10 @@ int main(int argc, char* argv[]) {
         out.m.resize(ngal);
 
         for (uint_t iz : range(nz)) {
-            vec1b inz = in_bin_open(out.z, zb, iz);
             vec1u idm = where(mf.mx > z_mmin[iz]);
+            if (idm.empty()) continue;
+
+            vec1b inz = in_bin_open(out.z, zb, iz);
 
             vec1u idl = where(inz && !out.passive);
             vec1f m = random_pdf_bin(mf.mb(_,idm), mf.mx[idm], mf.mz_active(iz,idm), idl.size());
