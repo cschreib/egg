@@ -898,9 +898,9 @@ if (!no_flux) {
         return 1;
     }
 
-    append(out.ir_sed, clamp(round(fir_sed), 0, nirsed-1));
-    append(out.ir_sed, replicate(0u, npassive));
-
+    out.ir_sed.resize(ngal);
+    out.ir_sed[ida] = clamp(round(fir_sed), 0, nirsed-1);
+    out.ir_sed[idp] = 0u; // TODO: maybe improve this
 
 if (!no_flux) {
 
