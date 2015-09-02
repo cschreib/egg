@@ -326,8 +326,8 @@ int main(int argc, char* argv[]) {
                 note("estimating redshift-dependend mass limit...");
             }
 
-            if (count(bands == selection_band) == 0) {
-                error("selection_band (", selection_band, ") is not found in bands");
+            filter_t filsel;
+            if (!get_filter(filter_db, selection_band, filsel)) {
                 return 1;
             }
 
@@ -360,7 +360,7 @@ int main(int argc, char* argv[]) {
                     vec1f lam = rlam*(1.0 + tz);
                     vec1f sed = lsun2uJy(tz, td, rlam, rsed);
 
-                    double funitmass = sed2flux(filters[bsel], lam, sed);
+                    double funitmass = sed2flux(filsel, lam, sed);
                     double mlim = log10(flim/funitmass);
 
                     tm.push_back(mlim);
