@@ -857,17 +857,17 @@ if (!no_flux) {
     out.tdust.resize(ngal);
     out.fpah.resize(ngal);
 
-    out.tdust[ida] = min(24.6*pow(1.0+out.z[ida], 0.37), 29.7*pow(1.0+out.z[ida], 0.20))
+    out.tdust = min(20.2*pow(1.0+out.z, 0.44), 26.3*pow(1.0+out.z, 0.20))
         // Starbursts are warmer
-        + 6.53*out.rsb[ida]
+        + 6.6*out.rsb
         // Add some random scatter
-        + (4.05 + 1.43*min(out.z[ida], 2.5))*randomn(seed, ida.size());
+        + 4.4*randomn(seed, ngal);
 
-    out.fpah[ida] = (0.04 + 0.035*(1.0-0.85*clamp(out.z[ida], 1.0, 2.0)))
+    out.fpah = (0.04 + 0.035*(1.0-0.85*clamp(out.z, 1.0, 2.0)))
         // Starburst have weaker PAH
-        *e10(-0.34*out.rsb[ida])
+        *e10(-0.48*out.rsb)
         // Add some random scatter
-        *e10(0.20*randomn(seed, ida.size()));
+        *e10(0.2*randomn(seed, ngal));
 
     out.fpah = clamp(out.fpah, 0.0, 1.0);
 
