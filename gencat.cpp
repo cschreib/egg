@@ -341,7 +341,6 @@ int main(int argc, char* argv[]) {
             // picking the 10% lowest value, we should be close to 90% completeness.
 
             double comp = 0.9;
-            uint_t bsel = where(bands == selection_band)[0];
             double flim = mag2uJy(maglim);
             uint_t nb = opt_lib.buv.dims[1];
 
