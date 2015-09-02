@@ -90,15 +90,22 @@ int main(int argc, char* argv[]) {
     // Sort the bands by increasing wavelength
     vec1f lambda;
     for (auto& band : bands) {
-        auto fil = get_filter(filter_db, band);
-        lambda.push_back(fil.rlam);
+        filter_t fil;
+        if (get_filter(filter_db, band, fil)) {
+            lambda.push_back(fil.rlam);
+        } else {
+            return 1;
+        }
     }
 
     vec1u ids = sort(lambda);
     bands = bands[ids];
     lambda = lambda[ids];
 
-    auto filters = get_filters(filter_db, bands);
+    vec<1,filter_t> filters;
+    if (!get_filters(filter_db, bands, filters)) {
+        return 1;
+    }
 
     // Initialize SED libraries
     // ------------------------
