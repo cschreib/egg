@@ -889,25 +889,23 @@ if (!no_flux) {
         fir_sed = replicate(0, nactive);
     } else if (file::get_basename(ir_lib_file) == "ir_lib_ce01.fits") {
         // The Chary & Elbaz 2001 library, redshift evolution calibrated from stacks
-        fir_sed = interpolate({26, 26, 40, 54, 53, 52, 52}, {0.57, 1.0, 1.5, 2.1, 2.9, 4.0, 6.0}, out.z[ida])
+        fir_sed = interpolate({26, 26, 40, 54, 53, 52, 52}, {0.57, 1.0, 1.5, 2.1, 2.9, 4.0, 6.0}, out.z)
             // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
-            + 15*clamp(out.rsb[ida]/ms_disp, -2.0, 2.0);
+            + 15*clamp(out.rsb/ms_disp, -2.0, 2.0);
     } else if (file::get_basename(ir_lib_file) == "ir_lib_m12.fits") {
         // The Magdis et al. 2012 library, using their reported redshift evolution
-        fir_sed = interpolate(findgen(nirsed), {0.0125, 0.1625, 0.4625, 0.8125, 1.15, 1.525, 2.0, 2.635}, out.z[ida])
+        fir_sed = interpolate(findgen(nirsed), {0.0125, 0.1625, 0.4625, 0.8125, 1.15, 1.525, 2.0, 2.635}, out.z)
             // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
-            + clamp(out.rsb[ida]/ms_disp, -2.0, 2.0);
+            + clamp(out.rsb/ms_disp, -2.0, 2.0);
     } else if (file::get_basename(ir_lib_file) == "ir_lib_cs15.fits") {
         // My own library, using calibration from stacks and detections
-        fir_sed = interpolate(findgen(nirsed), ir_lib_cs15.tdust, out.tdust[ida]);
+        fir_sed = interpolate(findgen(nirsed), ir_lib_cs15.tdust, out.tdust);
     } else {
         error("no calibration code available for the IR library '", ir_lib_file, "'");
         return 1;
     }
 
-    out.ir_sed.resize(ngal);
-    out.ir_sed[ida] = clamp(round(fir_sed), 0, nirsed-1);
-    out.ir_sed[idp] = 0u; // TODO: maybe improve this
+    out.ir_sed = clamp(round(fir_sed), 0, nirsed-1);
 
 if (!no_flux) {
 
