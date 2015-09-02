@@ -1,15 +1,17 @@
 \documentclass[12pt,a4paper]{article}
 
+\usepackage[T1]{fontenc}
 \usepackage{amsmath}
 \usepackage{graphics,graphicx}
 \usepackage{txfonts}
 \usepackage{natbib}
-\usepackage{xcolor}
+\usepackage[svgnames]{xcolor}
 \usepackage{xspace}
-\usepackage{hyperref}
+\usepackage[colorlinks=true,linkcolor=blue,linktoc=page]{hyperref}
 \usepackage{etoolbox}
 \usepackage{lastpage}
 \usepackage{sidecap}
+\usepackage{minted}
 % \usepackage[cm]{fullpage}
 \usepackage[a4paper,headsep=5pt,footskip=23pt]{geometry}
 
@@ -38,6 +40,14 @@
 \makeatother
 
 
+\newcommand{\phypp}{\textit{phy}$_{\text{++}}$\xspace}
+\newcommand{\cpp}[1]{\texttt{#1}\xspace}
+\newcommand{\stdvec}{\cppinline|std::vector|\xspace}
+
+\newminted{cpp}{fontsize=\small}
+\newmintinline{cpp}{fontsize=\small}
+\newminted{bash}{fontsize=\small}
+\newmintinline{bash}{fontsize=\small}
 
 \newcommand{\anote}[2]{{\color{cyan}#1}: {\color{blue} #2}}
 \newcommand{\rephrase}[1]{{\color{pink}Reformulate}: {\color{red}\it #1}}
@@ -154,6 +164,10 @@
 \begin{document}
 \newgeometry{left=1.8cm,bottom=2.0cm,right=1.8cm,top=1.8cm}
 
+\begin{center}
+{\huge Generating mock catalogs with \texttt{gencat}}
+\end{center}
+
 \section{Creating the mock catalog}
 
 The main idea behind the generation process of this mock catalog is that everything can be statistically inferred from the redshift, the stellar mass and the ``star-forming'' flag of each galaxy. The procedure is therefore composed of two main steps: first, generate a realistic distribution of masses at different redshifts both for active and passive galaxies using observed mass-functions; second, estimate all the other physical properties using statistical recipes: morphology, $\sfr$, attenuation, optical colors, and sky-projected position. I now describe each calculation in detail.
@@ -161,7 +175,7 @@ The main idea behind the generation process of this mock catalog is that everyth
 
 \subsection{Generating redshifts and masses}
 
-The purpose of the mock catalog is the simulate a field similar to the GOODS--South CANDELS field. Therefore, in order to most closely mimic the properties of this field, I have estimate conditional mass functions at different redshifts, as described in my paper (Schreiber et al.~2014). Briefly, the whole GOODS--South catalog is cut at $H<26$ to ensure high completeness, split in two population of ``active'' and ``passive'' galaxies according to the UVJ color-color selection, and further split in multiple redshift bins from $z=0.3$ to $z=4.5$. I have used the masses and redshifts computed by Maurilio Pannella using the CANDELS photometry, but I can easily switch to the official CANDELS mass and redshift catalog if needed. Then, I simply computed the mass distribution of each of these sub-samples, performing 1st order completeness corrections, and fit a double Schechter law. Using these fits, I can generate mass functions down to arbitrarily low stellar masses. To reach higher redshifts, I have used the mass functions calculated by Grazian et al.~(2014) for $z < 7.5$. The $z=0$ mass functions is adapted from Baldry et al.~(2012) (converted from Chabrier to Salpeter), but it should not matter much since we are aiming for pencil-beam surveys which contain very few local galaxies.
+The purpose of the mock catalog is the simulate a field similar to the GOODS--South CANDELS field. Therefore, in order to most closely mimic the properties of this field, I have estimated conditional mass functions at different redshifts, as described in my paper (Schreiber et al.~2015). Briefly, the whole GOODS--South catalog is cut at $H<26$ to ensure high completeness, split in two population of ``active'' and ``passive'' galaxies according to the UVJ color-color selection, and further split in multiple redshift bins from $z=0.3$ to $z=4.5$. I have used the masses and redshifts computed by Maurilio Pannella using the CANDELS photometry, but I can easily switch to the official CANDELS mass and redshift catalog if needed. Then, I simply computed the mass distribution of each of these sub-samples, performing 1st order completeness corrections, and fit a double Schechter law. Using these fits, I can generate mass functions down to arbitrarily low stellar masses. To reach higher redshifts, I have used the mass functions calculated by Grazian et al.~(2015) for $z < 7.5$. The $z=0$ mass functions is adapted from Baldry et al.~(2012) (converted from Chabrier to Salpeter), but it should not matter much since we are aiming for pencil-beam surveys which contain very few local galaxies.
 
 Once this is done, I define a fine grid of redshifts, say from $z=0.01$ to $z=6$ with $\Delta z \simeq 0.1 \times (1 + z)$ (imposing a minimum $\Delta z > 0.1$), and I choose the sky area of the mock catalog (here I took an area similar to the catalog you first produced with Stuff, i.e.~ $17 \times 17\,{\rm arcmin}$). In each redshift bin, I interpolate the above mass-functions to a redshift equal to the center of the current bin, multiply it by the volume of Universe probed by the survey in this bin, and generate masses following the distributions of both passive and active galaxies (the two populations are identified by a flag in the catalog), from $\mstar = M_{\rm min}$ to $\mstar = M_{\rm max}$. I chose $M_{\rm max} = 10^{12}\,\msun$, and $M_{\rm min}$ can be chosen either to be constant (e.g.~$10^{7}\,\msun$) or to vary with redshift so as to reach a given magnitude limit in the selection band (so you can chose to generate a catalog which is complete down to $H < 27$, for example). This later step uses the library optical SEDs described below to estimate roughly the mass completeness.
 
@@ -198,9 +212,12 @@ R_{\rm bulge} &= (1+z)^{-2.5} \times \left(\frac{\mstar}{10^{10}}\right)^{0.7} \
 
 \subsection{Generating star formation rate \label{SEC:sfr}}
 
-This step is simple. I used the Main Sequence approach, which attributes a ``main sequence'' $\sfr$ to every galaxy, knowing its redshift and its stellar mass. I used the $\sfr_{\rm MS}$ published in my paper (Schreiber et al.~2014, Eq.~9). On top of this, a random lognormal scatter of $0.3\,\dex$ is added, so that
+This step is simple. I used the Main Sequence approach, which attributes a ``main sequence'' $\sfr$ to every galaxy, knowing its redshift and its stellar mass. I used the $\sfr_{\rm MS}$ published in my paper (Schreiber et al.~2015, Eq.~9). On top of this, a random lognormal scatter of $0.3\,\dex$ is added, and a small fraction ($3.3\%$) of the sample is randomly put in the ``starburst'' mode, following the 2SFM model (Sargent et al.~2012) and using the best-fit parameters obtained in Schreibet et al.~(2015). In the end:
 \begin{align}
-\rsb &= 10^{G(0.3)} \\
+\rsb &= \begin{cases}
+10^{G(0.3)} \quad\text{for Main Sequence galaxies} \\
+5.2 \times 10^{G(0.3)} \quad\text{for Staburst galaxies} \\
+\end{cases} \\
 \sfr &= \sfr_{\rm MS} \times \, \rsb.
 \end{align}
 
@@ -220,7 +237,7 @@ From there is it then simple to recover $\lir$ and $\luv$, and therefore the obs
 
 \subsection{Generating optical colors}
 
-To pick an optical SED for each galaxy, I choose to work with the \uvj color-color diagram. In there, passive galaxies occupy a well defined region (red cloud), while star-forming galaxies form a sort of ``sequence'', which is actually generated by the attenuation vector (assuming the Calzetti law, see e.g.~Williams et al. 2009, Fig.~8). This is useful, because it is known (e.g.~Pannella et al.~2014) that the attenuation correlates strongly with the stellar mass. I used this fact to associate colors to active and passive galaxies, again starting only from their redshift and masses. You can also take a look at Fig.~1 in my paper (Schreiber et al.~2014) to see the trends.
+To pick an optical SED for each galaxy, I choose to work with the \uvj color-color diagram. In there, passive galaxies occupy a well defined region (red cloud), while star-forming galaxies form a sort of ``sequence'', which is actually generated by the attenuation vector (assuming the Calzetti law, see e.g.~Williams et al. 2009, Fig.~8). This is useful, because it is known (e.g.~Pannella et al.~2014) that the attenuation correlates strongly with the stellar mass. I used this fact to associate colors to active and passive galaxies, again starting only from their redshift and masses. You can also take a look at Fig.~1 in my paper (Schreiber et al.~2015) to see the trends.
 
 Passive galaxies are well condensed in a fixed region, close to $V-J = 1.25$ and $U-V = 1.85$, so they are simple to generate. There is a small trend with stellar mass as well. It is not very important, but I will simulate it for completeness. The principle is to put all passive galaxies at the position given just above, shift them according to the attenuation vector with a stellar mass trend, and add some Gaussian noise to the colors. The final colors are chosen following
 \begin{align}
@@ -230,7 +247,7 @@ A &= 0.1 \times (\log_{10}(\mstar/\msun) - 11) + G(0.1)\,, \\
 \end{align}
 Note that the ``shift'' $A$ is clamped to the range $[-0.1,0.2]$ so that galaxies do not leave the red cloud.
 
-For star-forming galaxies, one needs to be a bit more subtle because their colors vary a lot more. As can be seen in Fig.~1 from Schreiber et al.~(2014), star-forming galaxies populate different regions of the \uvj diagram depending on the stellar mass and redshift: massive galaxies are preferentially located on the top-right corner (red $U-V$ and $V-J$ colors), while low-mass galaxies are at the bottom-left (blue in $U-V$ and $V-J$), and they are shifted to bluer colors at higher redshift. This can be due either to a difference of attenuation, or younger ages. In any case, we can parametrize this evolution.
+For star-forming galaxies, one needs to be a bit more subtle because their colors vary a lot more. As can be seen in Fig.~1 from Schreiber et al.~(2015), star-forming galaxies populate different regions of the \uvj diagram depending on the stellar mass and redshift: massive galaxies are preferentially located on the top-right corner (red $U-V$ and $V-J$ colors), while low-mass galaxies are at the bottom-left (blue in $U-V$ and $V-J$), and they are shifted to bluer colors at higher redshift. This can be due either to a difference of attenuation, or younger ages. In any case, we can parametrize this evolution.
 
 To do so, I took a sample of \uvj star-forming galaxies in GOODS--South, and split it in mass bins. I further decompose each of these bins by slicing in redshift, and compute the median $U-V$ and $V-J$ colors. This gives me a set of tracks in the \uvj diagram, which are reproduced in \rfig{FIG:uvj_track} (left). It turns out that these tracks fall roughly on a fixed line of slope $0.65$. So I computed the projection of the tracks on that line, and parametrized its evolution as
 \begin{align}
@@ -263,7 +280,7 @@ The resulting \uvj colors are shown in \rfig{FIG:uvj_track} (right).
 
 To go beyond the colors and associate a full optical SED to the galaxies (and their bulge/disk components), the idea is to consider that there is an average SED for each position on the \uvj diagram, and that one can attribute this average SED to the galaxies that are at this position.
 
-Therefore I have binned the \uvj plane into small buckets of about $0.1$ mag, and computed the observed average rest-frame SED of all the galaxies that fall inside each bucket. I also split the sample in redshift bins, to further refine the SEDs, but this turned out to have negligible impact. These rest-frame SEDs are actually generated by FAST, which is the code that Maurilio Pannella used to estimate stellar masses in the first place, and are created from the Bruzual \& Charlot (2003) stellar population models. These SEDs are output by FAST in observed-frame, so I first de-redshift them, normalize them by the total stellar mass of the galaxy, interpolate them on a common rest-frame wavelength grid, and compute the average for each wavelength. The result is a wide library of about $850$ reference SEDs, all normalized per unit stellar mass.
+Therefore I have binned the \uvj plane into small buckets of about $0.1$ mag, and computed the observed average rest-frame SED of all the galaxies that fall inside each bucket. I also tried to split the sample in redshift bins, to further refine the SEDs, but this turned out to have negligible impact, so I assume no redshift dependence. These rest-frame SEDs are actually generated by FAST, which is the code that Maurilio Pannella used to estimate stellar masses in the first place, and are created from the Bruzual \& Charlot (2003) stellar population models, assuming a delayed exponentially declining star formation history. These SEDs are output by FAST in observed-frame, so I first de-redshift them, normalize them by the total stellar mass of the galaxy, interpolate them on a common rest-frame wavelength grid, and compute the average for each wavelength. The result is a wide library of about $850$ reference SEDs, all normalized per unit stellar mass.
 
 Then the procedure is simply to pick one of these SEDs depending on the position of the galaxy in the \uvj diagram. If the average SED is made out of less than $10$ observed galaxies, the bin is considered as unreliable and the average SED of the closest reliable bin on the \uvj plane is chosen instead.
 
@@ -275,8 +292,6 @@ I run this procedure for both disk and bulge components, multiply the chosen SED
 The generation of the IR fluxes is the same as the one we used before, either for my paper, or to generate the \herschel images with the previous Astrodeep mock catalog. Basically, we use the Chary \& Elbaz (2001) library of FIR SEDs, normalize them to unit $\lir$, and attribute one of these SEDs to every galaxy, from its redshift and ``starburtiness'' (see \rsec{SEC:sfr}). At higher redshifts, galaxies have warmer dust temperatures (Magdis et al.~2012), and the dust temperature also correlates with the offset of a galaxy from the Main Sequence (Magnelli et al.~2014). We use here the redshift evolution that was seen when I stacked \herschel images for my paper, and the starburstiness trend is put by hand (I'm not sure it has an important effect though).
 
 Then, as for the optical flux computation, the chosen SED is multiplied by the $\lir$ of the galaxy, redshifted, and integrated over the chosen IR passbands to produce the final flux. Note that I chose to attribute all of the FIR flux to the ``disk'' component. This should not matter, since at these wavelengths we usually do not have the resolution to disentangle between bulge and disk.
-
-Lastly, to properly reproduce the SPIRE fluxes ($250$, $350$ and $500\,\um$), I had to boost them up by $30\%$. This may be an issue of the SED library.
 
 
 \subsection{Generating sky positions}
@@ -322,6 +337,165 @@ In what follows, I use a mock catalog generated with $90\%$ completeness in $H$-
 
 \rfig{FIG:irflux} shows basically the same plots, but with the FIR fluxes. Here the agreement is very good, there is really nothing to say. Same goes for \rfig{FIG:irpd}, where I compare the pixel histogram distribution of the simulated maps against the observed maps. This second test is important because of the blending, which sometimes pollutes the measured flux catalogs (two sources are combined into a single one), which tends to produce more bright fluxes than there actually is in the real Universe. By analyzing the map statistics directly, one gets rid of this issue of the counter part identification.
 
+\newpage
+
+\section{Installing \texttt{gencat}}
+
+\subsection{Forewords}
+
+\texttt{gencat} is written in C++ and has a few dependencies. I have tried to keep the number of these dependencies as low as possible, and in fact for the moment there are four:
+
+\begin{itemize}
+\item \phypp, a library for numerical analysis that I have developed during my PhD,
+\item cfitsio, for handling FITS files,
+\item WCSlib, for handling sky-to-pixel conversions,
+\item and CMake, for managing the building process (dependencies, and platform specific stuff).
+\end{itemize}
+
+\subsection{Install dependencies}
+
+If your operating system comes with a package manager, this should be very easy. Apart from \phypp that we will address in the next section, these dependencies are standard libraries and tools that should be available in all the package managers.
+
+\begin{itemize}
+\item Mac users:
+\begin{minted}{bash}
+sudo port install cfitsio wcslib cmake
+\end{minted}
+or
+\begin{minted}{bash}
+sudo brew install cfitsio wcslib cmake
+\end{minted}
+\item Linux/Ubuntu users:
+\begin{minted}{bash}
+sudo apt-get install libcfitsio3-dev wcslib-dev cmake
+\end{minted}
+\item Other Linux distributions: You get the point. Use \texttt{yum}, \texttt{apt}, \texttt{pacman}, or whatever package manager is supported by your distribution.
+\item Windows users: Sorry, not supported.
+\end{itemize}
+
+If you don't have a package manager, then you have to compile these tools and libraries yourself... I hope it doesn't come to that, because you may loose a lot of time figuring this out. But in the eventuality, here are the links to places where you can download the source code. Follow the build instructions given on their respective each web page.
+\begin{itemize}
+\item cfitsio: \url{http://heasarc.gsfc.nasa.gov/fitsio/fitsio.html}
+\item WCSlib: \url{http://www.atnf.csiro.au/people/mcalabre/WCS/}
+\item CMake: \url{http://www.cmake.org/download/} (they also offer binaries, check this out first)
+\end{itemize}
+
+\subsection{Install \phypp and \texttt{gencat}}
+
+The rest is a little bit harder, but not that much. Thanks to CMake, the installing process is the same on all computers. In the following, I will assume that you have a directory somewhere on your computer where you keep all your programming related stuff (e.g., the source code of TPHOT if you have tried to compile it).
+
+\begin{enumerate}
+\item Download the following archives and extract them inside this directory:
+\begin{itemize}
+\item \url{https://github.com/cschreib/phypp/archive/master.tar.gz}
+\item \url{https://github.com/cschreib/gencat/archive/master.tar.gz}
+\item \url{https://github.com/cschreib/filter-db/archive/master.tar.gz}
+\end{itemize}
+
+This bash script will do that for you:
+\begin{minted}{bash}
+wget https://github.com/cschreib/phypp/archive/master.tar.gz
+tar -xvzf master.tar.gz && rm master.tar.gz
+wget https://github.com/cschreib/gencat/archive/master.tar.gz
+tar -xvzf master.tar.gz && rm master.tar.gz
+wget https://github.com/cschreib/filter-db/archive/master.tar.gz
+tar -xvzf master.tar.gz && rm master.tar.gz
+\end{minted}
+
+In the end, this should create three directories:
+\begin{minted}{bash}
+filter-db-master
+gencat-master
+phypp-master
+\end{minted}
+
+\item Open a terminal and navigate to the \cppinline{phypp-master} directory. Then, if you are using cfitsio and WCSlib from your package manager, run the following commands:
+\begin{minted}{bash}
+mkdir build && cd build
+cmake ../
+\end{minted}
+
+If instead you have installed one of these two libraries by hand, in a non-standard directory, you have to provide this directory to the CMake script. This is done by replacing the command :
+\begin{minted}{bash}
+mkdir build && cd build
+cmake ../ -DWCSLIB_ROOT_DIR=... -DCFITSIO_ROOT_DIR=...
+\end{minted}
+
+The ``...'' have to be replaced by the actual directory in which each library was installed. For example, if you have installed cfitsio in the \cppinline{/opt/local/share/cfitsio} directory, then the ``..." after \cppinline{-DCFITSIO_ROOT_DIR} in the above command has to be replaced by \cppinline{"opt/local/share/cfitsio"}.
+
+If all goes well, this will configure the \phypp library and prepare it for installation. The script will most likely warn you about missing dependencies, but this is ok since none of these are needed for \texttt{gencat}. Just make sure that cfitsio and WCSlib are found correctly, then install the library with the following command:
+
+\begin{minted}{bash}
+sudo make install
+source ~/.phypprc
+\end{minted}
+
+\item Using the terminal, navigate now inside the \cppinline{gencat-master} directory. Similarly, run the following commands:
+\begin{minted}{bash}
+mkdir build && cd build
+cmake ../
+\end{minted}
+
+This will generate an error if, somehow, there was an issue in the installation of the \phypp library. Else, this will configure \texttt{gencat} and make it ready to be built. Finally, run the last command:
+\begin{minted}{bash}
+make install
+\end{minted}
+\end{enumerate}
+
+The gencat binary will be created in \cppinline{../bin}. See, not that hard!
+
+\subsection{Making sure everything works}
+
+Navigate into the \cppinline{gencat-master/bin} directory and call:
+\begin{minted}{bash}
+./gencat verbose maglim=27 filter_db=../../filter-db-master/db.dat
+\end{minted}
+
+This will take a few seconds to run. In the end, you should get something like:
+\begin{minted}[fontsize=\footnotesize]{bash}
+note: initializing filters...
+note: 15 optical bands and 8 IR bands
+note: initializing redshift bins...
+note: min dz: 0.05, max dz: 0.773951
+note: 36 redshift slices
+note: estimating redshift-dependend mass limit...
+note: will generate masses from as low as 4.56944, up to 12
+note: reading mass functions...
+note: found 10 redshift bins and 181 mass bins
+note: generating redshifts...
+note: generated 50142 galaxies
+note: generating masses...
+note: generating morphology...
+note: generating SFR...
+note: assigning optical SEDs...
+[---------------------------------------] 900 100%, 285ms elapsed, 0ns left, 285ms total
+[---------------------------------------] 900 100%, 304ms elapsed, 0ns left, 304ms total
+note: assigning IR SED...
+note: computing fluxes...
+note: computing optical fluxes...
+[---------------------------------------] 50142 100%, 8s elapsed, 0ns left, 8s total
+[---------------------------------------] 49883 100%, 8s elapsed, 0ns left, 8s total
+note: computing IR fluxes...
+[---------------------------------------] 50142 100%, 5s elapsed, 0ns left, 5s total
+note: generating sky positions...
+[---------------------------------------] 36 100%, 1s elapsed, 0ns left, 1s total
+note: saving catalog...
+\end{minted}
+
+Also, a file called \bashinline{gencat-2015xxxx.fits} (e.g., for me it was \bashinline{gencat-20150323.fits}) weighting about 20MB will be created in the same directory. This is the output catalog, in FITS format. You can open it in IDL to check its content with the following IDL command: \\[0.5cm]
+\noindent \texttt{\color{gray}; Load the catalog} \\
+\noindent \texttt{cat = mrdfits({\color{DodgerBlue}'gencat-2015xxxx.fits'}, {\color{red}1})} \\
+\noindent \texttt{\color{gray}; Look at its content} \\
+\noindent \texttt{{\color{Green}help}, cat, /str} \\
+\noindent \texttt{\color{gray}; Then do some plots} \\
+\noindent \texttt{{\color{Green}plot}, cat.z, cat.m, psym={\color{red}3}, xtit={\color{DodgerBlue}'redshift'}, ytit={\color{DodgerBlue}'stellar mass'}} \\
+
+Then there remain to test the program that will tranlsate this catalog into a Skymaker-compatible catalog, one per band. Try:
+\begin{minted}{bash}
+./make_skymaker gencat-2015xxxx.fits band=f160w out=sky-f160w.cat
+\end{minted}
+
+This should produce no output in the terminal, but create two files in the same directory, \cppinline{sky-f160w.cat}, which is the Skymaker catalog, and \cppinline{sky-f160w-hdr.txt}, which is the WCS header to feed to Skymaker.
 
 \end{document}
 
