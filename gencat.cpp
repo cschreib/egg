@@ -720,9 +720,10 @@ int main(int argc, char* argv[]) {
         out.sfr[ida[idsb]] += 0.72;
 
         // Passive galaxies
-        out.sfr[idp] = 0.5*(out.m[idp] - 11)
-            + az[idp] - 0.6
-            + 0.45*randomn(seed, npassive);
+        out.sfr[idp] = min(sfrms[idp], 0.5*(out.m[idp] - 11) + az[idp] - 0.6);
+
+        // Add dispersion
+        out.sfr[idp] += 0.4*randomn(seed, npassive);
 
         // Compute RSB and get final SFR in linear units
         out.rsb = out.sfr - sfrms;
