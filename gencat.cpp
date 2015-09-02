@@ -171,7 +171,8 @@ int main(int argc, char* argv[]) {
         nirsed = ir_lib.sed.dims[0];
     }
 
-    // The optical library. Each template must be normalized to unit stellar mass.
+    // The optical library. Each template must be normalized to solar luminosity
+    // per unit stellar mass (in solar mass).
     // The library is binned in redshift, U-V and V-J colors.
     struct {
         vec3f lam, sed;
@@ -331,7 +332,7 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
 
-            // A magnitude limite was requested.
+            // A magnitude limit was requested.
             // Use the optical library to estimate a rough mass completeness, and compute
             // the minimum mass needed to be 90% complete at the requested magnitude.
             // To do so, we compute the flux in the selection band of all the templates
