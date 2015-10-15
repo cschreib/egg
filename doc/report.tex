@@ -43,6 +43,7 @@
 \newcommand{\phypp}{\textit{phy}$_{\text{++}}$\xspace}
 \newcommand{\cpp}[1]{\texttt{#1}\xspace}
 \newcommand{\stdvec}{\cppinline|std::vector|\xspace}
+\newcommand{\ifni}{\textit{Ifni}\xspace}
 
 \newminted{cpp}{fontsize=\small}
 \newmintinline{cpp}{fontsize=\small}
@@ -165,7 +166,7 @@
 \newgeometry{left=1.8cm,bottom=2.0cm,right=1.8cm,top=1.8cm}
 
 \begin{center}
-{\huge Generating mock catalogs with \texttt{gencat}}
+{\huge Generating mock catalogs with \ifni}
 \end{center}
 
 \section{Creating the mock catalog}
@@ -339,11 +340,11 @@ In what follows, I use a mock catalog generated with $90\%$ completeness in $H$-
 
 \newpage
 
-\section{Installing \texttt{gencat}}
+\section{Installing \ifni}
 
 \subsection{Forewords}
 
-\texttt{gencat} is written in C++ and has a few dependencies. I have tried to keep the number of these dependencies as low as possible, and in fact for the moment there are four:
+\ifni is written in C++ and has a few dependencies. I have tried to keep the number of these dependencies as low as possible, and in fact for the moment there are four:
 
 \begin{itemize}
 \item \phypp, a library for numerical analysis that I have developed during my PhD,
@@ -380,7 +381,7 @@ If you don't have a package manager, then you have to compile these tools and li
 \item CMake: \url{http://www.cmake.org/download/} (they also offer binaries, check this out first)
 \end{itemize}
 
-\subsection{Install \phypp and \texttt{gencat}}
+\subsection{Install \phypp and \ifni}
 
 The rest is a little bit harder, but not that much. Thanks to CMake, the installing process is the same on all computers. In the following, I will assume that you have a directory somewhere on your computer where you keep all your programming related stuff (e.g., the source code of TPHOT if you have tried to compile it).
 
@@ -388,7 +389,7 @@ The rest is a little bit harder, but not that much. Thanks to CMake, the install
 \item Download the following archives and extract them inside this directory:
 \begin{itemize}
 \item \url{https://github.com/cschreib/phypp/archive/master.tar.gz}
-\item \url{https://github.com/cschreib/gencat/archive/master.tar.gz}
+\item \url{https://github.com/cschreib/ifni/archive/master.tar.gz}
 \item \url{https://github.com/cschreib/filter-db/archive/master.tar.gz}
 \end{itemize}
 
@@ -396,7 +397,7 @@ This bash script will do that for you:
 \begin{minted}{bash}
 wget https://github.com/cschreib/phypp/archive/master.tar.gz
 tar -xvzf master.tar.gz && rm master.tar.gz
-wget https://github.com/cschreib/gencat/archive/master.tar.gz
+wget https://github.com/cschreib/ifni/archive/master.tar.gz
 tar -xvzf master.tar.gz && rm master.tar.gz
 wget https://github.com/cschreib/filter-db/archive/master.tar.gz
 tar -xvzf master.tar.gz && rm master.tar.gz
@@ -405,7 +406,7 @@ tar -xvzf master.tar.gz && rm master.tar.gz
 In the end, this should create three directories:
 \begin{minted}{bash}
 filter-db-master
-gencat-master
+ifni-master
 phypp-master
 \end{minted}
 
@@ -415,40 +416,55 @@ mkdir build && cd build
 cmake ../
 \end{minted}
 
-If instead you have installed one of these two libraries by hand, in a non-standard directory, you have to provide this directory to the CMake script. This is done by replacing the command :
+If instead you have installed one of these two libraries by hand, in a non-standard directory, you have to provide this directory to the CMake script. This is done this way:
 \begin{minted}{bash}
 mkdir build && cd build
 cmake ../ -DWCSLIB_ROOT_DIR=... -DCFITSIO_ROOT_DIR=...
 \end{minted}
 
-The ``...'' have to be replaced by the actual directory in which each library was installed. For example, if you have installed cfitsio in the \cppinline{/opt/local/share/cfitsio} directory, then the ``..." after \cppinline{-DCFITSIO_ROOT_DIR} in the above command has to be replaced by \cppinline{"opt/local/share/cfitsio"}.
+The ``...'' have to be replaced by the actual directory in which each library was installed. For example, if you have installed cfitsio in the \cppinline{/opt/local/share/cfitsio} directory, then the ``..." after \cppinline{-DCFITSIO_ROOT_DIR} in the above command has to be replaced by \cppinline{"/opt/local/share/cfitsio"}.
 
-If all goes well, this will configure the \phypp library and prepare it for installation. The script will most likely warn you about missing dependencies, but this is ok since none of these are needed for \texttt{gencat}. Just make sure that cfitsio and WCSlib are found correctly, then install the library with the following command:
+Another thing to consider is that, by default, CMake will try to install the library inside the system default directories. If you have root access to your computer, this is the recommended way to go as it will make things simpler. If you do not have root access, or if for some reason you prefer to install the library somewhere else than the default location, you can specify manually the install directory using \cppinline{-DCMAKE_INSTALL_PREFIX}:
+\begin{minted}{bash}
+mkdir build && cd build
+cmake ../ -DCMAKE_INSTALL_PREFIX=...
+\end{minted}
+
+Here, the ``...'' have to be replaced by the directory in which you want to install the library. For example, if you want to install it in \cppinline{/opt/local}, just replace ``...'' by \cppinline{"/opt/local"}. This will install the library headers in \cppinline{/opt/local/include}. This can of course be combined with the manual installation directories for WCSlib and cfitsio.
+
+If all goes well, this will configure the \phypp library and prepare it for installation. The script will most likely warn you about missing dependencies, but this is ok since none of these are needed for \ifni. Just make sure that cfitsio and WCSlib are found correctly, then install the library with the following command:
 
 \begin{minted}{bash}
 sudo make install
+# or just 'make install' if you do not have root access
 source ~/.phypprc
 \end{minted}
 
-\item Using the terminal, navigate now inside the \cppinline{gencat-master} directory. Similarly, run the following commands:
+\item Using the terminal, navigate now inside the \cppinline{ifni-master} directory. Similarly, run the following commands:
 \begin{minted}{bash}
 mkdir build && cd build
 cmake ../
 \end{minted}
 
-This will generate an error if, somehow, there was an issue in the installation of the \phypp library. Else, this will configure \texttt{gencat} and make it ready to be built. Finally, run the last command:
+Note that if you have installed the \phypp library in a non-standard folder, for example in the \cppinline{/opt/local} directory (as above), you will have to manually specify this location to CMake and use instead:
+\begin{minted}{bash}
+mkdir build && cd build
+cmake ../ -DPHYPP_ROOT_DIR="/opt/local"
+\end{minted}
+
+CMake will generate an error if, somehow, there was an issue in the installation of the \phypp library. Else, it will configure \ifni and make it ready to be built. Finally, run the last command:
 \begin{minted}{bash}
 make install
 \end{minted}
 \end{enumerate}
 
-The gencat binary will be created in \cppinline{../bin}. See, not that hard!
+The \cppinline{ifni} binary will be created in \cppinline{../bin}. See, not that hard!
 
 \subsection{Making sure everything works}
 
-Navigate into the \cppinline{gencat-master/bin} directory and call:
+Navigate into the \cppinline{ifni-master/bin} directory and call:
 \begin{minted}{bash}
-./gencat verbose maglim=27 filter_db=../../filter-db-master/db.dat
+./ifni verbose maglim=27 filter_db=../../filter-db-master/db.dat
 \end{minted}
 
 This will take a few seconds to run. In the end, you should get something like:
@@ -482,17 +498,17 @@ note: generating sky positions...
 note: saving catalog...
 \end{minted}
 
-Also, a file called \bashinline{gencat-2015xxxx.fits} (e.g., for me it was \bashinline{gencat-20150323.fits}) weighting about 20MB will be created in the same directory. This is the output catalog, in FITS format. You can open it in IDL to check its content with the following IDL command: \\[0.5cm]
+Also, a file called \bashinline{ifni-2015xxxx.fits} (e.g., for me it was \bashinline{ifni-20150323.fits}) weighting about 20MB will be created in the same directory. This is the output catalog, in FITS format. You can open it in IDL to check its content with the following IDL command: \\[0.5cm]
 \noindent \texttt{\color{gray}; Load the catalog} \\
-\noindent \texttt{cat = mrdfits({\color{DodgerBlue}'gencat-2015xxxx.fits'}, {\color{red}1})} \\
+\noindent \texttt{cat = mrdfits({\color{DodgerBlue}'ifni-2015xxxx.fits'}, {\color{red}1})} \\
 \noindent \texttt{\color{gray}; Look at its content} \\
 \noindent \texttt{{\color{Green}help}, cat, /str} \\
 \noindent \texttt{\color{gray}; Then do some plots} \\
 \noindent \texttt{{\color{Green}plot}, cat.z, cat.m, psym={\color{red}3}, xtit={\color{DodgerBlue}'redshift'}, ytit={\color{DodgerBlue}'stellar mass'}} \\
 
-Then there remain to test the program that will tranlsate this catalog into a Skymaker-compatible catalog, one per band. Try:
+Then it remains to test the program that will tranlsate this catalog into a Skymaker-compatible catalog, one per band. Try:
 \begin{minted}{bash}
-./make_skymaker gencat-2015xxxx.fits band=f160w out=sky-f160w.cat
+./ifni-2skymaker ifni-2015xxxx.fits band=f160w out=sky-f160w.cat
 \end{minted}
 
 This should produce no output in the terminal, but create two files in the same directory, \cppinline{sky-f160w.cat}, which is the Skymaker catalog, and \cppinline{sky-f160w-hdr.txt}, which is the WCS header to feed to Skymaker.

@@ -2,7 +2,7 @@
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        print("usage: make_skymaker gencat.fits band=... maglim=... out=...");
+        print("usage: ifni2skymaker cat.fits band=... maglim=... out=...");
         return 1;
     }
 

@@ -1,6 +1,6 @@
 #include <phypp.hpp>
 
-const std::string gencat_dir = file::directorize(system_var("GENCAT_PATH"));
+const std::string ifni_dir = file::directorize(system_var("IFNI_PATH"));
 
 void print_help(std::string filter_db_file);
 
@@ -29,9 +29,9 @@ int main(int argc, char* argv[]) {
 
     bool save_sed = false;
 
-    std::string mass_func_file = gencat_dir+"mass_func_candels.fits";
-    std::string ir_lib_file = gencat_dir+"ir_lib_cs15.fits";
-    std::string opt_lib_file = gencat_dir+"opt_lib_fast.fits";
+    std::string mass_func_file = ifni_dir+"mass_func_candels.fits";
+    std::string ir_lib_file = ifni_dir+"ir_lib_cs15.fits";
+    std::string opt_lib_file = ifni_dir+"opt_lib_fast.fits";
     std::string out_file = "";
     std::string filter_db_file = data_dir+"fits/filter-db/db.dat";
 
@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (out_file.empty()) {
-        out_file = "gencat-"+today()+".fits";
+        out_file = "ifni-"+today()+".fits";
     }
 
     // Initialize random seed and cosmology
@@ -1049,8 +1049,8 @@ if (!no_flux) {
 void print_help(std::string filter_db_file) {
     using namespace format;
 
-    print("gencat v1.0");
-    paragraph("usage: gencat [options]");
+    print("ifni v1.0");
+    paragraph("usage: ifni [options]");
 
     header("List of generic options:");
     bullet("verbose", "[flag] print additional information in the standard output while "
@@ -1061,7 +1061,7 @@ void print_help(std::string filter_db_file) {
     bullet("seed", "[uint] number used to initialize the random number generator "
         "(default: 42)");
     bullet("out", "[string] number used to initialize the random number generator "
-        "(default: gencat-"+today()+".fits)");
+        "(default: ifni-"+today()+".fits)");
     print("");
 
     header("List of library related options:");
@@ -1122,7 +1122,7 @@ void print_help(std::string filter_db_file) {
     header("List of available bands:");
     if (!file::exists(filter_db_file)) {
         warning("could not find filter database file '", filter_db_file, "'");
-        note("when running gencat, please set the options 'no_flux'");
+        note("when running ifni, please set the options 'no_flux'");
         note("and do not use the 'maglim' feature");
     } else {
         vec1s fils;
