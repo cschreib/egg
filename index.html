@@ -1,0 +1,65 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>Ifni by cschreib</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-dark.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/respond.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <!--[if lt IE 8]>
+    <link rel="stylesheet" href="stylesheets/ie.css">
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+      <div id="header">
+        <nav>
+          <li class="fork"><a href="https://github.com/cschreib/ifni">View On GitHub</a></li>
+          <li class="downloads"><a href="https://github.com/cschreib/ifni/zipball/master">ZIP</a></li>
+          <li class="downloads"><a href="https://github.com/cschreib/ifni/tarball/master">TAR</a></li>
+          <li class="title">DOWNLOADS</li>
+        </nav>
+      </div><!-- end header -->
+
+    <div class="wrapper">
+
+      <section>
+        <div id="title">
+          <h1>Ifni</h1>
+          <p>Tool to generate fake galaxy catalogs with realistic positions, morphologies and fluxes from the far-ultraviolet to the far-infrared.</p>
+          <hr>
+          <span class="credits left">Project maintained by <a href="https://github.com/cschreib">cschreib</a></span>
+          <span class="credits right">Hosted on GitHub Pages &mdash; Theme by <a href="https://twitter.com/michigangraham">mattgraham</a></span>
+        </div>
+
+        <h3>
+<a id="description" class="anchor" href="#description" aria-hidden="true"><span class="octicon octicon-link"></span></a>Description</h3>
+
+<p><em>Ifni</em> is a tool to generate mock galaxy catalogs with realistic positions, morphologies and fluxes from the far-ultraviolet to the far-infrared. The process is based exclusively on empirical relations carefully calibrated on state-of-art observations from the deep CANDELS fields, in particular using data from the Hubble-WFC3 camera and Herschel-PACS and SPIRE. The "root" element of the simulation process is the stellar mass of each galaxy, which is used to derive statistically the dust content, star formation rate, optical colors and morphology. The full panchromatic spectrum of the galaxy is generated from this set of parameters, and by construction the resulting flux distributions reproduce accurately the observed ones.</p>
+
+<p>The generated catalogs can be used to produce realistic maps and mock observations to test source extraction codes, or to evaluate the reliability of any map-based science (stacking, dropout identification, ...).</p>
+
+<h3>
+<a id="examples" class="anchor" href="#examples" aria-hidden="true"><span class="octicon octicon-link"></span></a>Examples</h3>
+
+<p>Below is a comparison between real observations from the GOODS-South field (left) and a similar region of the sky simulated with Ifni (right).</p>
+
+<p><img src="simu_example.jpg" alt=""></p>
+
+<h3>
+<a id="reference" class="anchor" href="#reference" aria-hidden="true"><span class="octicon octicon-link"></span></a>Reference</h3>
+
+<p>C. Schreiber and the ASTRODEEP collaboration, Ifni: an empirical simulation of the observable Universe, to be submitted.</p>
+      </section>
+
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+    
+  </body>
+</html>
