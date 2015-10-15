@@ -1,6 +1,6 @@
 #include <phypp.hpp>
 
-const std::string ifni_dir = file::directorize(system_var("IFNI_PATH"));
+const std::string ifni_dir = file::directorize(system_var("IFNI_PATH", "./"));
 
 void print_help(std::string filter_db_file);
 
