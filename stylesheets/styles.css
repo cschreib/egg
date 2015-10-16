@@ -555,6 +555,10 @@ p, ul, ol, table, pre, dl {
   margin: 0 0 20px;
 }
 
+#title table {
+  margin: 0 0 10px;
+}
+
 h1, h2, h3 {
   line-height: 2;
 }
@@ -682,8 +686,8 @@ th {
 
 td {
   text-align: left;
-  padding: 5px 10px;
-  border-bottom: 1px solid #434343;
+  /*padding: 5px 10px;
+  border-bottom: 1px solid #434343;*/
 }
 
 hr {
@@ -805,9 +809,9 @@ section #title h1 {
   font-family: 'OpenSansLight', "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-weight: normal;
   font-size: 40px;
-  text-align: center;
+  /*text-align: center;*/
   line-height: 36px;
-  margin: 0 0 10px;
+  margin: 0 0 0px;
 }
 section #title p {
   color: #d7cfbe;
