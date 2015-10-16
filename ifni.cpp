@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
         name(ir_lib_file, "ir_lib"), name(opt_lib_file, "opt_lib"),
         name(out_file, "out"), name(filter_db_file, "filter_db"),
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
-        name(input_cat_file, "input_cat"), selection_band, bands,
+        name(input_cat_file, "input_cat"), selection_band, bands, help,
         clust_r0, clust_lambda, clust_eta, clust_frnd_mlim, clust_frnd_lom, clust_frnd_him
     ));
 
