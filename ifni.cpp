@@ -1,45 +1,95 @@
 #include <phypp.hpp>
 
 const std::string ifni_dir = file::directorize(system_var("IFNI_PATH", "./"));
+const std::string filters_dir = file::directorize(system_var("IFNI_FILTERS_PATH"));
 
 void print_help(std::string filter_db_file);
 
 int main(int argc, char* argv[]) {
     // Initialization
     // --------------
-    double ra0 = 53.558750;
-    double dec0 = -27.176001;
-    double area = 0.08;
+
+    // Define the survey position and boundaries
+    // Warning: positions too close to the angular poles should be avoided.
+    double ra0 = 53.558750;   // in degrees
+    double dec0 = -27.176001; // in degrees
+    double area = 0.08;       // in degrees^2
+
+    // Define the stellar mass range and binning
     double mmin = 7.0;
     double mmax = 12.0;
-    double maglim = dnan;
-    double zmin = 0.01;
-    double zmax = 9.0;
-    double min_dz = 0.05;
-    double bin_dz = 0.1;
     double bin_dm = 0.05;
 
+    // Define instead a fixed magnitude cut
+    double maglim = dnan;
+    std::string selection_band = "f160w";
+
+    // Define the redshift range
+    double zmin = 0.05;
+    double zmax = 10.5;
+
+    // Clustering parameters
+    double clust_r0 = 0.25;        // reference radius in degrees
+    uint_t clust_eta = 5;          // number of sub haloes per halo
+    double clust_lambda = 6.0;     // radius shrinking factor of subhaloes
+    double clust_frnd_him = 0.4;   // fraction of random vs clustered positions for
+                                   // high-mass galaxies
+    double clust_frnd_lom = 0.22;  // fraction of random vs clustered positions for
+                                   // low-mass galaxies
+    double clust_frnd_mlim = 10.5; // threshold between high and low mass for the above
+
+    // Define the redshift binning
+    // Warning: changing these parameters will impact the
+    // clustering amplitude in a non trivial way, and it is therefore not supported.
+    double min_dz = 0.1;
+    double bin_dz = 0.1;
+
+    // Dispersion of the Main Sequence in SFR, at fixed Mstar
     double ms_disp = 0.3;
 
-    bool no_pos = false;
-    bool no_clust = false;
-    bool no_flux = false;
-    bool no_stellar = false;
-    bool no_dust = false;
+    // Disable some components of the simulation
+    bool no_pos = false;     // do not generate positions
+    bool no_clust = false;   // do not generate clustering
+    bool no_flux = false;    // do not generate fluxes
+    bool no_stellar = false; // do not generate fluxes from stellar origin
+    bool no_dust = false;    // do not generate fluxes from dust origin
 
+    // Save the full spectrum of each galaxy to a file
+    // Warning: the current implementation will consume a lot of RAM memory
     bool save_sed = false;
 
-    std::string mass_func_file = ifni_dir+"mass_func_candels.fits";
-    std::string ir_lib_file = ifni_dir+"ir_lib_cs15.fits";
-    std::string opt_lib_file = ifni_dir+"opt_lib_fast.fits";
-    std::string out_file = "";
-    std::string filter_db_file = data_dir+"fits/filter-db/db.dat";
+    // Mass function file
+    std::string mass_func_file = gencat_dir+"mass_func_candels.fits";
 
+    // SED libraries
+    std::string ir_lib_file = gencat_dir+"ir_lib_cs15.fits";
+    std::string opt_lib_file = gencat_dir+"opt_lib_fast.fits";
+
+    // Filter library
+    std::string filter_db_file = (filters_dir.empty() ?
+        data_dir+"fits/filter-db/db.dat" : file::directorize(filters_dir)+"db.dat");
+
+    // Output file
+    std::string out_file = "";
+
+    // Existing catalog to start from (empty: none)
     std::string input_cat_file = "";
 
+    // Seed for random number generation
     uint_t tseed = 42;
+
+    // Cosmological parameters
+    // Warning: even if these are wrong or inaccurate, they should not be changed
+    // since the whole simulation relies on these parameters. The output observables,
+    // i.e., fluxes and morphologies, do not assume any cosmology, and can be used
+    // regardless of your preference. This is not the case, however, for the other
+    // intermediate quantities like Mstar or SFR.
     std::string tcosmo = "std";
+
+    // Display information about the simulation process in the terminal
     bool verbose = false;
+
+    // Display some help
     bool help = false;
 
     std::string selection_band = "f160w";
@@ -57,7 +107,8 @@ int main(int argc, char* argv[]) {
         name(ir_lib_file, "ir_lib"), name(opt_lib_file, "opt_lib"),
         name(out_file, "out"), name(filter_db_file, "filter_db"),
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
-        name(input_cat_file, "input_cat"), selection_band, bands
+        name(input_cat_file, "input_cat"), selection_band, bands,
+        clust_r0, clust_lambda, clust_eta, clust_frnd_mlim, clust_frnd_lom, clust_frnd_him
     ));
 
     if (help) {
@@ -284,8 +335,8 @@ int main(int argc, char* argv[]) {
         }
 
         // Build the redshift bins with logarithmic bins
-        // To prevent too narrow bins with very little galaxies, we impose a minimum
-        // redshift width.
+        // To prevent too narrow bins with very few galaxies, we impose a minimum
+        // redshift width 'min_dz'.
         vec2d zb = [&](){
             vec1d tzb;
             double z1 = zmin;
@@ -576,31 +627,33 @@ int main(int argc, char* argv[]) {
             out.dec.resize(ngal);
 
             auto pg = progress_start(nz);
-            for (uint_t im : range(2))
             for (uint_t iz : range(nz)) {
-                // Per redshift bin, we treat massive and low mass galaxies separately.
-                // Assuming more clustering for the most massive objects (im == 0).
-
-                vec1u idz = where(in_bin_open(out.z, zb, iz) && (im == 0 ? out.m < 10.5 : out.m >= 10.5));
+                // Generate clustered positions within this redshift window.
+                vec1u idz = where(in_bin_open(out.z, zb, iz));
                 uint_t z_ngal = idz.size();
 
-                // Use clustering for only 40% of the sample (low mass) or 70% (high mass)
-                double rnd_frac = (no_clust ? 1.0 : im == 0 ? 0.6 : 0.3);
-                uint_t nrnd = std::min(z_ngal, uint_t(ceil(rnd_frac*z_ngal)));
-                uint_t nclust = z_ngal - nrnd;
-
                 randpos_power_options opt;
-                opt.power = 0.5;    // power law of index 0.5
-                opt.levels = 4;     // 4 levels in the Soneira & Pebbles
-                opt.overload = 2.0; // generate twice more than needed, then pick half
-                opt.nsrc = nclust;
+                opt.eta = clust_eta;
+                opt.lambda = clust_lambda;
 
                 vec1d ra, dec;
-                auto status = randpos_power(seed, hull, hra, hdec, ra, dec, opt);
+                randpos_status status = randpos_power(
+                    seed, z_ngal, clust_r0, hull, hra, hdec, ra, dec, opt
+                );
+
                 if (!status.success) {
                     error("failed: ", status.failure);
                     return 1;
                 }
+
+                // Each galaxy has a probability of not being clustered
+                vec1d prnd = replicate(1-clust_frnd_lom, z_ngal);
+                // We treat massive and low mass galaxies separately.
+                // Usually assuming more clustering for the most massive objects.
+                prnd[where(out.m[idz] > clust_frnd_mlim)] = 1-clust_frnd_him;
+
+                vec1u idr = where(random_coin(seed, prnd));
+                uint_t nrnd = idr.size();
 
                 randpos_uniform_options opt2;
                 opt2.nsrc = nrnd;
@@ -616,13 +669,12 @@ int main(int argc, char* argv[]) {
                     return 1;
                 }
 
-                append(ra, tra);
-                append(dec, tdec);
+                ra[idr] = tra;
+                dec[idr] = tdec;
 
-                vec1u rid = shuffle(seed, uindgen(z_ngal));
-
-                out.ra[idz] = ra[rid];
-                out.dec[idz] = dec[rid];
+                // Store the new positions
+                out.ra[idz] = ra;
+                out.dec[idz] = dec;
 
                 if (verbose) progress(pg);
             }
@@ -1056,8 +1108,9 @@ void print_help(std::string filter_db_file) {
     bullet("verbose", "[flag] print additional information in the standard output while "
         "the program is running");
     bullet("help", "[flag] print this text and exit");
-    bullet("cosmo", "[string] set of cosmological parameters (possible values: "+
-        collapse(cosmo_list(), ", ")+", default: std)");
+    // Warning: this should not be changed, do not make it part of the public interface
+    // bullet("cosmo", "[string] set of cosmological parameters (possible values: "+
+    //     collapse(cosmo_list(), ", ")+", default: std)");
     bullet("seed", "[uint] number used to initialize the random number generator "
         "(default: 42)");
     bullet("out", "[string] number used to initialize the random number generator "
@@ -1101,9 +1154,10 @@ void print_help(std::string filter_db_file) {
         "(default: none). Note that, when set, this parameter overrides 'mmin'.");
     bullet("zmin", "[double] minimum redshift generated (default: 0.01)");
     bullet("zmax", "[double] maximum redshift generated (default: 10)");
-    bullet("min_dz", "[double] minimum size of a redshift bin (default: 0.05)");
-    bullet("dz", "[double] size of a redshift bin, as a fraction of (1+z) "
-        "(default: 0.1)");
+    // Warning: these should not be changed, do not make them part of the public interface
+    // bullet("min_dz", "[double] minimum size of a redshift bin (default: 0.05)");
+    // bullet("dz", "[double] size of a redshift bin, as a fraction of (1+z) "
+    //     "(default: 0.1)");
     bullet("dm", "[double, dex] size of a mass bin (default: 0.05)");
     bullet("ms_disp", "[double, dex] scatter of the main sequence (default: 0.3)");
     print("");
