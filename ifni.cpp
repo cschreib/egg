@@ -59,11 +59,11 @@ int main(int argc, char* argv[]) {
     bool save_sed = false;
 
     // Mass function file
-    std::string mass_func_file = gencat_dir+"mass_func_candels.fits";
+    std::string mass_func_file = ifni_dir+"mass_func_candels.fits";
 
     // SED libraries
-    std::string ir_lib_file = gencat_dir+"ir_lib_cs15.fits";
-    std::string opt_lib_file = gencat_dir+"opt_lib_fast.fits";
+    std::string ir_lib_file = ifni_dir+"ir_lib_cs15.fits";
+    std::string opt_lib_file = ifni_dir+"opt_lib_fast.fits";
 
     // Filter library
     std::string filter_db_file = (filters_dir.empty() ?
@@ -92,7 +92,7 @@ int main(int argc, char* argv[]) {
     // Display some help
     bool help = false;
 
-    std::string selection_band = "f160w";
+    // Photometric bands to generate
     vec1s bands = {"vimos_u", "f435w", "f606w", "f775w", "f814w", "f850lp",
         "f105w", "f125w", "f140w", "f160w", "hawki_Ks", "i1", "i2", "i3", "i4",
         "irs1", "m1", "p1", "p2", "p3", "s1", "s2", "s3"};
