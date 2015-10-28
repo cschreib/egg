@@ -847,8 +847,14 @@ int main(int argc, char* argv[]) {
     // Bulge to total mass ratio
     // Calibrated from Lang et al. (2014), assuming no redshift evolution
     out.bt.resize(ngal);
-    out.bt[ida] = clamp(e10(0.27*(out.m[ida] - 10.0) - 0.7 + 0.2*randomn(seed, nactive)), 0.0, 1.0);
-    out.bt[idp] = clamp(e10(0.1*(out.m[idp] - 10.0) - 0.3 + 0.2*randomn(seed, npassive)), 0.0, 1.0);
+
+    out.bt[ida] = clamp(
+        e10(0.27*(out.m[ida] - 10.0) - 0.7 + 0.2*randomn(seed, nactive)), 0.0, 1.0
+    );
+
+    out.bt[idp] = clamp(
+        e10(0.1*(out.m[idp] - 10.0) - 0.3 + 0.2*randomn(seed, npassive)), 0.0, 1.0
+    );
 
     out.m_bulge = out.m + log10(out.bt);
     vec1u idnf = where(!is_finite(out.m_bulge));
@@ -1098,14 +1104,19 @@ if (!no_flux) {
         fir_sed = replicate(0, nactive);
     } else if (file::get_basename(ir_lib_file) == "ir_lib_ce01.fits") {
         // The Chary & Elbaz 2001 library, redshift evolution calibrated from stacks
-        fir_sed = interpolate({26, 26, 40, 54, 53, 52, 52}, {0.57, 1.0, 1.5, 2.1, 2.9, 4.0, 6.0}, out.z)
-            // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
-            + 15*clamp(out.rsb/ms_disp, -2.0, 2.0);
+        vec1u tidsed = {26, 26, 40, 54, 53, 52, 52};
+        vec1f tz = {0.57, 1.0, 1.5, 2.1, 2.9, 4.0, 6.0};
+        fir_sed = interpolate(tidsed, tz, out.z);
+
+        // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
+        fir_sed += 15*clamp(out.rsb/ms_disp, -2.0, 2.0);
     } else if (file::get_basename(ir_lib_file) == "ir_lib_m12.fits") {
         // The Magdis et al. 2012 library, using their reported redshift evolution
-        fir_sed = interpolate(findgen(nirsed), {0.0125, 0.1625, 0.4625, 0.8125, 1.15, 1.525, 2.0, 2.635}, out.z)
-            // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
-            + clamp(out.rsb/ms_disp, -2.0, 2.0);
+        vec1f tz = {0.0125, 0.1625, 0.4625, 0.8125, 1.15, 1.525, 2.0, 2.635};
+        fir_sed = interpolate(findgen(nirsed), tz, out.z);
+
+        // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
+        fir_sed += clamp(out.rsb/ms_disp, -2.0, 2.0);
     } else if (file::get_basename(ir_lib_file) == "ir_lib_cs15.fits") {
         // My own library, using calibration from stacks and detections
         fir_sed = interpolate(findgen(nirsed), ir_lib_cs15.tdust, out.tdust);
@@ -1258,79 +1269,93 @@ if (!no_flux) {
 void print_help(std::string filter_db_file) {
     using namespace format;
 
-    print("ifni v1.0");
-    paragraph("usage: ifni [options]");
+    auto argdoc = [](const std::string& name, const std::string& type,
+        const std::string& desc) {
 
-    header("List of generic options:");
-    bullet("verbose", "[flag] print additional information in the standard output while "
-        "the program is running");
-    bullet("help", "[flag] print this text and exit");
+        std::string header = " - "+name+" "+type;
+        print(header);
+
+        std::string indent = "    ";
+        vec1s w = wrap(indent+desc, 80, indent);
+
+        for (auto& s : w) {
+            print(s);
+        }
+    };
+
+    print("ifni v1.0");
+    print("usage: ifni [options]\n");
+
+    print("List of generic options:");
+    argdoc("verbose", "[flag]", "print additional information in the standard output while "
+        "the program is running (default: false)");
+    argdoc("help", "[flag]", "print this text and exit");
     // Warning: this should not be changed, do not make it part of the public interface
-    // bullet("cosmo", "[string] set of cosmological parameters (possible values: "+
+    // argdoc("cosmo", "[string] set of cosmological parameters (possible values: "+
     //     collapse(cosmo_list(), ", ")+", default: std)");
-    bullet("seed", "[uint] number used to initialize the random number generator "
+    argdoc("seed", "[uint]", "number used to initialize the random number generator "
         "(default: 42)");
-    bullet("out", "[string] number used to initialize the random number generator "
+    argdoc("out", "[string]", "name of the output catalog "
         "(default: ifni-"+today()+".fits)");
     print("");
 
-    header("List of library related options:");
-    bullet("mass_func", "[string] FITS file containing the mass functions (default: "
+    print("List of library related options:");
+    argdoc("mass_func", "[string]", "FITS file containing the mass functions (default: "
         "mass_func_candels.fits)");
-    bullet("ir_lib", "[string] FITS file containing the IR SED library (default: "
+    argdoc("ir_lib", "[string]", "FITS file containing the IR SED library (default: "
         "ir_lib_ce01.fits)");
-    bullet("opt_lib", "[string] FITS file containing the optical SED library (default: "
+    argdoc("opt_lib", "[string]", "FITS file containing the optical SED library (default: "
         "opt_lib_fast.fits)");
-    bullet("filter_db", "[string] location of the filter database file (default: "+
+    argdoc("filter_db", "[string]", "location of the filter database file (default: "+
         data_dir+"fits/filter-db/db.dat)");
     print("");
 
-    header("List of component related options:");
-    bullet("input_cat", "[string] name of the file containing the input catalog. Must be "
+    print("List of component related options:");
+    argdoc("input_cat", "[string]", "name of the file containing the input catalog. Must be "
         "either (a) a FITS table containing: RA & DEC (degrees), Z, M (log Msun, Salpeter "
         "IMF), PASSIVE (0 or 1), and an optional ID column, or (b) an ASCII table "
         "containing the columns ID, RA, DEC, Z, M and PASSIVE, in that specific order.");
-    bullet("no_pos", "[flag] do not generate galaxy positions on the sky");
-    bullet("no_clust", "[flag] do not generate clustering in galaxy positions");
-    bullet("no_flux", "[flag] do not generate fluxes");
+    argdoc("no_pos", "[flag]", "do not generate galaxy positions on the sky");
+    argdoc("no_clust", "[flag]", "do not generate clustering in galaxy positions");
+    argdoc("no_flux", "[flag]", "do not generate fluxes");
     print("");
 
-    header("List of sky position related options:");
-    bullet("ra0", "[double, degrees] sky position of the center of the field "
+    print("List of sky position related options:");
+    argdoc("ra0", "[double, degrees]", "sky position of the center of the field "
         "(right ascension, default: 53.558750)");
-    bullet("dec0", "[double, degrees] sky position of the center of the field "
+    argdoc("dec0", "[double, degrees]", "sky position of the center of the field "
         "(declination, default: -27.176001)");
-    bullet("area", "[double, square degrees] sky area occupied by the generated field "
+    argdoc("area", "[double, square degrees]", "sky area occupied by the generated field "
         "(default: 0.08)");
     print("");
 
-    header("List of galaxy properties related options:");
-    bullet("mmin", "[double, log10 msun] minimum stellar mass generated (default: 7)");
-    bullet("mmax", "[double, log10 msun] maximum stellar mass generated (default: 12)");
-    bullet("maglim", "[double, AB mag] maximum magnitude that will be generated "
+    print("List of galaxy properties related options:");
+    argdoc("mmin", "[double, log10 msun]", "minimum stellar mass generated (default: 7)");
+    argdoc("mmax", "[double, log10 msun]", "maximum stellar mass generated (default: 12)");
+    argdoc("maglim", "[double, AB mag]", "maximum magnitude that will be generated "
         "(default: none). Note that, when set, this parameter overrides 'mmin'.");
-    bullet("zmin", "[double] minimum redshift generated (default: 0.01)");
-    bullet("zmax", "[double] maximum redshift generated (default: 10)");
+    argdoc("zmin", "[double]", "minimum redshift generated (default: 0.01)");
+    argdoc("zmax", "[double]", "maximum redshift generated (default: 10)");
     // Warning: these should not be changed, do not make them part of the public interface
-    // bullet("min_dz", "[double] minimum size of a redshift bin (default: 0.05)");
-    // bullet("dz", "[double] size of a redshift bin, as a fraction of (1+z) "
+    // argdoc("min_dz", "[double] minimum size of a redshift bin (default: 0.05)");
+    // argdoc("dz", "[double] size of a redshift bin, as a fraction of (1+z) "
     //     "(default: 0.1)");
-    bullet("dm", "[double, dex] size of a mass bin (default: 0.05)");
-    bullet("ms_disp", "[double, dex] scatter of the main sequence (default: 0.3)");
+    argdoc("dm", "[double, dex]", "size of a mass bin (default: 0.05)");
+    argdoc("ms_disp", "[double, dex]", "scatter of the main sequence (default: 0.3)");
     print("");
 
-    header("List of flux related options:");
-    bullet("selection_band", "[string] if 'maglim' is set, name of band in which the "
+    print("List of flux related options:");
+    argdoc("selection_band", "[string]", "if 'maglim' is set, name of band in which the "
         "magnitude cut is applied (default: none)");
-    bullet("no_dust", "[flag] SEDs will not contain the dust continuum and PAH emission");
-    bullet("no_stellar", "[flag] SEDs will not contain the stellar emission");
-    bullet("bands", "[string array] optical and IR bands for which to generate fluxes");
-    bullet("save_sed", "[flag] save the full SEDs of each simulated galaxies in "
+    argdoc("no_dust", "[flag]", "SEDs will not contain the dust continuum and PAH emission");
+    argdoc("no_stellar", "[flag]", "SEDs will not contain the stellar emission");
+    argdoc("bands", "[string array]", "optical and IR bands for which to generate fluxes");
+    argdoc("save_sed", "[flag]", "save the full SEDs of each simulated galaxies in "
         "[out]_seds.fits (WARNING: will use a lot of memory, be sure to only use this "
         "flag for small simulations)");
     print("");
 
-    header("List of available bands:");
+    print("List of available bands:");
     if (!file::exists(filter_db_file)) {
         warning("could not find filter database file '", filter_db_file, "'");
         note("when running ifni, please set the options 'no_flux'");
