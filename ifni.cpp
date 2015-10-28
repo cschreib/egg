@@ -704,119 +704,127 @@ int main(int argc, char* argv[]) {
                     vec1u idz = where(in_bin_open(out.z, zb, iz));
                     uint_t z_ngal = idz.size();
 
-                    vec1d ra, dec;
-                    ra.reserve(z_ngal);
-                    dec.reserve(z_ngal);
+                    if (z_ngal != 0) {
+                        vec1d ra, dec;
+                        ra.reserve(z_ngal);
+                        dec.reserve(z_ngal);
 
-                    // Select the number of simulated positions
-                    // We impose a minimum number of 1000 to prevent issues with low
-                    // densities and also generate a fraction more objects than we need.
-                    uint_t nsim_min = 1000;
-                    double fudge = 1.5;
-                    uint_t nsim = fudge*(z_ngal > nsim_min ? z_ngal : nsim_min);
+                        // Select the number of simulated positions
+                        // We impose a minimum number of 1000 to prevent issues with low
+                        // densities and also generate a fraction more objects than we
+                        // need.
+                        uint_t nsim_min = 1000;
+                        double fudge = 1.5;
+                        uint_t nsim = fudge*(z_ngal > nsim_min ? z_ngal : nsim_min);
 
-                    // Compute the expected source density
-                    double rho = nsim/fa;
+                        // Compute the expected source density
+                        double rho = nsim/fa;
 
-                    // Initialize the algorithm parameters
-                    randpos_power_options opt;
-                    opt.eta = clust_eta;
-                    opt.lambda = clust_lambda;
+                        // Initialize the algorithm parameters
+                        randpos_power_options opt;
+                        opt.eta = clust_eta;
+                        opt.lambda = clust_lambda;
 
-                    // Compute how many deeper levels we need to go with respect to rstart
-                    // to reach the local density
-                    opt.levels = ceil(log(rho*dpi*sqr(rstart))/log(opt.eta));
+                        // Compute how many deeper levels we need to go with respect to
+                        // rstart to reach the local density
+                        opt.levels = ceil(log(rho*dpi*sqr(rstart))/log(opt.eta));
 
-                    // Compute how many homogeneous starting positions we need
-                    // above rstart
-                    uint_t nstart = ceil(nsim/pow(opt.eta, opt.levels));
+                        // Compute how many homogeneous starting positions we need
+                        // above rstart
+                        uint_t nstart = ceil(nsim/pow(opt.eta, opt.levels));
 
-                    // Generate starting positions
-                    vec1d sra, sdec;
-                    if (nstart <= 1) {
-                        // Just use the center of the field
-                        sra = {90.0}; sdec = {0.0};
-                    } else {
-                        // Generate honogenous positions
-                        auto status = randpos_uniform_box(seed, nstart, rra, rdec, sra, sdec,
-                            [&](double tra, double tdec) {
-                                return in_convex_hull(tra, tdec, hull);
+                        // Generate starting positions
+                        vec1d sra, sdec;
+                        if (nstart <= 1) {
+                            // Just use the center of the field
+                            sra = {90.0}; sdec = {0.0};
+                        } else {
+                            // Generate honogenous positions
+                            auto status = randpos_uniform_box(seed, nstart,
+                                rra, rdec, sra, sdec,
+                                [&](double tra, double tdec) {
+                                    return in_convex_hull(tra, tdec, hull);
+                                }
+                            );
+
+                            if (!status.success) {
+                                if (verbose) print("");
+                                error("generating starting positions for redshift bin ",
+                                    iz);
+                                error("failed: ", status.failure);
+                                return 1;
+                            }
+                        }
+
+                        // Now generate the positions using the original Soneira & Pebbles
+                        // algorithm
+                        for (uint_t i : range(sra)) {
+                            vec1d tra, tdec;
+                            auto status = randpos_power_circle(seed, sra[i], sdec[i],
+                                rstart, tra, tdec,
+                                [&](double ttra, double ttdec, double threshold) {
+                                    double dist = convex_hull_distance(
+                                        ttra, ttdec, hull
+                                    );
+                                    return dist > -threshold;
+                                },
+                                opt
+                            );
+
+                            if (!status.success) {
+                                if (verbose) print("");
+                                error("generating clustered positions for redshift bin ",
+                                    iz);
+                                error("failed: ", status.failure);
+                                return 1;
+                            }
+
+                            append(ra, tra);
+                            append(dec, tdec);
+                        }
+
+                        // Now we have too many positions, just pick the amount we need
+                        vec1u idg = shuffle(seed, uindgen(ra.size()))[_-(z_ngal-1)];
+                        ra = ra[idg]; dec = dec[idg];
+
+                        vec1b cls = replicate(true, z_ngal);
+
+                        // Each galaxy has a probability of not being clustered
+                        vec1d prnd = replicate(1-clust_frnd_lom, z_ngal);
+                        // We treat massive and low mass galaxies differently,
+                        // assuming more clustering for the most massive objects.
+                        prnd[where(out.m[idz] > clust_frnd_mlim)] = 1-clust_frnd_him;
+                        // and no clustering at all below a certain mass
+                        prnd[where(out.m[idz] < clust_urnd_mlim)] = 1;
+
+                        vec1u idr = where(random_coin(seed, prnd));
+                        uint_t nrnd = idr.size();
+
+                        vec1d tra, tdec;
+                        auto status = randpos_uniform_box(seed, nrnd, rra, rdec,
+                            tra, tdec,
+                            [&](double xra, double xdec) {
+                                return in_convex_hull(xra, xdec, hull);
                             }
                         );
 
                         if (!status.success) {
                             if (verbose) print("");
-                            error("generating starting positions for redshift bin ", iz);
-                            error("failed: ", status.failure);
-                            return 1;
-                        }
-                    }
-
-                    // Now generate the positions using the original Soneira & Pebbles
-                    // algorithm
-                    for (uint_t i : range(sra)) {
-                        vec1d tra, tdec;
-                        auto status = randpos_power_circle(seed, sra[i], sdec[i], rstart,
-                            tra, tdec,
-                            [&](double ttra, double ttdec, double threshold) {
-                                double dist = convex_hull_distance(
-                                    ttra, ttdec, hull
-                                );
-                                return dist > -threshold;
-                            },
-                            opt
-                        );
-
-                        if (!status.success) {
-                            if (verbose) print("");
-                            error("generating clustered positions for redshift bin ", iz);
+                            error("generating non-clustered positions for redshift bin ",
+                                iz);
                             error("failed: ", status.failure);
                             return 1;
                         }
 
-                        append(ra, tra);
-                        append(dec, tdec);
+                        ra[idr] = tra;
+                        dec[idr] = tdec;
+                        cls[idr] = false;
+
+                        // Store the new positions
+                        out.ra[idz] = ra;
+                        out.dec[idz] = dec;
+                        out.clustered[idz] = cls;
                     }
-
-                    // Now we have too many positions, just pick the amount we need
-                    vec1u idg = shuffle(seed, uindgen(ra.size()))[_-(z_ngal-1)];
-                    ra = ra[idg]; dec = dec[idg];
-
-                    vec1b cls = replicate(true, z_ngal);
-
-                    // Each galaxy has a probability of not being clustered
-                    vec1d prnd = replicate(1-clust_frnd_lom, z_ngal);
-                    // We treat massive and low mass galaxies differently,
-                    // assuming more clustering for the most massive objects.
-                    prnd[where(out.m[idz] > clust_frnd_mlim)] = 1-clust_frnd_him;
-                    // and no clustering at all below a certain mass
-                    prnd[where(out.m[idz] < clust_urnd_mlim)] = 1;
-
-                    vec1u idr = where(random_coin(seed, prnd));
-                    uint_t nrnd = idr.size();
-
-                    vec1d tra, tdec;
-                    auto status = randpos_uniform_box(seed, nrnd, rra, rdec, tra, tdec,
-                        [&](double xra, double xdec) {
-                            return in_convex_hull(xra, xdec, hull);
-                        }
-                    );
-
-                    if (!status.success) {
-                        if (verbose) print("");
-                        error("generating non-clustered positions for redshift bin ", iz);
-                        error("failed: ", status.failure);
-                        return 1;
-                    }
-
-                    ra[idr] = tra;
-                    dec[idr] = tdec;
-                    cls[idr] = false;
-
-                    // Store the new positions
-                    out.ra[idz] = ra;
-                    out.dec[idz] = dec;
-                    out.clustered[idz] = cls;
 
                     if (verbose) progress(pg);
                 }
