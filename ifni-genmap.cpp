@@ -143,7 +143,7 @@ int main(int argc, char* argv[]) {
 
             vec1u idm, idp;
             subregion(img, {y[i]-hsize, x[i]-hsize, y[i]+hsize, x[i]+hsize}, idm, idp);
-            img[idm] += (flx/flux_factor)*tpsf[idp];
+            img.safe[idm] += (flx/flux_factor)*tpsf.safe[idp];
 
             if (verbose) progress(pg, 127);
         }
@@ -252,7 +252,7 @@ void print_help() {
         "dimensions of the provided PSF FITS file.");
     argdoc("no_subpixel", "[flag]", "do not perform sub-pixel interpolations when placing "
         "galaxies on the map (default: false). With this option activated, the map "
-        "making will be slightly faster, at the expense of correctness.");
+        "making will be quite faster, at the expense of correctness.");
     argdoc("no_source", "[flag]", "do not put sources on the map, just keep the noise "
         "(default: false)");
     argdoc("verbose", "[flag]", "print additional information in the standard output while "
