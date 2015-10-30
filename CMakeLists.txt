@@ -7,5 +7,7 @@ find_package(phypp)
 set(CMAKE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}")
 
 add_phypp_target(ifni-gencat.cpp)
+add_phypp_target(ifni-genmap.cpp)
+add_phypp_target(ifni-gennoise.cpp)
 add_phypp_target(ifni-genmf.cpp)
 add_phypp_target(ifni-2skymaker.cpp)
