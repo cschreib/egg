@@ -1283,8 +1283,8 @@ void print_help(std::string filter_db_file) {
         }
     };
 
-    print("ifni v1.0");
-    print("usage: ifni [options]\n");
+    print("ifni-gencat v1.0");
+    print("usage: ifni-gencat [options]\n");
 
     print("List of generic options:");
     argdoc("verbose", "[flag]", "print additional information in the standard output while "
