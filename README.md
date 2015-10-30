@@ -12,7 +12,7 @@ One you have installed all the dependencies, create yourself a directory called 
     cmake ../
     make install
 
-The binaries will be generated in the 'bin' folder. More detailed information can be found in the script 'install.sh' or in the documentation ('doc/' folder).
+The binaries will be generated in the 'bin' folder. More detailed information can be found in the script [install.sh] or in the documentation ('doc/' folder).
 
 # Usage
 See the output of 'ifni-gencat help' after installing the programs.
@@ -21,3 +21,4 @@ For further and more detailed help, see the documentation in the 'doc/' folder.
 [SkyMaker]: http://www.astromatic.net/software/skymaker
 [phy++]: http://cschreib.github.io/phypp/
 [CMake]: http://www.cmake.org/
+[install.sh]: http://cschreib.github.io/ifni/files/install.sh
