@@ -1,11 +1,6 @@
-gencat
-*.fits
-*.cat
-*.sh
-archive
-maps*
-work
-calibrate
-genmf
-make_skymaker
+ifni-gencat
+ifni-genmap
+ifni-gennoise
+ifni-genmf
+ifni-2skymaker
 build
