@@ -131,7 +131,7 @@ int main(int argc, char* argv[]) {
         ids = where(mag < maglim);
         if (ids.empty()) {
             error("no source brighter than ", maglim);
-            note("maximum magnitude is ", max(mag));
+            note("minimum magnitude is ", min(mag));
             return 1;
         }
     } else {
