@@ -1095,7 +1095,7 @@ if (!no_flux) {
         // Starbursts are warmer
         + 6.6*out.rsb
         // Add some random scatter
-        + 4.4*randomn(seed, ngal);
+        + 3.0*randomn(seed, ngal);
 
     out.fpah = (0.04 + 0.035*(1.0-0.85*clamp(out.z, 1.0, 2.0)))
         // Starburst have weaker PAH
