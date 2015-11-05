@@ -1,0 +1,55 @@
+Hubble WFC3
+===========
+
+These PSFs were build by the CANDELS team (Arjen van der Wel and Yu-Yen Chang) by combining stacked stars (for the wings) and the TinyTim theoretical model (for the core). They are provided at 0.06"/pixel resolution, the standard pixel size of the CANDELS data, and are normalized to unit integral.
+
+Source:
+Private communication
+ + van der Wel et al. (2012)
+
+
+Spitzer IRS 16um
+================
+
+The PSF was built by Teplitz et al. (2011) by empirically stacking isolated objects in the observed GOODS-South map. It is provided at the standard map resolution of 0.9"/pixel, and is normalized to unit integral since MIPS maps are traditionally expressed in Jy/pixel (or uJy/sr).
+
+Source:
+Private communication
+ + Teplitz et al. (2011)
+
+
+
+Spitzer MIPS 24um
+=================
+
+The PSF was built by Magnelli et al. (2009) by empirically stacking isolated objects in the observed GOODS-South map. It is provided at the standard map resolution of 1.2"/pixel, and is normalized to unit integral since MIPS maps are traditionally expressed in Jy/pixel (or uJy/sr).
+
+Source:
+Private communication
+ + Magnelli et al. (2009)
+
+
+Herschel PACS
+=============
+
+The "*-vesta" PSFs were built from in flight observations of Vesta, and therefore include all instrumental effects. They provide our best estimation of the true PSF of Herschel PACS. However, these PSFs contain non-negligible side lobes which are actually not observed for moderate and faint sources (< 50 sigma). This is caused by the standard map making algorithm, which includes a high-pass filtering. For this reason, the side lobes will only be visible if they are at S/N > 3 on the map, implying a S/N > 50 for the whole source. Else, because of their extended geometry they will be considered as part of the timeline background and will be subtracted.
+
+Since the majority of the sources in a deep fields are below S/N = 50, we therefore advise the use of empirical PSFs with no sidelobes. These empirical PSFs were produced by the GOODS-Herschel collaboration by stacking isolated objects in the observed GOODS-South map. This should provide the best simulation of actual deep field data for most sources, save for the brighest ones.
+
+All these PSFs are provided at the GOODS-Herschel map resolution of 1.2, 1.2 and 2.4"/pixel for 70, 100 and 160um respectively. Thes PSFs are normalized to unit integral since the PACS maps are expressed in Jy/pixel. NB: since the Vesta PSFs have more flux in the wings, the amplitude of the peak of the PSF is lower than that of the empirical PSFs. Therefore a different flux-to-map unit conversion factor needs to be used.
+
+Sources:
+https://nhscsci.ipac.caltech.edu/sc/index.php/Pacs/PSFs
+ + Berta et al. (2010, 2011)
+http://hedam.lam.fr/GOODS-Herschel/goodss-data.php
+ + Elbaz et al. (2011)
+
+
+Herschel SPIRE
+==============
+
+The PSFs are perfect Gaussian profiles, built by the GOODS Herschel collaboration for the GOODS-North field. These PSFs are provided at the GOODS-Herschel map resolution of 3.6, 4.8 and 7.2"/pixel for 250, 350 and 500um respectively. They are normalized to unit peak flux, since SPIRE maps are traditionally expressed in Jy/beam rather than Jy/pixel.
+
+Source:
+http://hedam.lam.fr/GOODS-Herschel/goodsn-data.php
+ + Elbaz et al. (2011)
