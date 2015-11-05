@@ -50,11 +50,12 @@ int main(int argc, char* argv[]) {
     double ms_disp = 0.3;
 
     // Disable some components of the simulation
-    bool no_pos = false;     // do not generate positions
-    bool no_clust = false;   // do not generate clustering
-    bool no_flux = false;    // do not generate fluxes
-    bool no_stellar = false; // do not generate fluxes from stellar origin
-    bool no_dust = false;    // do not generate fluxes from dust origin
+    bool no_pos = false;         // do not generate positions
+    bool no_clust = false;       // do not generate clustering
+    bool no_passive_lir = false; // do not generate dust for passive galaxies
+    bool no_flux = false;        // do not generate fluxes
+    bool no_stellar = false;     // do not generate fluxes from stellar origin
+    bool no_dust = false;        // do not generate fluxes from dust origin
 
     // Save the full spectrum of each galaxy to a file
     // Warning: the current implementation will consume a lot of RAM memory
@@ -104,7 +105,7 @@ int main(int argc, char* argv[]) {
     read_args(argc, argv, arg_list(
         ra0, dec0, area, mmin, maglim, zmin, zmax, name(bin_dz, "dz"), min_dz,
         name(bin_dm, "dm"), ms_disp,
-        no_pos, no_clust, no_flux, no_stellar, no_dust, save_sed,
+        no_pos, no_clust, no_flux, no_stellar, no_dust, no_passive_lir, save_sed,
         name(mass_func_file, "mass_func"),
         name(ir_lib_file, "ir_lib"), name(opt_lib_file, "opt_lib"),
         name(out_file, "out"), name(filter_db_file, "filter_db"),
@@ -969,6 +970,10 @@ int main(int argc, char* argv[]) {
         double ss = 0.45, so = 0.35;
         vec1f slope = ss*min(out.z, 3.0) + so;
         out.irx = e10(slope*(out.m - am) + airx + 0.4*randomn(seed, ngal));
+
+        if (no_passive_lir) {
+            out.irx[idp] = 0.0;
+        }
 
         out.sfrir = out.sfr/(1.0 + 1.0/out.irx);
         out.sfruv = out.sfr/(1.0 + out.irx);
