@@ -1099,7 +1099,7 @@ if (!no_flux) {
 
     out.fpah = (0.04 + 0.035*(1.0-0.85*clamp(out.z, 1.0, 2.0)))
         // Starburst have weaker PAH
-        *e10(-0.48*out.rsb)
+        *e10(-0.47*max(1.0, out.rsb))
         // Add some random scatter
         *e10(0.2*randomn(seed, ngal));
 
