@@ -894,7 +894,7 @@ int main(int argc, char* argv[]) {
 
     // Calibration from n>2.5 galaxies and M* > 10.5
     vec1f bulge_ratio_x =
-        {0.0, 0.05, 0.15,  0.25,  0.35,  0.45,  0.55,   0.65,   0.75,   0.85,   0.95,  1.0};
+        {0.0, 0.1, 0.15,  0.25,  0.35,  0.45,  0.55,   0.65,   0.75,   0.85,   0.95,  1.0};
     vec1f bulge_ratio_p =
         {0.0, 0.0,  165.0, 428.0, 773.0, 914.0, 1069.0, 1191.0, 1154.0, 1067.0, 639.0, 450.0};
     out.bulge_ratio = random_pdf(seed, bulge_ratio_x, bulge_ratio_p, ngal);
@@ -904,7 +904,7 @@ int main(int argc, char* argv[]) {
 
     // Calibration from n<1.5 galaxies and M* > 9.0
     vec1f disk_ratio_x =
-        {0.0, 0.05, 0.15,  0.25,  0.35,   0.45,   0.55,   0.65,  0.75,  0.85,  0.95,  1.0};
+        {0.0, 0.1, 0.15,  0.25,  0.35,   0.45,   0.55,   0.65,  0.75,  0.85,  0.95,  1.0};
     vec1f disk_ratio_p =
         {0.0, 0.0,  313.0, 900.0, 1143.0, 1127.0, 1059.0, 898.0, 775.0, 548.0, 318.0, 200.0};
     out.disk_ratio = random_pdf(seed, disk_ratio_x, disk_ratio_p, ngal);
