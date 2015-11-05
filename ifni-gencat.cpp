@@ -1198,6 +1198,7 @@ if (!no_flux) {
     auto get_flux = [&](const vec1f& m, const vec1u& optsed, vec2f& flux, bool no_ir) {
         auto pg1 = progress_start(ngal);
         for (uint_t i : range(ngal)) {
+            // Build the full rest-frame SED
             vec1f rlam, rsed;
             if (no_ir) {
                 // Just the stellar component
@@ -1216,7 +1217,7 @@ if (!no_flux) {
                 merge_add(orlam, irlam, orsed, irsed, rlam, rsed);
             }
 
-            // Redshift
+            // Redshift the SED
             vec1f lam = rlam*(1.0 + out.z[i]);
             vec1f sed = lsun2uJy(out.z[i], out.d[i], rlam, rsed);
 
@@ -1224,7 +1225,7 @@ if (!no_flux) {
                 ssed(i,_) = interpolate(sed, lam, slam(i,_));
             }
 
-            // Integrate SED to get broadband fluxes
+            // Integrate the SED to get broadband fluxes
             for (uint_t b : range(filters)) {
                 double flx = sed2flux(filters[b], lam, sed);
                 flux(i,b) = (is_finite(flx) ? flx : 0.0);
