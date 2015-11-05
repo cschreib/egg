@@ -29,12 +29,13 @@ int main(int argc, char* argv[]) {
     double zmax = 10.5;
 
     // Clustering parameters
-    double clust_r0 = 0.05;        // reference radius in degrees
+    double clust_r0 = 0.05;        // clustering outer truncation radius in degree
+    double clust_r1 = 0.0006;      // clustering inner truncation radius in degree
     uint_t clust_eta = 5;          // number of sub haloes per halo
     double clust_lambda = 6.0;     // radius shrinking factor of subhaloes
-    double clust_frnd_him = 0.6;   // fraction of random vs clustered positions for
+    double clust_frnd_him = 0.4;   // fraction of random vs clustered positions for
                                    // high-mass galaxies
-    double clust_frnd_lom = 0.25;  // fraction of random vs clustered positions for
+    double clust_frnd_lom = 0.2;   // fraction of random vs clustered positions for
                                    // low-mass galaxies
     double clust_frnd_mlim = 10.5; // threshold between high and low mass for the above
     double clust_urnd_mlim = 8.0;  // threshold in mass below which there is no clustering
@@ -109,7 +110,7 @@ int main(int argc, char* argv[]) {
         name(out_file, "out"), name(filter_db_file, "filter_db"),
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
         name(input_cat_file, "input_cat"), selection_band, bands, help,
-        clust_r0, clust_lambda, clust_eta, clust_frnd_mlim, clust_frnd_lom,
+        clust_r0, clust_r1, clust_lambda, clust_eta, clust_frnd_mlim, clust_frnd_lom,
         clust_frnd_him, clust_urnd_mlim
     ));
 
@@ -666,6 +667,9 @@ int main(int argc, char* argv[]) {
             hull.x += 90.0 - cra;
             angrot_vernal(hull.x, hull.y, -ang, hull.x, hull.y);
 
+            // Rebuild the hull
+            hull = build_convex_hull(hull.x, hull.y);
+
             // Compute bounding box of the rotated hull
             vec1d rra = {min(hull.x), max(hull.x)};
             vec1d rdec = {min(hull.y), max(hull.y)};
@@ -693,6 +697,7 @@ int main(int argc, char* argv[]) {
 
                 // The initial radius
                 double rstart = clust_r0;
+                double rend = clust_r1;
 
                 out.ra.resize(ngal);
                 out.dec.resize(ngal);
@@ -732,6 +737,15 @@ int main(int argc, char* argv[]) {
                         // Compute how many homogeneous starting positions we need
                         // above rstart
                         uint_t nstart = ceil(nsim/pow(opt.eta, opt.levels));
+
+                        // and how many homogenous positions we need at rend
+                        if (rend != 0) {
+                            uint_t maxl = round(log(rstart/rend)/log(opt.lambda));
+                            if (opt.levels > maxl) {
+                                opt.eta_end = pow(opt.eta, opt.levels - maxl + 1);
+                                opt.levels = maxl;
+                            }
+                        }
 
                         // Generate starting positions
                         vec1d sra, sdec;
