@@ -6,7 +6,7 @@ int main(int argc, char* argv[]) {
     // Random seed to use to generate the noise
     uint_t tseed = 42;
     // Name of the output FITS file "basename" in which to store the map
-    // If out="file", then the map will be saved in "file_noise.fits"
+    // If out="file", then the map will be saved in "file-noise.fits"
     std::string out;
     // Name of the FITS file of the PSF
     std::string psf_file;
@@ -23,11 +23,11 @@ int main(int argc, char* argv[]) {
     double smooth_fwhm = dnan;
     // Flag all the border pixels that are not well covered by NaN
     bool clip_borders = false;
-    // Also build a coverage map ("file_cov.fits")
+    // Also build a coverage map ("file-cov.fits")
     bool make_cov = false;
-    // Also build an error map ("file_err.fits")
+    // Also build an error map ("file-err.fits")
     bool make_err = false;
-    // Save the distance map (debug purposes, "file_dist.fits")
+    // Save the distance map (debug purposes, "file-dist.fits")
     bool save_dist = false;
     // Print some text on the console.
     bool verbose = false;
@@ -127,10 +127,14 @@ int main(int argc, char* argv[]) {
             uint_t npx = ceil(max(x) + 5*fwhm);
             uint_t npy = ceil(max(y) + 5*fwhm);
 
-            noise.resize(npx, npy);
+            if (verbose) note("map will be ", npy, " x ", npx);
+
+            noise.resize(npy, npx);
         } else {
             // From an existing FITS file
             fits::read(astro, noise, hdr);
+
+            if (verbose) note("map will be ", noise.dims[0], " x ", noise.dims[1]);
         }
     }
 
@@ -152,7 +156,7 @@ int main(int argc, char* argv[]) {
         vec2d dist = convex_hull_distance(x, y, hull);
 
         if (save_dist) {
-            fits::write(out+"_dist.fits", dist, hdr);
+            fits::write(out+"-dist.fits", dist, hdr);
         }
 
         // Only use pixels that are more than 3 FWHM away from the border of the catalog
@@ -199,18 +203,18 @@ int main(int argc, char* argv[]) {
 
     // Save noise map
     if (verbose) note("write map to disk...");
-    fits::write(out+"_noise.fits", noise, hdr);
+    fits::write(out+"-noise.fits", noise, hdr);
 
     if (make_err) {
         // Build and save error map
         noise[idin] = rms;
-        fits::write(out+"_err.fits", noise, hdr);
+        fits::write(out+"-err.fits", noise, hdr);
     }
 
     if (make_cov) {
         // Build and save coverage map
         noise[idin] = 1.0;
-        fits::write(out+"_cov.fits", noise, hdr);
+        fits::write(out+"-cov.fits", noise, hdr);
     }
 
     if (verbose) note("done.");
@@ -240,7 +244,7 @@ void print_help() {
 
     print("List of mandatory parameters (no default value):");
     argdoc("out", "[string]", "base name of the file(s) into which the map(s) will be "
-        "saved. If out=\"file\", then the noise map will be saved in \"file_noise.fits\". "
+        "saved. If out=\"file\", then the noise map will be saved in \"file-noise.fits\". "
         "Similarly for the other maps that the program can output (RMS map, coverage map).");
     argdoc("psf", "[string]", "name of the file containing the PSF");
     argdoc("astro", "[string]", "name of an existing FITS file from which the astrometry "
@@ -266,8 +270,8 @@ void print_help() {
         "border are flagged with NaN, since they lack contribution from nearby sources. "
         "This option ensures that the map statistics is uniform, and that no edge effects "
         "are present, but some galaxies will be clipped out.");
-    argdoc("make_cov", "[flag]", "if set, save a coverage map (\"file_cov.fits\").");
-    argdoc("make_err", "[flag]", "if set, save an RMS map (\"file_err.fits\").");
+    argdoc("make_cov", "[flag]", "if set, save a coverage map (\"file-cov.fits\").");
+    argdoc("make_err", "[flag]", "if set, save an RMS map (\"file-err.fits\").");
     argdoc("verbose", "[flag]", "print additional information in the standard output while "
         "the program is running (default: false)");
     print("");
