@@ -13,18 +13,36 @@ int main(int argc, char* argv[]) {
 
     // Read command line arguments
     std::string band;
-    std::string out_file;
+    std::string out_base;
+    std::string img_dir;
+    std::string template_file;
     double maglim = dnan;
-    double aspix = 0.06;
-    double inset = 5.0;
-    bool npix = false;
+    double inset = 0.0;
     bool verbose = false;
     float size_cap = fnan;
     std::string save_pixpos;
 
     read_args(argc-1, argv+1, arg_list(
-        band, name(out_file, "out"), maglim, aspix, npix, size_cap, save_pixpos, verbose
+        band, name(out_base, "out"), img_dir, maglim, size_cap, save_pixpos, verbose,
+        name(template_file, "template")
     ));
+
+    if (!img_dir.empty()) {
+        img_dir = file::directorize(img_dir);
+    }
+
+    // Check for missing mandatory parameters
+    bool bad = false;
+    if (band.empty()) {
+        error("missing band ID (band=...)");
+        bad = true;
+    }
+    if (template_file.empty()) {
+        error("missing SkyMaker template configuration file (template=...)");
+        bad = true;
+    }
+
+    if (bad) return 1;
 
     // Read input catalog
     if (verbose) {
@@ -40,14 +58,19 @@ int main(int argc, char* argv[]) {
 
         vec2f flux_disk, flux_bulge;
         vec1s bands;
+        vec1f lambda;
     } cat;
 
     fits::read_table(argv[1], ftable(
         cat.id, cat.ra, cat.dec,
         cat.disk_angle, cat.disk_radius, cat.disk_ratio,
         cat.bulge_angle, cat.bulge_radius, cat.bulge_ratio,
-        cat.flux_disk, cat.flux_bulge, cat.bands
+        cat.flux_disk, cat.flux_bulge, cat.bands, cat.lambda
     ));
+
+    if (verbose) {
+        note("found ", cat.id.size(), " galaxies");
+    }
 
     vec1u idb = where(cat.bands == band);
     if (idb.empty()) {
@@ -58,13 +81,70 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    if (out_file.empty()) {
-        out_file = file::remove_extension(argv[1])+"-"+band+".cat";
+    uint_t b = idb[0];
+
+    // Read template SkyMaker configuration file
+    double aspix = fnan;
+    vec1s sky_param, sky_value; {
+        std::ifstream file(template_file);
+
+        uint_t l = 0;
+        std::string line;
+        while (std::getline(file, line)) {
+            ++l;
+
+            line = trim(line);
+            if (line.empty() || line[0] == '#') continue;
+
+            auto pos = line.find_first_of(" \t");
+            if (pos == line.npos) {
+                note("reading ", template_file, ":", l);
+                error("ill formed line, expected \"PARAMETER   VALUE\"");
+                return 1;
+            }
+
+            std::string param = line.substr(0, pos);
+            std::string value = trim(line.substr(pos));
+
+            sky_param.push_back(param);
+            sky_value.push_back(value);
+
+            if (param == "PIXEL_SIZE" && !from_string(value, aspix)) {
+                note("reading ", template_file, ":", l);
+                error("could not read pixel size value '", value, "'");
+                return 1;
+            }
+        }
     }
 
-    file::mkdir(file::get_directory(out_file));
+    if (!is_finite(aspix)) {
+        error("missing 'PIXEL_SIZE' parameter from SkyMaker configuration file");
+        return 1;
+    }
 
-    uint_t b = idb[0];
+    // If missing, add some parameters we can provide
+    if (count(sky_param == "LISTCOORD_TYPE") == 0) {
+        sky_param.push_back("LISTCOORD_TYPE");
+        sky_value.push_back("PIXEL");
+    }
+
+    if (count(sky_param == "WAVELENGTH") == 0) {
+        sky_param.push_back("WAVELENGTH");
+        sky_value.push_back(strn(cat.lambda[b]));
+
+    }
+
+    if (count(sky_param == "IMAGE_TYPE") == 0) {
+        sky_param.push_back("IMAGE_TYPE");
+        sky_value.push_back("SKY");
+    }
+
+    if (out_base.empty()) {
+        out_base = file::remove_extension(argv[1])+"-"+band;
+    }
+
+    // Now start the real job
+    file::mkdir(file::get_directory(out_base));
 
     // Build the quantities expected by SkyMaker
     if (verbose) {
@@ -134,6 +214,10 @@ int main(int argc, char* argv[]) {
             note("minimum magnitude is ", min(mag));
             return 1;
         }
+
+        if (verbose) {
+            note("selecting ", ids.size(), "/", cat.id.size(), " galaxies");
+        }
     } else {
         ids = uindgen(x.size());
         vec1u idbad = where(!is_finite(mag));
@@ -143,9 +227,9 @@ int main(int argc, char* argv[]) {
     double img_size = double(nx)*ny*sizeof(SkyPixType)/pow(1024.0, 3);
 
     // Inline function to write a catalog to disk
-    auto write_catalog = [&](std::string ofile, const vec1u& oids){
+    auto write_catalog = [&](std::string obase, const vec1u& oids, uint_t sx, uint_t sy){
         // Write catalog
-        file::write_table_hdr(ofile, 16,
+        file::write_table_hdr(obase+".cat", 16,
             {"type", "x", "y", "mag", "bt",
             "bulge_radius", "bulge_ratio", "bulge_angle",
             "disk_radius", "disk_ratio", "disk_angle"},
@@ -156,16 +240,38 @@ int main(int argc, char* argv[]) {
         );
 
         // Write FITS header
-        {
-            std::ofstream ohdr(file::remove_extension(out_file)+"-hdr.txt");
-            vec1s shdr = cut(hdr, 80);
-            for (auto& s : shdr) {
-                ohdr << s << "\n";
-            }
+        std::string hdr_file = obase+"-hdr.txt";
+        std::ofstream ohdr(hdr_file);
+        vec1s shdr = cut(hdr, 80);
+        for (auto& s : shdr) {
+            ohdr << s << "\n";
+        }
+
+        // Write SkyMaker configuration file
+        std::ofstream oconf(obase+"-sky.conf");
+        std::string img_name = file::get_basename(obase);
+
+        // Copy the parameters from the template
+        vec1s tpar = sky_param;
+        vec1s tval = sky_value;
+
+        // Add our own
+        tpar.push_back("IMAGE_NAME");
+        tval.push_back(img_dir+img_name+"-sci.fits");
+        tpar.push_back("IMAGE_SIZE");
+        tval.push_back(strn(sx)+","+strn(sy));
+        tpar.push_back("IMAGE_HEADER");
+        tval.push_back(hdr_file);
+
+        // Write to file
+        tpar = align_left(tpar, max(length(tpar)));
+        for (uint_t i : range(tpar)) {
+            oconf << tpar[i] << " " << tval[i] << "\n";
         }
     };
 
-    vec1s tile(x.size());
+    vec1u tilex(x.size());
+    vec1u tiley(x.size());
 
     if (is_finite(size_cap) && img_size > size_cap) {
         // The whole image would be too big, we need to split it into smaller sections
@@ -195,7 +301,7 @@ int main(int argc, char* argv[]) {
         nx = ceil(nx/double(nsx));
         ny = ceil(ny/double(nsy));
 
-        if (npix || verbose) {
+        if (verbose) {
             double sec_size = double(nx)*ny*sizeof(SkyPixType)/pow(1024.0, 3);
             note("will require ", nsx, "x", nsy, " sections (", sec_size, " GB each)");
             note("section dimensions: ", nx, ",", ny);
@@ -205,9 +311,8 @@ int main(int argc, char* argv[]) {
             note("write catalogs...");
         }
 
-        std::string out_base = file::remove_extension(out_file);
-
-        tile.resize(x.size());
+        tilex.resize(x.size());
+        tiley.resize(x.size());
 
         // Keep "old" coordinates from the whole image
         vec1d ox = x;
@@ -222,16 +327,18 @@ int main(int argc, char* argv[]) {
             // Pick galaxies that fall in this section
             // NB: pixel coordinates in FITS standard are in [1,N] and '1' is the center
             // of the first pixel (which therefore covers 0.5 to 1.5)
-            vec1u idi = ids[where(ox[ids]+gsize[ids] >= nx*ix+0.5 && ox[ids]-gsize[ids] <= nx*(ix+1)+0.5 &&
-                                  oy[ids]+gsize[ids] >= ny*iy+0.5 && oy[ids]-gsize[ids] <= ny*(iy+1)+0.5)];
+            vec1u idi = ids[where(ox[ids]+gsize[ids] >= nx*ix+0.5     &&
+                                  ox[ids]-gsize[ids] <= nx*(ix+1)+0.5 &&
+                                  oy[ids]+gsize[ids] >= ny*iy+0.5     &&
+                                  oy[ids]-gsize[ids] <= ny*(iy+1)+0.5)];
 
             // This is the "strict" list, i.e., only galaxies whose center lies in this tile
             vec1u idis = where(ox[idi] >= nx*ix+0.5 && ox[idi] < nx*(ix+1)+0.5 &&
                                oy[idi] >= ny*iy+0.5 && oy[idi] < ny*(iy+1)+0.5);
 
             // Convert pixel coordinates to local frame
-            wcs_params.pixel_ref_x = 1-nx*double(ix);
-            wcs_params.pixel_ref_y = 1-ny*double(iy);
+            wcs_params.pixel_ref_x = dx+1-nx*double(ix);
+            wcs_params.pixel_ref_y = dy+1-ny*double(iy);
 
             if (!fits::make_wcs_header(wcs_params, hdr)) {
                 error("could not make WCS header");
@@ -246,10 +353,10 @@ int main(int argc, char* argv[]) {
             // Write the catalog for this section
             std::string six = align_right(strn(ix+1), strn(nsx).size(), '0');
             std::string siy = align_right(strn(iy+1), strn(nsy).size(), '0');
-            out_file = out_base+"-"+six+"-"+siy+".cat";
-            write_catalog(out_file, idi);
+            write_catalog(out_base+"-"+six+"-"+siy, idi, nx, ny);
 
-            tile[idi[idis]] = file::remove_extension(file::get_basename(out_file));
+            tilex[idi[idis]] = ix+1;
+            tiley[idi[idis]] = iy+1;
 
             if (verbose) progress(pg);
         }
@@ -258,7 +365,7 @@ int main(int argc, char* argv[]) {
         std::swap(ty, y);
     } else {
         // We will make a single big image
-        if (npix || verbose) {
+        if (verbose) {
             note("image dimensions: ", nx, ",", ny, " (", img_size, " GB)");
         }
 
@@ -266,20 +373,23 @@ int main(int argc, char* argv[]) {
             note("write catalog...");
         }
 
-        write_catalog(out_file, ids);
+        write_catalog(out_base, ids, nx, ny);
 
-        tile = replicate(file::remove_extension(file::get_basename(out_file)), x.size());
+        tilex = replicate(1u, x.size());
+        tiley = replicate(1u, x.size());
     }
 
     if (!save_pixpos.empty()) {
         note("write pixel positions...");
         file::mkdir(file::get_directory(save_pixpos));
-        fits::write_table(save_pixpos, ftable(cat.id, x, y, tile));
+        fits::write_table(save_pixpos, ftable(cat.id, x, y, tilex, tiley));
     }
 
     if (verbose) {
         note("done.");
     }
+
+    // TODO: fix SkyMaker and border objects
 
     return 0;
 }
@@ -302,21 +412,24 @@ void print_help() {
     };
 
     print("ifni-2skymaker v1.0");
-    print("usage: ifni-2skymaker cat.fits band=... [options]\n");
+    print("usage: ifni-2skymaker cat.fits [parameters and options]\n");
 
-    print("List of options:");
+    print("List of mandatory parameters (no default):");
     argdoc("band", "[string]", "name of the photometric band for which a SkyMaker "
-        "input catalg will be created (required)");
+        "input catalg will be created");
+    argdoc("template", "[string]", "file containing a template SkyMaker configuration "
+        "setup that this program will use to create the final configuration file. This "
+        "template file must contain the 'PIXEL_SIZE' parameter. If missing, this program "
+        "will add 'WAVELENGTH' and 'LISTCOORD_TYPE' (which has to be 'PIXELS').");
+
+    print("");
+    print("List of options:");
     argdoc("out", "[string]", "name of the output catalog (default: [catalog]-[band].cat)");
     argdoc("maglim", "[float]", "galaxies fainter than this magnitude will not be "
         "present in the output catalog (default: none)");
-    argdoc("aspix", "[double, arcsec/pixel]", "pixel size of the SkyMaker image "
-        "(default: 0.06\")");
     argdoc("inset", "[double, arcsec]", "add an empty border around the input catalog "
         "to prevent galaxies from being truncated by the edge of the image "
         "(default: 5\")");
-    argdoc("npix", "[flag]", "ask the program to estimate the optimal image dimensions "
-        "that should be put into the SkyMaker configuration file (in pixels)");
     argdoc("size_cap", "[float, GB]", "split the survey in multiple tiles of equal area "
         "that will each be rendered into a separate image, so that the size of each "
         "such image is less than 'size_cap' (expressed in GigaBytes, default: none). NB: "
@@ -329,5 +442,6 @@ void print_help() {
         "provides and easy way to figure out in which of the tile each galaxy is located.");
     argdoc("verbose", "[flag]", "display information about the progress of the program "
         "in the terminal");
+
     print("");
 }
