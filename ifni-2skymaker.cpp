@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
 
     // Read command line arguments
     std::string band;
-    std::string out_base;
+    std::string out_file;
     std::string img_dir;
     std::string template_file;
     double maglim = dnan;
@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
     std::string save_pixpos;
 
     read_args(argc-1, argv+1, arg_list(
-        band, name(out_base, "out"), img_dir, maglim, size_cap, save_pixpos, verbose,
+        band, name(out_file, "out"), img_dir, maglim, size_cap, save_pixpos, verbose,
         name(template_file, "template")
     ));
 
@@ -139,12 +139,12 @@ int main(int argc, char* argv[]) {
         sky_value.push_back("SKY");
     }
 
-    if (out_base.empty()) {
-        out_base = file::remove_extension(argv[1])+"-"+band;
+    if (out_file.empty()) {
+        out_file = file::remove_extension(argv[1])+"-"+band+".cat";
     }
 
     // Now start the real job
-    file::mkdir(file::get_directory(out_base));
+    file::mkdir(file::get_directory(out_file));
 
     // Build the quantities expected by SkyMaker
     if (verbose) {
@@ -227,9 +227,9 @@ int main(int argc, char* argv[]) {
     double img_size = double(nx)*ny*sizeof(SkyPixType)/pow(1024.0, 3);
 
     // Inline function to write a catalog to disk
-    auto write_catalog = [&](std::string obase, const vec1u& oids, uint_t sx, uint_t sy){
+    auto write_catalog = [&](std::string ofile, const vec1u& oids, uint_t sx, uint_t sy){
         // Write catalog
-        file::write_table_hdr(obase+".cat", 16,
+        file::write_table_hdr(ofile, 16,
             {"type", "x", "y", "mag", "bt",
             "bulge_radius", "bulge_ratio", "bulge_angle",
             "disk_radius", "disk_ratio", "disk_angle"},
@@ -238,6 +238,8 @@ int main(int argc, char* argv[]) {
             cat.bulge_radius[oids], cat.bulge_ratio[oids], cat.bulge_angle[oids],
             cat.disk_radius[oids], cat.disk_ratio[oids], cat.disk_angle[oids]
         );
+
+        std::string obase = file::remove_extension(ofile);
 
         // Write FITS header
         std::string hdr_file = obase+"-hdr.txt";
@@ -353,7 +355,9 @@ int main(int argc, char* argv[]) {
             // Write the catalog for this section
             std::string six = align_right(strn(ix+1), strn(nsx).size(), '0');
             std::string siy = align_right(strn(iy+1), strn(nsy).size(), '0');
-            write_catalog(out_base+"-"+six+"-"+siy, idi, nx, ny);
+
+            auto spl = file::split_extension(out_file);
+            write_catalog(spl.first+"-"+six+"-"+siy+spl.second, idi, nx, ny);
 
             tilex[idi[idis]] = ix+1;
             tiley[idi[idis]] = iy+1;
@@ -373,7 +377,7 @@ int main(int argc, char* argv[]) {
             note("write catalog...");
         }
 
-        write_catalog(out_base, ids, nx, ny);
+        write_catalog(out_file, ids, nx, ny);
 
         tilex = replicate(1u, x.size());
         tiley = replicate(1u, x.size());
