@@ -95,10 +95,13 @@ int main(int argc, char* argv[]) {
     // Display some help
     bool help = false;
 
-    // Photometric bands to generate
+    // Photometric bands for which to generate observed fluxes
     vec1s bands = {"vimos_u", "f435w", "f606w", "f775w", "f814w", "f850lp",
         "f105w", "f125w", "f140w", "f160w", "hawki_Ks", "i1", "i2", "i3", "i4",
         "irs1", "m1", "p1", "p2", "p3", "s1", "s2", "s3"};
+
+    // Photometric bands for which to generate absolute magnitudes
+    vec1s rfbands;
 
     // Read command line arguments
     // ---------------------------
@@ -110,7 +113,7 @@ int main(int argc, char* argv[]) {
         name(ir_lib_file, "ir_lib"), name(opt_lib_file, "opt_lib"),
         name(out_file, "out"), name(filter_db_file, "filter_db"),
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
-        name(input_cat_file, "input_cat"), selection_band, bands, help,
+        name(input_cat_file, "input_cat"), selection_band, bands, rfbands, help,
         clust_r0, clust_r1, clust_lambda, clust_eta, clust_frnd_mlim, clust_frnd_lom,
         clust_frnd_him, clust_urnd_mlim
     ));
@@ -140,27 +143,33 @@ int main(int argc, char* argv[]) {
         note("initializing filters...");
     }
 
+    // Get filters
     auto filter_db = read_filter_db(filter_db_file);
-
-    // Sort the bands by increasing wavelength
-    vec1f lambda;
-    for (auto& band : bands) {
-        filter_t fil;
-        if (get_filter(filter_db, band, fil)) {
-            lambda.push_back(fil.rlam);
-        } else {
-            return 1;
-        }
-    }
-
-    vec1u ids = sort(lambda);
-    bands = bands[ids];
-    lambda = lambda[ids];
 
     vec<1,filter_t> filters;
     if (!get_filters(filter_db, bands, filters)) {
         return 1;
     }
+
+    vec<1,filter_t> rffilters;
+    if (!get_filters(filter_db, rfbands, rffilters)) {
+        return 1;
+    }
+
+    // Sort the bands by increasing wavelength
+    auto filter_lam = vectorize_lambda([](const filter_t& f) { return f.rlam; });
+    vec1f lambda = filter_lam(filters);
+    vec1u ids = sort(lambda);
+    bands = bands[ids];
+    lambda = lambda[ids];
+    filters = filters[ids];
+
+    vec1f rflambda = filter_lam(rffilters);
+    ids = sort(rflambda);
+    rfbands = rfbands[ids];
+    rflambda = rflambda[ids];
+    rffilters = rffilters[ids];
+
 
     // Initialize SED libraries
     // ------------------------
@@ -281,6 +290,12 @@ int main(int argc, char* argv[]) {
         vec1s bands;
         vec1f lambda;
 
+        vec2f rfmag;
+        vec2f rfmag_disk;
+        vec2f rfmag_bulge;
+        vec1s rfbands;
+        vec1f rflambda;
+
         vec2f zb;
 
         std::string cmd;
@@ -288,6 +303,8 @@ int main(int argc, char* argv[]) {
 
     out.lambda = lambda;
     out.bands = bands;
+    out.rflambda = rflambda;
+    out.rfbands = rfbands;
 
     // Generate redshift, masses, and positions
     // ----------------------------------------
@@ -1154,8 +1171,11 @@ if (!no_flux) {
     out.flux_disk.resize(ngal, bands.size());
     out.flux_bulge.resize(ngal, bands.size());
 
+    out.rfmag_disk.resize(ngal, rfbands.size());
+    out.rfmag_bulge.resize(ngal, rfbands.size());
+
     if (verbose) {
-        note("computing fluxes...");
+        note("computing fluxes ", (rffilters.empty() ? "" : "and absolute magnitudes"), "...");
     }
 
     if (file::get_basename(ir_lib_file) == "ir_lib_cs15.fits") {
@@ -1195,7 +1215,7 @@ if (!no_flux) {
         }
     };
 
-    auto get_flux = [&](const vec1f& m, const vec1u& optsed, vec2f& flux, bool no_ir) {
+    auto get_flux = [&](const vec1f& m, const vec1u& optsed, vec2f& flux, vec2f& rfmag, bool no_ir) {
         auto pg1 = progress_start(ngal);
         for (uint_t i : range(ngal)) {
             // Build the full rest-frame SED
@@ -1215,6 +1235,17 @@ if (!no_flux) {
 
                 // Combine IR SED with optical SED
                 merge_add(orlam, irlam, orsed, irsed, rlam, rsed);
+            }
+
+            // Obtain rest-frame magnitudes
+            if (!rffilters.empty()) {
+                // Redshift the SED @ 10pc
+                vec1f sed = lsun2uJy(0.0, 1e-5, rlam, rsed);
+
+                for (uint_t b : range(rffilters)) {
+                    double mag = uJy2mag(sed2flux(rffilters[b], rlam, sed));
+                    rfmag(i,b) = (is_finite(mag) ? mag : +99);
+                }
             }
 
             // Redshift the SED
@@ -1237,12 +1268,13 @@ if (!no_flux) {
 
     // Get flux for the bulge
     if (!no_stellar) {
-        get_flux(out.m_bulge, out.opt_sed_bulge, out.flux_bulge, true);
+        get_flux(out.m_bulge, out.opt_sed_bulge, out.flux_bulge, out.rfmag_bulge, true);
     }
 
-    get_flux(out.m_disk,  out.opt_sed_disk,  out.flux_disk, no_dust);
+    get_flux(out.m_disk,  out.opt_sed_disk,  out.flux_disk, out.rfmag_disk, no_dust);
 
     out.flux = out.flux_disk + out.flux_bulge;
+    out.rfmag = uJy2mag(mag2uJy(out.rfmag_disk) + mag2uJy(out.rfmag_bulge));
 
     if (save_sed) {
         if (verbose) {
@@ -1279,8 +1311,11 @@ if (!no_flux) {
         out.sfrir, out.sfruv, out.irx, out.lir, out.ir_sed,
         out.opt_sed_bulge, out.opt_sed_disk,
         out.flux, out.flux_disk, out.flux_bulge,
+        out.rfmag, out.rfmag_disk, out.rfmag_bulge,
         out.tdust, out.fpah, out.mdust,
-        out.bands, out.lambda, out.zb, out.cmd
+        out.bands, out.lambda,
+        out.rfbands, out.rflambda,
+        out.zb, out.cmd
     ));
 
     return 0;
@@ -1370,6 +1405,8 @@ void print_help(std::string filter_db_file) {
     argdoc("no_dust", "[flag]", "SEDs will not contain the dust continuum and PAH emission");
     argdoc("no_stellar", "[flag]", "SEDs will not contain the stellar emission");
     argdoc("bands", "[string array]", "optical and IR bands for which to generate fluxes");
+    argdoc("rfbands", "[string array]", "optical and IR bands for which to generate "
+        "absolute magnitudes");
     argdoc("save_sed", "[flag]", "save the full SEDs of each simulated galaxies in "
         "[out]_seds.fits (WARNING: will use a lot of memory, be sure to only use this "
         "flag for small simulations)");
