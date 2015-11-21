@@ -180,7 +180,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Remove zero elements
-        vec1u idz = where(kernel < 1e-5*max(fabs(kernel)));
+        vec1u idz = where(kernel < 1e-5*max(abs(kernel)));
         kernel[idz] = 0.0;
 
         // Normalize to unity to preserve flux
