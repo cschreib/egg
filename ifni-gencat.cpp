@@ -1253,7 +1253,7 @@ if (!no_flux) {
             vec1f sed = lsun2uJy(out.z[i], out.d[i], rlam, rsed);
 
             if (save_sed) {
-                ssed(i,_) = interpolate(sed, lam, slam(i,_));
+                ssed(i,_) += interpolate(sed, lam, slam(i,_));
             }
 
             // Integrate the SED to get broadband fluxes
