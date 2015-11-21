@@ -87,15 +87,15 @@ int main(int argc, char* argv[]) {
 
     prepend(a_mstar1,   vec1f{10.72});
     prepend(a_mstar2,   vec1f{10.72});
-    prepend(a_phistar1, vec1f{0.71e-3});
+    prepend(a_phistar1, vec1f{0.3*0.71e-3});
     prepend(a_phistar2, vec1f{0.0});
     prepend(a_index1,   vec1f{-1.45});
-    prepend(a_index2,   vec1f{0.5});
+    prepend(a_index2,   vec1f{0.3});
 
     prepend(p_mstar1,   vec1f{10.72});
     prepend(p_mstar2,   vec1f{10.72});
-    prepend(p_phistar1, vec1f{3.25e-3});
-    prepend(p_phistar2, vec1f{0.08e-3});
+    prepend(p_phistar1, vec1f{0.3*3.25e-3});
+    prepend(p_phistar2, vec1f{0.3*0.08e-3});
     prepend(p_index1,   vec1f{-0.45});
     prepend(p_index2,   vec1f{-1.45});
 
