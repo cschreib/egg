@@ -1004,25 +1004,32 @@ int main(int argc, char* argv[]) {
     out.rfuv_bulge.resize(ngal);
 
     auto gen_blue = [&seed](const vec1f& m, const vec1f& z, vec1f& uv, vec1f& vj) {
-        // Calibrate "attenuation vector" from mass and redshift
-        // See 'uvj_track.pro'
+        // Calibrate "UVJ vector" from mass and redshift
         vec1f a0 = 0.58*erf(m-10) + 1.39;
         vec1f as = -0.34 + 0.3*max(m-10.35, 0.0);
         vec1f a = min(a0 + as*z, 2.0) + 0.1*randomn(seed, m.size());
 
-        // Move in the UVJ diagram according to "attenuation"
+        // Move in the UVJ diagram according to the UVJ vector
         double slope = 0.65;
         double theta = atan(slope);
         vj = 0.0  + a*cos(theta) + 0.12*randomn(seed, m.size());
         uv = 0.45 + a*sin(theta) + 0.12*randomn(seed, m.size());
+
+        // Add an additional global color offset depending on redshift
+        uv += 0.4*max((0.5 - z)/0.5, 0.0);
+        vj += 0.2*max((0.5 - z)/0.5, 0.0);
     };
 
-    auto gen_red = [&seed](const vec1f& m, vec1f& uv, vec1f& vj) {
+    auto gen_red = [&seed](const vec1f& m, const vec1f& z, vec1f& uv, vec1f& vj) {
         double pvj = 1.25, puv = 1.85;
         vec1f mspread = clamp(0.1*(m - 11.0) + 0.1*randomn(seed, m.size()), -0.1, 0.2);
 
         vj = pvj + mspread      + 0.1*randomn(seed, m.size());
         uv = puv + mspread*0.88 + 0.1*randomn(seed, m.size());
+
+        // Add an additional global color offset depending on redshift
+        uv += 0.4*max((0.5 - z)/0.5, 0.0);
+        vj += 0.2*max((0.5 - z)/0.5, 0.0);
     };
 
     // Disks are always blue
@@ -1035,7 +1042,7 @@ int main(int argc, char* argv[]) {
 
         vec1f tuv, tvj;
         vec1u idb = where(red_bulge);
-        gen_red(out.m[idb], tuv, tvj);
+        gen_red(out.m[idb], out.z[idb], tuv, tvj);
         out.rfuv_bulge[idb] = tuv;
         out.rfvj_bulge[idb] = tvj;
 
