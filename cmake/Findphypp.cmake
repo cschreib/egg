@@ -80,7 +80,7 @@ if(NOT PHYPP_FOUND)
     # find required libraries
     find_package(CFITSIO)
 
-    set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIRS} ${CFITSIO_INCLUDE_DIRS})
+    set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIRS} ${CFITSIO_INCLUDES})
     set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${CFITSIO_LIBRARIES})
 
     # find optional libraries
