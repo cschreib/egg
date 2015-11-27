@@ -39,7 +39,7 @@
 # Example:
 # INSTALL_ROOT_DIR="/opt/local"
 # Default: (system default)
-INSTALL_ROOT_DIR="/home/cschreib/testinit"
+INSTALL_ROOT_DIR=""
 
 # CFITSIO_ROOT_DIR: the location where the cfitsio library is installed
 # on your computer, including headers (in the "include" subdirectory)
