@@ -26,6 +26,8 @@ add_definitions(-DFILTER_DB_DIR="${EGG_SHARE_DIR}/filter-db")
 
 include_directories(${PHYPP_INCLUDE_DIRS})
 
+message(STATUS ${PHYPP_INCLUDE_DIRS})
+
 add_executable(egg-gencat src/egg-gencat.cpp)
 target_link_libraries(egg-gencat ${PHYPP_LIBRARIES})
 install(TARGETS egg-gencat DESTINATION bin)
