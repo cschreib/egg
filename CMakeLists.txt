@@ -24,7 +24,7 @@ install(DIRECTORY share/psfs
 add_definitions(-DEGG_SHARE_DIR="${EGG_SHARE_DIR}")
 add_definitions(-DFILTER_DB_DIR="${EGG_SHARE_DIR}/filter-db")
 
-include_directories(${PHYPP_INCLUDE_DIR})
+include_directories(${PHYPP_INCLUDE_DIRS})
 
 add_executable(egg-gencat src/egg-gencat.cpp)
 target_link_libraries(egg-gencat ${PHYPP_LIBRARIES})
