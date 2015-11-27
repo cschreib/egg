@@ -40,6 +40,8 @@
 # INSTALL_ROOT_DIR="/opt/local"
 # Default: (system default)
 INSTALL_ROOT_DIR=""
+PHYPP_VERSION="master"
+EGG_VERSION="1.0rc1"
 
 # CFITSIO_ROOT_DIR: the location where the cfitsio library is installed
 # on your computer, including headers (in the "include" subdirectory)
@@ -84,8 +86,9 @@ cd `mktemp -d 2>/dev/null || mktemp -d -t 'egg-tmp-dir'`
 # -----------------------------------------
 
 # Download and extract phy++
-wget https://github.com/cschreib/phypp/archive/master.tar.gz
-tar -xvzf master.tar.gz && rm master.tar.gz
+wget https://github.com/cschreib/phypp/archive/$PHYPP_VERSION.tar.gz \
+    --no-check-certificate -O $PHYPP_VERSION.tar.gz
+tar -xvzf $PHYPP_VERSION.tar.gz && rm $PHYPP_VERSION.tar.gz
 
 if [ -n "$CFITSIO_ROOT_DIR" ]; then
     DCFITSIO_ROOT_DIR="-DCFITSIO_ROOT_DIR=$CFITSIO_ROOT_DIR"
@@ -99,7 +102,7 @@ if [ -n "$INSTALL_ROOT_DIR" ]; then
 fi
 
 # Configure it
-mkdir -p phypp-master/build && cd phypp-master/build
+mkdir -p phypp-$PHYPP_VERSION/build && cd phypp-$PHYPP_VERSION/build
 cmake ../ $DCFITSIO_ROOT_DIR $DWCSLIB_ROOT_DIR $DINSTALL_ROOT_DIR
 
 # Extract install dir from CMake to check if we need sudo
@@ -125,11 +128,12 @@ cd ../../
 # -----------------------------------------
 
 # Download EGG
-wget https://github.com/cschreib/egg/archive/master.tar.gz
-tar -xvzf master.tar.gz && rm master.tar.gz
+wget https://github.com/cschreib/egg/archive/$EGG_VERSION.tar.gz \
+    --no-check-certificate -O $EGG_VERSION.tar.gz
+tar -xvzf $EGG_VERSION.tar.gz && rm $EGG_VERSION.tar.gz
 
 # Configure it
-mkdir -p egg-master/build && cd egg-master/build
+mkdir -p egg-$EGG_VERSION/build && cd egg-$EGG_VERSION/build
 cmake ../ $DCFITSIO_ROOT_DIR $DWCSLIB_ROOT_DIR $DPHYPP_ROOT_DIR $DINSTALL_ROOT_DIR
 
 # Build and install EGG
