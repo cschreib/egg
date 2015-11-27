@@ -6,29 +6,31 @@
 #
 
 VERSION=1.0
-CATBASE=ifni-ad-0p25deg
+CATBASE=egg-ad-0p25deg
 
-PSFDIR=../psfs
 CATDIR=../catalogs/v$VERSION
 MAPDIR=../maps/v$VERSION
 CATALOG=$CATDIR/$CATBASE.fits
 
 SKYDIR=$CATDIR/skymaker
 
-I2SKY_OPTIONS="verbose"
+I2SKY_OPTIONS="verbose size_cap=0.3"
 
 mkdir -p $MAPDIR
+
+# Abort immediately on error
+set -e
 
 echo "-----------------------------"
 echo "      Hubble WFC3 F160W      "
 echo "-----------------------------"
 
-../../bin/ifni-2skymaker $CATALOG $I2SKY_OPTIONS band=f160w \
-    out=$SKYDIR/$CATBASE-f160w \
+egg-2skymaker $CATALOG $I2SKY_OPTIONS band=hst-f160w \
+    out=$SKYDIR/$CATBASE-f160w.cat \
     img_dir=$MAPDIR \
-    template=templates/hubble-f160w.conf
+    template=goodss-hst-f160w.conf
 
 for SKYCAT in $SKYDIR/$CATBASE-f160w*.cat; do
     sky $SKYCAT -c $(dirname $SKYCAT)/$(basename $SKYCAT .cat)-sky.conf
-    rm $MAPDIR/f160w/$(basename $SKYCAT .cat)-sci.list
+    rm $MAPDIR/$(basename $SKYCAT .cat)-sci.list
 done

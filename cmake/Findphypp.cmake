@@ -1,4 +1,5 @@
 if(NOT PHYPP_FOUND)
+    # fine phy++ headers
     find_path(PHYPP_INCLUDE_DIR phypp.hpp
         HINTS ${PHYPP_ROOT_DIR} PATH_SUFFIXES include)
 
@@ -20,9 +21,117 @@ if(NOT PHYPP_FOUND)
         PHYPP_INCLUDE_DIR PHYPP_HEADERS PHYPP_REFGEN PHYPP_COMPILER)
 
     set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIR})
-endif(NOT PHYPP_FOUND)
+
+    # configure compilers
+    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+        if(NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 3.3))
+            message(STATUS "clang version >= 3.3 (${CMAKE_CXX_COMPILER_VERSION})")
+        else()
+            message(FATAL_ERROR "phy++ requires advanced features from the C++11 norm that are only available with clang 3.3 or higher (your version: ${CMAKE_CXX_COMPILER_VERSION}). Please upgrade your compiler.")
+        endif()
+
+        add_definitions(-Weverything)
+        add_definitions(-Wno-c++98-compat-pedantic)
+        add_definitions(-Wno-c++98-compat)
+        add_definitions(-Wno-unused-parameter)
+        add_definitions(-Wno-sign-conversion)
+        add_definitions(-Wno-conversion)
+        add_definitions(-Wno-missing-variable-declarations)
+        add_definitions(-Wno-missing-prototypes)
+        add_definitions(-Wno-padded)
+        add_definitions(-Wno-float-equal)
+        add_definitions(-Wno-unused-variable)
+        add_definitions(-Wno-global-constructors)
+        add_definitions(-Wno-exit-time-destructors)
+        add_definitions(-Wno-weak-vtables)
+        add_definitions(-Wno-covered-switch-default)
+        add_definitions(-Wno-documentation-unknown-command)
+        add_definitions(-Wno-unneeded-internal-declaration)
+        add_definitions(-Wno-unused-function)
+        add_definitions(-Wno-unused-macros)
+
+        if(NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 3.5))
+            add_definitions(-Wno-old-style-cast)
+        endif()
+
+        add_definitions(-std=c++11)
+        add_definitions(-ftemplate-backtrace-limit=0)
+        add_definitions(-ferror-limit=5)
+    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+        if(NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7))
+            message(STATUS "gcc version >= 4.7 (${CMAKE_CXX_COMPILER_VERSION})")
+        else()
+            message(FATAL_ERROR "phy++ requires advanced features from the C++11 norm that are only available with gcc 4.7 or higher (your version: ${CMAKE_CXX_COMPILER_VERSION}). Please upgrade your compiler.")
+        endif()
+
+        add_definitions(-Wall)
+        add_definitions(-std=c++11)
+        add_definitions(-fmax-errors=5)
+    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
+      message(ERROR "Intel C++ compiler is not supported")
+    elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+      message(ERROR "Microsoft Visual C++ compiler is not supported")
+    endif()
+
+    # find required libraries
+    find_package(CFITSIO)
+
+    set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIRS} ${CFITSIO_INCLUDE_DIRS})
+    set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${CFITSIO_LIBRARIES})
+
+    # find optional libraries
+    find_package(GSL)
+    find_package(FFTW 3)
+    find_package(GooglePerfTools)
+    find_package(LAPACK)
+    find_package(WCSLib)
+
+    # handle conditional reflection support
+    # WIP: just disabled for now
+    set(NO_REFLECTION 1)
+    add_definitions(-DNO_REFLECTION)
+
+    # handle conditional LAPACK support
+    if (NOT LAPACK_FOUND OR NO_LAPACK)
+        add_definitions(-DNO_LAPACK)
+    else()
+        set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${LAPACK_LIBRARIES})
+    endif()
+
+    # handle conditional GSL support
+    if (NOT GSL_FOUND OR NO_GSL OR NO_LAPACK OR NOT LAPACK_FOUND)
+        add_definitions(-DNO_GSL)
+    else()
+        set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIRS} ${GSL_INCLUDE_DIRS})
+        set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${GSL_LIBRARIES})
+    endif()
+
+    # handle conditional WCSLib support
+    if (NOT WCSLIB_FOUND OR NO_WCSLIB)
+        add_definitions(-DNO_WCSLIB)
+    else()
+        set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIRS} ${WCSLIB_INCLUDE_DIRS})
+        set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${WCSLIB_LIBRARIES})
+    endif()
+
+    # handle conditional FFTW support
+    if (NOT FFTW_FOUND OR NO_FFTW)
+        add_definitions(-DNO_FFTW)
+    else()
+        set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIRS} ${FFTW_INCLUDES})
+        set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${FFTW_LIBRARIES})
+    endif()
+
+    # handle conditional Google perftools support
+    if (TCMALLOC_LIBRARY)
+        set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${TCMALLOC_LIBRARY})
+    endif()
+endif()
 
 # Function to compile a phy++ program in CMake
+# This feature does not support including/linking other external libraries, as well as
+# "#define" commands, and is therefore not very powerful. But it is sufficient for basic
+# needs. Supports reflection.
 function(add_phypp_target CPP_FILE_NAME)
     # Generate binary name from c++ file
     get_filename_component(FILE_BASE ${CPP_FILE_NAME} NAME_WE)
