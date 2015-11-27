@@ -1415,7 +1415,7 @@ void print_help() {
         }
     };
 
-    print("egg-gencat v1.0");
+    print("egg-gencat v1.0rc1");
     print("usage: egg-gencat [options]\n");
 
     print("List of generic options:");

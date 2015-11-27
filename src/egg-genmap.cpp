@@ -237,7 +237,7 @@ void print_help() {
         }
     };
 
-    print("egg-genmap v1.0");
+    print("egg-genmap v1.0rc1");
     print("usage: egg-genmap cat.fits out=... psf=... noise_map=... band=... [options]\n");
 
     print("List of mandatory parameters (no default value):");

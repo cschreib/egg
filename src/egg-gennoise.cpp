@@ -257,7 +257,7 @@ void print_help() {
         }
     };
 
-    print("egg-gennoise v1.0");
+    print("egg-gennoise v1.0rc1");
     print("usage: egg-gennoise cat.fits out=... psf=... astro=... aspix=... rms=... [options]\n");
 
     print("List of mandatory parameters (no default value):");

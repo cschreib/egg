@@ -447,7 +447,7 @@ void print_help() {
         }
     };
 
-    print("egg-2skymaker v1.0");
+    print("egg-2skymaker v1.0rc1");
     print("usage: egg-2skymaker cat.fits [parameters and options]\n");
 
     print("List of mandatory parameters (no default):");
