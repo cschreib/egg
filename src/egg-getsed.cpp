@@ -4,16 +4,16 @@ void print_help();
 
 int main(int argc, char* argv[]) {
     uint_t id = npos;
-    std::string component, sed, out;
+    std::string component, seds, out;
     read_args(argc, argv, arg_list(seds, out, id, component));
 
-    if (seds.empty() || id == npos || component.empty()) {
+    if (seds.empty() || id == npos || component.empty()) {
         print_help();
         return 0;
     }
 
     if (out.empty()) {
-        out = file::remove_extension(seds)+"-"+component+"-"+strn(id)+".fits"
+        out = file::remove_extension(seds)+"-"+component+"-"+strn(id)+".fits";
     } else {
         file::mkdir(file::get_directory(out));
     }
@@ -58,7 +58,7 @@ void print_help() {
     print("usage: egg-getsed [options]\n");
 
     print("List of options:");
-    argdoc("sed", "[string]", "file containing the SEDs (mandatory)");
+    argdoc("seds", "[string]", "file containing the SEDs (mandatory)");
     argdoc("id", "[uint]", "ID of the galaxy to extract (zero-based and mandatory) ");
     argdoc("component", "[string]", "name of the galaxy component to extract (disk or bulge, "
         "mandatory)");
