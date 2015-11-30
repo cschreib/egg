@@ -1444,13 +1444,23 @@ if (!no_flux) {
         out.rfuv_bulge, out.rfuv_disk, out.rfvj_bulge, out.rfvj_disk,
         out.sfrir, out.sfruv, out.irx, out.lir, out.ir_sed,
         out.opt_sed_bulge, out.opt_sed_disk,
-        out.flux, out.flux_disk, out.flux_bulge,
-        out.rfmag, out.rfmag_disk, out.rfmag_bulge,
         out.tdust, out.fpah, out.mdust,
-        out.bands, out.lambda,
-        out.rfbands, out.rflambda,
         out.zb, out.cmd
     ));
+
+    if (!bands.empty()) {
+        fits::update_table(out_file, ftable(
+            out.flux, out.flux_disk, out.flux_bulge,
+            out.bands, out.lambda
+        ));
+    }
+
+    if (!rfbands.empty()) {
+        fits::update_table(out_file, ftable(
+            out.rfmag, out.rfmag_disk, out.rfmag_bulge,
+            out.rfbands, out.rflambda
+        ));
+    }
 
     return 0;
 }
