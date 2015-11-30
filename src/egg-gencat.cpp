@@ -64,6 +64,7 @@ int main(int argc, char* argv[]) {
     // Save the full spectrum of each galaxy to a file
     // Warning: the current implementation will consume a lot of RAM memory
     bool save_sed = false;
+    std::string seds_file = "";
 
     // Mass function file
     std::string mass_func_file = egg_share_dir+"mass_func_candels.fits";
@@ -199,6 +200,14 @@ int main(int argc, char* argv[]) {
 
     if (out_file.empty()) {
         out_file = "egg-"+today()+".fits";
+    } else {
+        file::mkdir(file::get_directory(out_file));
+    }
+
+    if (seds_file.empty()) {
+        seds_file = file::remove_extension(out_file)+"-seds.dat";
+    } else {
+        file::mkdir(file::get_directory(seds_file));
     }
 
     // Initialize random seed and cosmology
@@ -1258,15 +1267,6 @@ if (!no_flux) {
         out.mdust.resize(ngal);
     }
 
-    vec2f slam, ssed;
-    if (save_sed) {
-        double l0 = 0.5*min(lambda);
-        double l1 = 2.0*max(lambda);
-        vec1f x = rgen_log(l0, l1, 800*min(1.0, log10(l1/l0)/4.6));
-        slam = replicate(x, ngal);
-        ssed.resize(slam.dims);
-    }
-
     auto get_opt_sed = [&](double m, uint_t ised, vec1f& orlam, vec1f& orsed) {
         vec1u did = mult_ids(opt_lib.use, ised);
         orlam = opt_lib.lam(did[0],did[1],_);
@@ -1291,7 +1291,29 @@ if (!no_flux) {
         }
     };
 
-    auto get_flux = [&](const vec1f& m, const vec1u& optsed, vec2f& flux, vec2f& rfmag, bool no_ir) {
+    thread::worker sed_saver;
+    uint_t nsed = 0;
+    std::atomic<uint_t> nwritten(0);
+    std::ofstream seds_data;
+    uint_t nbyte = 0;
+    vec1u save_sed_bulge_start, save_sed_bulge_nbyte;
+    vec1u save_sed_disk_start,  save_sed_disk_nbyte;
+
+    if (save_sed) {
+        seds_data.open(seds_file, std::ios::binary);
+        save_sed_bulge_start.resize(ngal);
+        save_sed_bulge_nbyte.resize(ngal);
+        save_sed_disk_start.resize(ngal);
+        save_sed_disk_nbyte.resize(ngal);
+    }
+
+    enum class component {
+        bulge, disk
+    };
+
+    auto get_flux = [&](const vec1f& m, const vec1u& optsed, vec2f& flux, vec2f& rfmag,
+        bool no_ir, component cmp) {
+
         auto pg1 = progress_start(ngal);
         for (uint_t i : range(ngal)) {
             // Build the full rest-frame SED
@@ -1329,7 +1351,34 @@ if (!no_flux) {
             vec1f sed = lsun2uJy(out.z[i], out.d[i], rlam, rsed);
 
             if (save_sed) {
-                ssed(i,_) += interpolate(sed, lam, slam(i,_));
+                ++nsed;
+                sed_saver.push(
+                    [&nwritten,&seds_data,&save_sed_bulge_start,&save_sed_bulge_nbyte,
+                    &save_sed_disk_start,&save_sed_disk_nbyte,&nbyte,cmp,i,lam,sed]() {
+
+                    seds_data.write(
+                        reinterpret_cast<const char*>(lam.data.data()),
+                        lam.size()*sizeof(decltype(lam[0]))
+                    );
+                    seds_data.write(
+                        reinterpret_cast<const char*>(sed.data.data()),
+                        sed.size()*sizeof(decltype(sed[0]))
+                    );
+
+                    uint_t nval = 2*sed.size()*sizeof(decltype(sed[0]));
+
+                    if (cmp == component::bulge) {
+                        save_sed_bulge_start[i] = nbyte;
+                        save_sed_bulge_nbyte[i] = nval;
+                    } else {
+                        save_sed_disk_start[i] = nbyte;
+                        save_sed_disk_nbyte[i] = nval;
+                    }
+
+                    nbyte += nval;
+
+                    ++nwritten;
+                });
             }
 
             // Integrate the SED to get broadband fluxes
@@ -1344,26 +1393,35 @@ if (!no_flux) {
 
     // Get flux for the bulge
     if (!no_stellar) {
-        get_flux(out.m_bulge, out.opt_sed_bulge, out.flux_bulge, out.rfmag_bulge, true);
+        get_flux(out.m_bulge, out.opt_sed_bulge, out.flux_bulge, out.rfmag_bulge, true, component::bulge);
     }
 
-    get_flux(out.m_disk,  out.opt_sed_disk,  out.flux_disk, out.rfmag_disk, no_dust);
-
-    out.flux = out.flux_disk + out.flux_bulge;
-    out.rfmag = uJy2mag(mag2uJy(out.rfmag_disk) + mag2uJy(out.rfmag_bulge));
+    get_flux(out.m_disk,  out.opt_sed_disk,  out.flux_disk, out.rfmag_disk, no_dust, component::disk);
 
     if (save_sed) {
         if (verbose) {
-            note("saving SEDs...");
+            note("writing "+strn(nsed)+" SEDs to disk...");
+
+            auto pg = progress_start(nsed);
+            do {
+                print_progress(pg, nwritten);
+                thread::sleep_for(0.2);
+            } while (nwritten != nsed);
+
+            print_progress(pg, nsed);
         }
 
-        fits::write_table(file::remove_extension(out_file)+"_seds.fits",
-            "lam", slam, "sed", ssed
-        );
+        sed_saver.wait();
+        seds_data.close();
 
-        slam.clear();
-        ssed.clear();
+        fits::write_table(file::remove_extension(seds_file)+"-header.fits",
+            "bulge_start", save_sed_bulge_start, "bulge_nbyte", save_sed_bulge_nbyte,
+            "disk_start", save_sed_disk_start, "disk_nbyte", save_sed_disk_nbyte
+        );
     }
+
+    out.flux = out.flux_disk + out.flux_bulge;
+    out.rfmag = uJy2mag(mag2uJy(out.rfmag_disk) + mag2uJy(out.rfmag_bulge));
 }
 
     // Save the catalog to a file
@@ -1485,7 +1543,13 @@ void print_help() {
     argdoc("rfbands", "[string array]", "optical and IR bands for which to generate "
         "absolute magnitudes");
     argdoc("save_sed", "[flag]", "save the full SEDs of each simulated galaxies in "
-        "[out]_seds.fits (WARNING: will use a lot of memory, be sure to only use this "
-        "flag for small simulations)");
+        "'seds_file' in binary format. The header file '[seds_file]-header.fits' can be used to "
+        "locate the SED of each galaxy and each component in the file (starting position and length "
+        "are given in bytes). 'egg-getsed' can take care of this dirty work for you. Be warned: "
+        "these SEDs will consume a lot of disk space (about 40KB/galaxy).");
+    argdoc("seds_file", "[string]", "binary file in which the SEDs of each galaxy should be "
+        "saved if 'save_sed' is activated (default: '[out]-seds.dat'). In addition, a \"header\" "
+        "file will also be created in '[seds_file]-header.fits' to provide the position of each SED "
+        "in the file.");
     print("");
 }

@@ -47,3 +47,7 @@ install(TARGETS egg-buildmf DESTINATION bin)
 add_executable(egg-2skymaker src/egg-2skymaker.cpp)
 target_link_libraries(egg-2skymaker ${PHYPP_LIBRARIES})
 install(TARGETS egg-2skymaker DESTINATION bin)
+
+add_executable(egg-getsed src/egg-getsed.cpp)
+target_link_libraries(egg-getsed ${PHYPP_LIBRARIES})
+install(TARGETS egg-getsed DESTINATION bin)
