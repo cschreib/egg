@@ -45,11 +45,18 @@
 \newcommand{\stdvec}{\cppinline|std::vector|\xspace}
 \newcommand{\egg}{\textsc{EGG}\xspace}
 \newcommand{\skymaker}{\textit{SkyMaker}\xspace}
+\newcommand{\sextractor}{\textit{SExtractor}\xspace}
+\newcommand{\tphot}{\textit{T-PHOT}\xspace}
+\newcommand{\bash}{\textit{bash}\xspace}
 
 \newminted{cpp}{fontsize=\small}
 \newmintinline{cpp}{fontsize=\small}
 \newminted{bash}{fontsize=\small}
 \newmintinline{bash}{fontsize=\small}
+\newminted{idl}{fontsize=\small}
+\newmintinline{idl}{fontsize=\small}
+\newminted{python}{fontsize=\small}
+\newmintinline{python}{fontsize=\small}
 
 \newcommand{\anote}[2]{{\color{cyan}#1}: {\color{blue} #2}}
 \newcommand{\rephrase}[1]{{\color{pink}Reformulate}: {\color{red}\it #1}}
@@ -131,7 +138,6 @@
 \newcommand{\halpha}{${\rm H}_\alpha$\xspace}
 \newcommand{\Ks}{$K_{\rm s}$\xspace}
 \newcommand{\celib}{CE01\xspace}
-\newcommand{\sextractor}{{\sc SExtractor}\xspace}
 \newcommand{\galfit}{{\sc Galfit}\xspace}
 
 \newcommand\efp{%
@@ -170,221 +176,139 @@
 {\huge Generating mock catalogs with \egg}
 \end{center}
 
+\tableofcontents
+
 \section{Installing \egg}
 
-\subsection{Forewords}
+\input{doc-install}
 
-\egg is written in C++ and has a few dependencies. I have tried to keep the number of these dependencies as low as possible, and in fact for the moment there are four:
+\section{Using \egg}
 
+As you may have seen from the previous section, \egg is actually composed of several different tools, each taking care of a different step of the simulation process:
 \begin{itemize}
-\item \phypp, a library for numerical analysis that I have developed during my PhD,
-\item cfitsio, for handling FITS files,
-\item WCSlib, for handling sky-to-pixel conversions,
-\item and CMake, for managing the building process (dependencies, and platform specific stuff).
+\item \bashinline{egg-gencat}: creates a new \egg mock catalog,
+\item \bashinline{egg-getsed}: pick the complete spectrum of a galaxy from an SED data base created by \bashinline{egg-gencat},
+\item \bashinline{egg-2skymaker}: convert an \egg catalog into a \skymaker input catalog,
+\item \bashinline{egg-gennoise}: create an empty image with noise,
+\item \bashinline{egg-genmap}: paint galaxies from an \egg catalog to an empty map created with \bashinline{egg-gennoise}.
 \end{itemize}
 
-\subsection{Install dependencies}
+In this section, I will describe the features and capabilities of each of these programs. You can refer to this documentation if you need help understanding this or that command line argument, or if you want to discover new features that you didn't know existed. Alternatively, each program can provide you with some limited help on the spot, if you simply call
+\begin{bashcode}
+egg-[xxx] help
+\end{bashcode}
+in the terminal (where \bashinline{[xxx]} is to be replaced by the name of the program you want the help for).
 
-If your operating system comes with a package manager, this should be very easy. Apart from \phypp that we will address in the next section, these dependencies are standard libraries and tools that should be available in all the package managers.
+\subsection{Generic information (applies to all programs)}
 
-\begin{itemize}
-\item Mac users:
-\begin{minted}{bash}
-sudo port install cfitsio wcslib cmake
-\end{minted}
-or
-\begin{minted}{bash}
-sudo brew install cfitsio wcslib cmake
-\end{minted}
-\item Linux/Ubuntu users:
-\begin{minted}{bash}
-sudo apt-get install libcfitsio3-dev wcslib-dev cmake
-\end{minted}
-\item Other Linux distributions: You get the point. Use \texttt{yum}, \texttt{apt}, \texttt{pacman}, or whatever package manager is supported by your distribution.
-\item Windows users: no package manager (see below).
-\end{itemize}
+\subsubsection{Command line arguments}
 
-If you don't have a package manager, then you have to compile these tools and libraries yourself... I hope it doesn't come to that, because you may loose a lot of time figuring this out. But in the eventuality, here are the links to places where you can download the source code. Follow the build instructions given on their respective each web page.
-\begin{itemize}
-\item cfitsio: \url{http://heasarc.gsfc.nasa.gov/fitsio/fitsio.html}
-\item WCSlib: \url{http://www.atnf.csiro.au/people/mcalabre/WCS/}
-\item CMake: \url{http://www.cmake.org/download/} (they also offer binaries, check this out first)
-\end{itemize}
+All the tools in the \egg suite are compiled into binary executables. This means you do not need to run Python, IDL, or any other interpreter to launch them. It also means they are fast!
 
-\subsection{Install \phypp and \egg: the short way}
+To specify the parameters of each programs, \egg relies exclusively on command line arguments, rather than configuration files (as done, e.g., with \tphot, \skymaker or \sextractor). The reason why is that it allows easy scripting with \bash (or your favorite shell), and also allows you to experiment and tweak the parameters directly inside the terminal rather than having to go back and forth between the terminal and the configuration file.
 
-Once the dependencies are properly installed, you can download, build and install the \phypp library and \egg. Thanks to CMake, the installing process is the same on all computers, and is rather straightforward. The next section describes each steps in detail, in case you are not familiar with CMake, and is the recommended way to go.
+The syntax for command line arguments is simple: \bashinline{variable=value} or \bashinline{-variable=value} (the two are perfectly equivalent). Spaces are not allowed on either side of the \bashinline{=} sign, and if \bashinline{value} contains spaces, you must wrap it within double quotes: \bashinline{variable="some value"}. If you want to provide an array of values, the syntax is: \bashinline{variable=[value1,value2,...]}, with no space. If at least one of the values does contain a space, you must wrap the whole array within double quotes: \\
+\bashinline{variable="[some value1,value2 foo,...]"}\\
+(in this case, spaces can be used freely within the quotes). Lastly, if you want to provide multiple command line arguments, simply put one (or more) space between each argument: \bashinline{x1=10 x2=5}. The order of the arguments does not matter.
 
-However, if you don't have the patience to spend a few minutes on this, or if you are completely lost, you can use the \bashinline{install.sh} script provided in the \bashinline{doc/script/} directory. The script does exactly what is written in the next section, and only requires you to specify three parameters (``Configurable options'', at the beginning of the script):
-\begin{itemize}
-\item \bashinline{INSTALL_ROOT_DIR}: This is the directory in which \phypp and \egg will be installed. If you leave it blank, the script will use the default value adequate for your system (e.g., \bashinline{/usr/local}). This directory is a ``root'' directory, in the sense that C++ headers will be installed in \bashinline{$INSTALL_ROOT_DIR/include}, while executables will be installed in \bashinline{$INSTALL_ROOT_DIR/bin}, etc.
-\item \bashinline{CFITSIO_ROOT_DIR} and \bashinline{WCSLIB_ROOT_DIR}: These directories tell the script where to find the cfitsio and WCSlib libraries. As above, this is a ``root'' directory: it must contain the header files in the \bashinline{include} subdirectory, and the library files in \bashinline{lib}. Leave it blank if you have installed these libraries through your package manager, or if you installed them manually in the default system folders.
-\end{itemize}
+Regarding the \emph{type} of the argument. From the command line, everything is a string of characters. So there is no difference between \bashinline{"0.08"} and \bashinline{0.08}, or \bashinline{"foo"} and \bashinline{foo}. The values that you provide are translated into numbers/booleans/whatever by the program, using the standard C++ parsing. This means in particular that you can use scientific notation for large/small numbers (\bashinline{-1e56}). Also, if the parameter that you want to modify is a boolean (i.e., either \cppinline{0} or \cppinline{1}), you can simply write the command line argument as: \bashinline{variable} (without a value), which is equivalent to \bashinline{variable=1}.
 
-Once you have modified these parameters (if need be), just make sure the script is executable and run it (you can run it from anywhere, the current directory does not matter):
-\begin{minted}{bash}
-chmod +x install.sh
-./install.sh
-# give your 'sudo' password, if asked
-\end{minted}
+Some examples:
+\begin{bashcode}
+egg-gencat area=0.08        # good
+egg-gencat area = 0.08      # bad! don't put spaces around '='
 
-In the end, the script will inform you that \egg was successfully installed. If not, please fall back to the manual installation described in the next section.
+egg-gencat note="my catalog v1.0" # good
+egg-gencat note=my catalog v1.0   # bad! missing the quotes "..."
 
-\subsection{Install \phypp and \egg: the long way}
+egg-gencat area=0.08 zmin=2 # good
+egg-gencat area=0.08zmin=2  # bad! need a space between each argument
+
+egg-gencat bands=[hst-f160w,spitzer-irac1]    # good
+egg-gencat bands="[hst-f160w,spitzer-irac1]"  # good also
+egg-gencat bands=[hst-f160w, spitzer-irac1]   # bad! cannot use a space in the array
+egg-gencat bands="[hst-f160w, spitzer-irac1]" # good! with the quotes, it is fine
+\end{bashcode}
+
+\subsubsection{Column-oriented FITS tables}
+
+For historical reasons tied to IDL, \egg and \phypp (the underlying C++ library) exclusively support column-oriented FITS tables. Although this is a perfectly valid way of doing things (according to the FITS standard), this is not the standard way FITS tables are used in community. It has, however, a number of advantages that I will not describe here (take a look at the \phypp documentation if you are interested). Instead, this section will tell you how you can read and write such kind of FITS tables.
+
+{\bf In C++.} Using the \phypp library, reading and writing these tables is natural:
+\begin{cppcode}
+// First declare the columns you want to read (here: 1D columns of doubles)
+vec1d m, z, ra, dec;
+
+// Then read them from the file (order is irrelevant)
+fits::read_table("the_file.fits", ftable(m, z, ra, dec));
+
+// Now you can do whatever you want with these columns
+m += 1+z; // some silly stuff
+
+// Writing is as simple
+fits::write_table("new_file.fits", ftable(m, z, ra, dec));
+\end{cppcode}
+Only the columns you need are actually read from the file, and the type of the variables you declare in C++ has to match the type of the columns that are found inside the FITS table. Diagnostics will be given if this is not the case. See the \phypp documentation for more detail.
+
+{\bf In IDL.} Column-oriented FITS tables can be read using \bashinline{mrdfits}, and written using \bashinline{mwrfits}:
+\begin{idlcode}
+; Read the whole table
+tbl = mrdfits('the_file.fits', 1, /silent)
+
+; Now you can do whatever you want with these columns
+tbl.m += 1+tbl.z ; some silly stuff
+
+; Writing is as simple
+mwrfits, tbl, 'new_file.fits', /create
+\end{idlcode}
+Contrary to the C++ version, these functions can only read the whole table at once, not specific columns. This can be convenient, but also inefficient. Be careful not to forget the \idlinline{/create} keyword, else the function will create a new extension to the FITS file if it already exists.
+
+{\bf In Python.} Column-oriented FITS tables are not well supported by the standard FITS I/O module from \bashinline{astropy} (you can use \pythoninline{astropy.io.fits}, but it will be a bit cumbersome). However I have written a small module that implements this, you can download it \href{https://github.com/cschreib/phypp/blob/master/python/pycolfits.py}{[here]}. Usage is as simple as above:
+\begin{pythoncode}
+import pycolfits
+
+# Read the whole table
+tbl = pycolfits.readfrom('the_file.fits')
+
+# Now you can do whatever you want with these columns
+tbl['m'] += 1+tbl['z'] # some silly stuff
+
+# Writing is as simple
+pycolfits.writeto('new_file.fits', tbl, clobber=True)
+\end{pythoncode}
+As for the IDL version, do not forget the \pythoninline{clobber=True} argument, else the function will throw an exception if the file already exists (I don't like this, but looking at the rest of the \bashinline{astropy} library it seems to be the expected behavior).
+
+{\bf In Topcat.} If you use a language that does not support column-oriented tables, you can always use Topcat to open these tables and convert them into a format of your choosing (would it be ASCII or some other FITS format). Be sure to load the FITS table as ``colfit-basic''. Unfortunately it does not support all the features of column-oriented tables, so all but the simplest files will be rejected. Consider instead investing time learning one of the above languages (and maybe not IDL).
 
 
-\begin{enumerate}
-\item Make yourself a temporary directory and open a terminal there.
-\item Download the following archives and extract them in this directory:
-\begin{itemize}
-\item \url{https://github.com/cschreib/phypp/archive/master.tar.gz}
-\item \url{https://github.com/cschreib/egg/archive/master.tar.gz}
-\end{itemize}
+\subsection{\bashinline{egg-gencat}}
 
-This bash script will do that for you:
-\begin{minted}{bash}
-wget https://github.com/cschreib/phypp/archive/master.tar.gz
-tar -xvzf master.tar.gz && rm master.tar.gz
-wget https://github.com/cschreib/egg/archive/master.tar.gz
-tar -xvzf master.tar.gz && rm master.tar.gz
-\end{minted}
+\subsubsection{Basic usage}
+This is the main program of the \egg suite. It will create a new mock catalog from scratch. You simply have to describe the parameters of the survey you want to simulate, i.e., the area of the sky that is covered (in square degrees), the depth (in AB magnitude) and the selection band. This is the standard way of using the software:
+\begin{bashcode}
+egg-gencat area=0.08 maglim=28 selection_band=hst-f160w
+\end{bashcode}
+This will create a new catalog in a FITS table called \bashinline{egg-[yyyymmdd].fits}, where \bashinline{[yyyymmdd]} is the current date. The name of this file can also be chosen using the command line parameter \bashinline{out}:
+\begin{bashcode}
+egg-gencat area=0.08 maglim=28 selection_band=hst-f160w out=some_folder/mycatalog.fits
+\end{bashcode}
 
-In the end, this should create two directories:
-\begin{minted}{bash}
-egg-master
-phypp-master
-\end{minted}
+\subsubsection{Choosing a seed}
+The catalog is created using a random number generator and a set of recipes. However, even with the random number generator, running the above commands will always produce the same catalog. This is because the same random \emph{seed} is used every time. The seed basically sets the starting point of the random number generator: choosing a slightly different seed will result in a completely different catalog. By default, this seed is chosen to be equal to the arbitrary value of \cppinline{42}. You can change this value using the command line argument \bashinline{seed}:
+\begin{bashcode}
+egg-gencat area=0.08 maglim=28 selection_band=hst-f160w seed=1456518
+\end{bashcode}
+The value of the seed can be any positive integer number (including 0) that your computer can handle (that is, a 32bit or 64bit integer depending on the architecture of your CPU). Nobody knows what is the seed of our own Universe, so feel free to use whatever value you like.
 
-\item Open a terminal and navigate to the \bashinline{phypp-master} directory. Then, if you are using cfitsio and WCSlib from your package manager, run the following commands:
-\begin{minted}{bash}
-mkdir build && cd build
-cmake ../
-\end{minted}
+\subsubsection{Providing your own galaxies}
+The first step of the program is to generate the galaxies, with their position on the sky, their redshift, their stellar mass, and their star-forming classification (i.e., each galaxy is either star-forming or quiescent according to the \uvj diagram). This is done using the stellar-mass functions that I observed in the GOODS--South field combined with observations in the Local Universe, and this should be fairly realistic between $z=0$ to $z=3$. However, the program also gives you the opportunity to provide these parameters yourself. You could, for example, provide a true (observed) catalog of galaxies, and let the program run its recipes to predict the fluxes of each object.
 
-If instead you have installed one of these two libraries by hand, in a non-standard directory, you have to provide this directory to the CMake script. This is done this way:
-\begin{minted}{bash}
-mkdir build && cd build
-cmake ../ -DWCSLIB_ROOT_DIR=... -DCFITSIO_ROOT_DIR=...
-\end{minted}
+To do so, you must first create an input catalog suitable for ingestion by \bashinline{egg-gencat}. The program accepts two file formats: either a FITS table or a plain ASCII table. The FITS table must be a column-oriented FITS table.
 
-The ``...'' have to be replaced by the actual directory in which each library was installed. For example, if you have installed cfitsio in the \bashinline{/opt/local/share/cfitsio} directory, then the ``..." after \bashinline{-DCFITSIO_ROOT_DIR} in the above command has to be replaced by \bashinline{"/opt/local/share/cfitsio"}.
-
-Another thing to consider is that, by default, CMake will try to install the library inside the system default directories (e.g., \bashinline{/usr/local/include}). If you have root access to your computer, this is the recommended way to go as it will make things simpler. If you do not have root access, or if for some reason you prefer to install the library somewhere else than the default location, you can specify manually the install directory using \bashinline{-DCMAKE_INSTALL_PREFIX}:
-\begin{minted}{bash}
-mkdir build && cd build
-cmake ../ -DCMAKE_INSTALL_PREFIX=...
-\end{minted}
-
-Here, the ``...'' have to be replaced by the root directory in which you want to install the library. For example, if you want to install it in \bashinline{/opt/local/include}, just replace ``...'' by \bashinline{"/opt/local"} (yes, omit \bashinline{include}). This can of course be combined with the manual installation directories for WCSlib and cfitsio.
-
-If all goes well, this will configure the \phypp library and prepare it for installation. The script will most likely warn you about missing dependencies, but this is OK since none of these are needed for \egg. Just make sure that cfitsio and WCSlib are found correctly, then install the library with the following command:
-
-\begin{minted}{bash}
-sudo make install
-# or just 'make install' if you do not need root access
-\end{minted}
-
-\item Using the terminal, navigate now inside the \bashinline{egg-master} directory. Similarly, run the following commands:
-\begin{minted}{bash}
-mkdir build && cd build
-cmake ../
-\end{minted}
-As for \phypp, the default behavior is to install \egg in the system directory (e.g., \bashinline{/usr/local/bin}). If you want to change this, use instead:
-\begin{minted}{bash}
-mkdir build && cd build
-cmake ../ -DCMAKE_INSTALL_PREFIX=...
-\end{minted}
-Again, the ``...'' have to be replaced by the directory in which you want to install the programs. For example, if you want to install it in \bashinline{/opt/local/bin}, just replace ``...'' by \bashinline{"/opt/local"} (yes, omit \bashinline{bin}).
-
-Note that if you have installed the \phypp library in a non-standard folder, for example in the \cppinline{/opt/local} directory (as above), you will have to manually specify this location to CMake and use instead:
-\begin{minted}{bash}
-mkdir build && cd build
-cmake ../ -DPHYPP_ROOT_DIR="/opt/local"
-\end{minted}
-The same is true for WCSlib and cfitsio: if you had to specify their location manually when installing \phypp, you will have to repeat this here.
-
-CMake will generate an error if, somehow, there was an issue in the installation of the \phypp library. Else, it will configure \egg and make it ready to be built. Finally, run the last command:
-\begin{minted}{bash}
-sudo make install
-# or just 'make install' if you do not need root access
-\end{minted}
-\end{enumerate}
-At the end of the process, CMake will remind you in which directory the \egg executables are installed, e.g.:
-\begin{minted}{bash}
--- Installed: /usr/local/bin/egg-gencat
--- Installed: /usr/local/bin/egg-genmap
--- Installed: /usr/local/bin/egg-gennoise
--- Installed: /usr/local/bin/egg-buildmf
--- Installed: /usr/local/bin/egg-2skymaker
-\end{minted}
-If you chose a non-standard install directory, make sure this directory is in your \cppinline{PATH}, and you are done. See, not that hard!
-
-\subsection{Making sure everything works}
-
-Navigate into a directory of your choosing and call:
-\begin{minted}{bash}
-egg-gencat verbose maglim=27 selection_band=hst-f160w area=0.08
-\end{minted}
-
-This will take a few seconds to run. In the end, you should get something like:
-\begin{minted}[fontsize=\footnotesize]{bash}
-note: initializing filters...
-note: initializing SED libraries...
-note: initializing redshift bins...
-note: min dz: 0.1, max dz: 1.00632
-note: 33 redshift slices
-note: estimating redshift-dependend mass limit...
-note: will generate masses from as low as 5.50406, up to 12
-note: reading mass functions...
-note: found 19 redshift bins and 181 mass bins
-note: generating redshifts...
-note: generated 66229 galaxies
-note: generating masses...
-note: generating sky positions...
-[---------------------------------------] 33 100%, 57ms elapsed, 0ns left, 57ms total
-note: generating morphology...
-note: generating SFR...
-note: assigning optical SEDs...
-[---------------------------------------] 900 100%, 169ms elapsed, 0ns left, 169ms total
-[---------------------------------------] 900 100%, 168ms elapsed, 0ns left, 168ms total
-note: generate IR properties...
-note: assigning IR SED...
-note: computing fluxes ...
-[---------------------------------------] 66229 100%, 10s elapsed, 0ns left, 10s total
-[---------------------------------------] 66229 100%, 14s elapsed, 0ns left, 14s total
-note: saving catalog...
-\end{minted}
-
-Also, a file called \bashinline{egg-2015xxxx.fits} (e.g., for me it was \bashinline{egg-20151127.fits}) weighting about 27MB will be created in the same directory. This is the output catalog, in FITS format. You can open it in IDL to check its content with the following IDL command: \\[0.5cm]
-\noindent \texttt{\color{gray}; Load the catalog} \\
-\noindent \texttt{cat = mrdfits({\color{DodgerBlue}'egg-2015xxxx.fits'}, {\color{red}1})} \\
-\noindent \texttt{\color{gray}; Look at its content} \\
-\noindent \texttt{{\color{Green}help}, cat, /str} \\
-\noindent \texttt{\color{gray}; Then do some plots} \\
-\noindent \texttt{{\color{Green}plot}, cat.z, cat.m, psym={\color{red}3}, xtit={\color{DodgerBlue}'redshift'}, ytit={\color{DodgerBlue}'stellar mass'}} \\
-
-Then it remains to test the program that will translate this catalog into a \skymaker-compatible catalog, one per band. Try:
-\begin{minted}{bash}
-egg-2skymaker egg-2015xxxx.fits verbose band=hst-f160w template=goodss-hst-f160w.conf
-\end{minted}
-This will use one of the pre-defined \skymaker template to configure a \hubble image at the same quality as in the GOODS--{\it South} field. This should be very fast and print a few lines in the terminal:
-\begin{minted}[fontsize=\footnotesize]{bash}
-note: reading catalog...
-note: found 66229 galaxies
-note: convert parameters for ingestion by SkyMaker...
-note: define image size and pixel coordinates...
-note: image dimensions: 17951,17967 (1.2015 GB)
-note: write catalog...
-note: done.
-\end{minted}
-In addition, three files should have been created in the same directory, \cppinline{egg-2015xxxx-hst-f160w.cat} (the \skymaker input catalog), \cppinline{egg-2015xxxx-hst-f160w-hdr.txt} (the WCS header to feed to \skymaker), and \bashinline{egg-2015xxxx-sky.conf} (the \skymaker configuration file).
-
-If you have \skymaker installed on your computer, you can generate the corresponding image by simply running:
-\begin{minted}{bash}
-sky egg-2015xxxx-hst-f160w.cat -c egg-2015xxxx-hst-f160w-sky.conf
-\end{minted}
-
-This should take a couple of minutes (77 seconds on my computer), and finally produce a \hubble image in \bashinline{egg-2015xxxx-hst-f160w-sci.fits} (about 1.3GB in size). You can open it with DS9 and admire the Universe you just created. Congratulations!
+\subsection{\bashinline{egg-getsed}}
+\subsection{\bashinline{egg-2skymaker}}
+\subsection{\bashinline{egg-gennoise}}
+\subsection{\bashinline{egg-genmap}}
 
 \end{document}
 
