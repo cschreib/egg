@@ -389,15 +389,14 @@ int main(int argc, char* argv[]) {
 
         // Load data from an existing catalog
         if (end_with(input_cat_file, ".fits")) {
-            fits::read_table(input_cat_file,
-                "ra", out.ra, "dec", out.dec, "z", out.z, "m", out.m,
-                "passive", out.passive
-            );
+            fits::input_table tbl(input_cat_file);
 
-            fits::read_table_loose(input_cat_file, "id", out.id);
-            if (out.id.empty()) {
+            // See if there is an 'ID' column, else create our own
+            if (!tbl.read_column("id", out.id)) {
                 out.id = uindgen(out.ra.size());
             }
+
+            tbl.read_columns(fits::narrow, ftable(out.ra, out.dec, out.z, out.m, out.passive));
         } else {
             file::read_table(input_cat_file, file::find_skip(input_cat_file),
                 out.id, out.ra, out.dec, out.z, out.m, out.passive
