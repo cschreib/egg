@@ -1,7 +1,7 @@
 #include <phypp.hpp>
 
 const std::string egg_share_dir = file::directorize(EGG_SHARE_DIR);
-const std::string filters_dir_env = file::directorize(system_var("EGG_FILTERS_PATH"));
+const std::string filters_dir_env = file::directorize(system_var("EGG_FILTERS_PATH", ""));
 const std::string filters_dir = filters_dir_env.empty() ?
     file::directorize(FILTER_DB_DIR) : filters_dir_env;
 
@@ -29,6 +29,9 @@ int main(int argc, char* argv[]) {
     // Define the redshift range
     double zmin = 0.05;
     double zmax = 10.5;
+    // Define the redshift binning
+    double min_dz = dnan;
+    double bin_dz = dnan;
 
     // Clustering parameters
     double clust_r0 = 0.05;        // clustering outer truncation radius in degree
@@ -41,12 +44,6 @@ int main(int argc, char* argv[]) {
                                    // low-mass galaxies
     double clust_frnd_mlim = 10.5; // threshold between high and low mass for the above
     double clust_urnd_mlim = 8.0;  // threshold in mass below which there is no clustering
-
-    // Define the redshift binning
-    // Warning: changing these parameters will impact the
-    // clustering amplitude in a non trivial way, and it is therefore not supported.
-    double min_dz = 0.1;
-    double bin_dz = 0.1;
 
     // Dispersion of the Main Sequence in SFR, at fixed Mstar
     // Changing this value will alter the quality of the simulation.
@@ -98,7 +95,7 @@ int main(int argc, char* argv[]) {
 
     // Display some help
     bool help = false;
-    bool list_bands = false;
+    std::string list_bands;
 
     // Photometric bands for which to generate observed fluxes
     vec1s bands = {"vimos-u", "hst-f435w", "hst-f606w", "hst-f775w",
@@ -131,8 +128,13 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    if (list_bands) {
-        print("List of available bands:");
+    if (!list_bands.empty()) {
+        if (list_bands == "1") {
+            print("List of available bands:");
+        } else {
+            print("List of available bands (filter: '", list_bands, "'):");
+        }
+
         if (!file::exists(filter_db_file)) {
             error("could not find filter database file '", filter_db_file, "'");
             return 1;
@@ -140,6 +142,11 @@ int main(int argc, char* argv[]) {
             vec1s fils; vec1f rlam, width;
             auto filter_db = read_filter_db(filter_db_file);
             for (auto fil : filter_db) {
+                // Apply the regex provided by the user to only disply some of the filters
+                if (list_bands != "1" && !regex_match(fil.first, list_bands)) {
+                    continue;
+                }
+
                 // Read filter
                 vec1d lam, res;
                 fits::read_table(fil.second, ftable(lam, res));
@@ -194,20 +201,21 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    if (zmin == 0.0) {
+        error("minimum redshift must be > 0 (zmin=...)");
+        return 1;
+    }
+
+    if (!is_finite(bin_dz)) {
+        bin_dz = zmin;
+    }
+
     if (no_dust && no_stellar) {
         no_flux = true;
     }
 
     if (out_file.empty()) {
         out_file = "egg-"+today()+".fits";
-    } else {
-        file::mkdir(file::get_directory(out_file));
-    }
-
-    if (seds_file.empty()) {
-        seds_file = file::remove_extension(out_file)+"-seds.dat";
-    } else {
-        file::mkdir(file::get_directory(seds_file));
     }
 
     // Initialize random seed and cosmology
@@ -436,24 +444,29 @@ int main(int argc, char* argv[]) {
 
         // Build the redshift bins with logarithmic bins
         // To prevent too narrow bins with very few galaxies, we impose a minimum
-        // redshift width 'min_dz'.
-        vec2d zb = [&](){
+        // redshift width 'min_dz' (only used for the clustering slices)
+        auto make_zbins = [](double zstart, double zend, double dz, double mdz){
             vec1d tzb;
-            double z1 = zmin;
-            while (z1 < zmax) {
+            double z1 = zstart;
+            while (z1 < zend) {
                 tzb.push_back(z1);
-                z1 *= (1.0 + bin_dz/2.0)/(1.0 - bin_dz/2.0);
-                if (z1 - tzb.back() < min_dz) z1 = tzb.back() + min_dz;
+                z1 *= 1.0 + dz;
+                if (is_finite(mdz) && z1 - tzb.back() < mdz) {
+                    z1 = tzb.back() + mdz;
+                }
             }
 
-            if ((zmax - tzb.back())/(1.0 + zmax) > 0.5*bin_dz && zmax - tzb.back() > min_dz) {
-                tzb.push_back(zmax);
+            if ((zend - tzb.back())/(1.0 + zend) > 0.5*dz &&
+                (!is_finite(mdz) || zend - tzb.back() > mdz)) {
+                tzb.push_back(zend);
             } else {
-                tzb.back() = zmax;
+                tzb.back() = zend;
             }
 
             return make_bins(tzb);
-        }();
+        };
+
+        vec2d zb = make_zbins(zmin, zmax, bin_dz, dnan);
 
         if (verbose) {
             vec1f tdz = bin_width(zb);
@@ -475,7 +488,7 @@ int main(int argc, char* argv[]) {
 
         if (is_finite(maglim)) {
             if (verbose) {
-                note("estimating redshift-dependend mass limit...");
+                note("estimating redshift-dependent mass limit...");
             }
 
             filter_t filsel;
@@ -496,6 +509,7 @@ int main(int argc, char* argv[]) {
             double flim = mag2uJy(maglim);
             uint_t nb = opt_lib.buv.dims[1];
 
+            auto pg = progress_start(nz);
             for (uint_t z : range(nz)) {
                 double tz = bin_center(zb(_,z));
                 double td = lumdist(tz, cosmo);
@@ -518,6 +532,8 @@ int main(int argc, char* argv[]) {
                 }
 
                 z_mmin[z] = percentile(tm, 1.0 - comp);
+
+                if (verbose) progress(pg);
             }
 
             mmin = min(z_mmin);
@@ -799,10 +815,14 @@ int main(int argc, char* argv[]) {
                 out.dec.resize(ngal);
                 out.clustered.resize(ngal);
 
-                auto pg = progress_start(nz);
-                for (uint_t iz : range(nz)) {
+                // Clustering redshift slices (fixed to preserve clustering amplitude)
+                vec2f czb = make_zbins(0.0, std::max(10.0, zmax), 0.1, 0.1);
+                uint_t ncz = czb.dims[1];
+
+                auto pg = progress_start(ncz);
+                for (uint_t iz : range(ncz)) {
                     // Generate clustered positions within this redshift window.
-                    vec1u idz = where(in_bin_open(out.z, zb, iz));
+                    vec1u idz = where(in_bin_open(out.z, czb, iz));
                     uint_t z_ngal = idz.size();
 
                     if (z_ngal != 0) {
@@ -1489,7 +1509,9 @@ void print_help() {
     argdoc("verbose", "[flag]", "print additional information in the standard output while "
         "the program is running (default: false)");
     argdoc("help", "[flag]", "print this text and exit");
-    argdoc("list_bands", "[flag]", "print the list of available photometric bands and exit");
+    argdoc("list_bands", "[flag/string]", "print the list of available photometric bands "
+        "and exit. If a string is given in argument, it is understood as a POSIX regular "
+        "expression to filter the output list.");
     // Warning: this should not be changed, do not make it part of the public interface
     // argdoc("cosmo", "[string] set of cosmological parameters (possible values: "+
     //     collapse(cosmo_list(), ", ")+", default: std)");
@@ -1536,12 +1558,11 @@ void print_help() {
         "(default: none). Note that, when set, this parameter overrides 'mmin'.");
     argdoc("selection_band", "[string]", "if 'maglim' is set, name of band in which the "
         "magnitude cut is applied (default: none)");
-    argdoc("zmin", "[double]", "minimum redshift generated (default: 0.01)");
-    argdoc("zmax", "[double]", "maximum redshift generated (default: 10)");
-    // Warning: these should not be changed, do not make them part of the public interface
-    // argdoc("min_dz", "[double] minimum size of a redshift bin (default: 0.05)");
-    // argdoc("dz", "[double] size of a redshift bin, as a fraction of (1+z) "
-    //     "(default: 0.1)");
+    argdoc("zmin", "[double]", "minimum redshift generated (default: 0.05)");
+    argdoc("zmax", "[double]", "maximum redshift generated (default: 10.5)");
+    argdoc("min_dz", "[double]", "minimum size of a redshift bin (default: none)");
+    argdoc("dz", "[double]", "size of a redshift bin, as a fraction of (1+z) "
+        "(default: zmin)");
     argdoc("dm", "[double, dex]", "size of a mass bin (default: 0.05)");
     argdoc("ms_disp", "[double, dex]", "scatter of the main sequence (default: 0.3)");
     print("");
