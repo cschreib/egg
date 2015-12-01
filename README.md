@@ -4,15 +4,16 @@ The Empirical Galaxy Generator (EGG) is a set of tools to generate fake galaxy c
 These tools can be used to test source extraction codes, or to evaluate the reliability of any map-based science (stacking, dropout identification, ...).
 
 # Installation
-You must have the [phy++] library installed on your machine to compile EGG.
-[CMake] is used as a build system to handle dependency checks and compilation in a cross-platform way.
+You must have the [phy++] library installed on your machine to compile EGG, configured at least with cfitsio and WCSlib support. [CMake] is used as a build system to handle dependency checks and compilation in a cross-platform way.
 
 One you have installed all the dependencies, create yourself a directory called 'build' within the current directory. Navigate to the 'build' directory with your terminal, and call:
 
     cmake ../
     make install
+    # or
+    sudo make install
 
-The binaries will be generated in the 'bin' folder. More detailed information can be found in the script [install.sh] or in the documentation ('doc/' folder).
+The binaries will be generated in your system default binary folder. More detailed information can be found in the script [install.sh] or in the documentation ('doc/' folder).
 
 # Usage
 See the output of 'egg-gencat help' after installing the programs.
