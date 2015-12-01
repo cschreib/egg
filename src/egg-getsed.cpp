@@ -5,7 +5,8 @@ void print_help();
 int main(int argc, char* argv[]) {
     uint_t id = npos;
     std::string component, seds, out;
-    read_args(argc, argv, arg_list(seds, out, id, component));
+    bool ascii = false;
+    read_args(argc, argv, arg_list(seds, out, id, component, ascii));
 
     if (seds.empty() || id == npos || component.empty()) {
         print_help();
@@ -13,26 +14,49 @@ int main(int argc, char* argv[]) {
     }
 
     if (out.empty()) {
-        out = file::remove_extension(seds)+"-"+component+"-"+strn(id)+".fits";
+        out = file::remove_extension(seds)+"-"+component+"-"+
+            strn(id)+(ascii ? ".cat" : ".fits");
     } else {
         file::mkdir(file::get_directory(out));
     }
 
-    vec1u tstart, tnbyte;
+    vec1u ids, tstart, tnbyte;
+    uint_t elem_size;
     fits::read_table(file::remove_extension(seds)+"-header.fits",
-        component+"_start", tstart, component+"_nbyte", tnbyte
+        "id", ids, component+"_start", tstart, component+"_nbyte", tnbyte,
+        "elem_size", elem_size
     );
 
-    uint_t start = tstart[id], nbyte = tnbyte[id], npt = nbyte/sizeof(float);
+    if (elem_size != sizeof(float)) {
+        error("this spectrum file was created using another incompatible computer");
+        note("the size of a single float number is different than expected");
+        note("the file cannot be read");
+        return 1;
+    }
+
+    uint_t nid = where_first(ids == id);
+
+    if (nid == npos) {
+        error("there is no galaxy with ID=", id, " in this catalog");
+        return 1;
+    }
+
+    id = nid;
+
+    uint_t start = tstart[id], nbyte = tnbyte[id]/2, npt = nbyte/sizeof(float);
 
     vec1f lambda(npt), flux(npt);
 
     std::ifstream file(seds);
     file.seekg(start);
-    file.read(reinterpret_cast<char*>(lambda.data.data()), nbyte/2);
-    file.read(reinterpret_cast<char*>(flux.data.data()), nbyte/2);
+    file.read(reinterpret_cast<char*>(lambda.data.data()), nbyte);
+    file.read(reinterpret_cast<char*>(flux.data.data()), nbyte);
 
-    fits::write_table(out, ftable(lambda, flux));
+    if (ascii) {
+        file::write_table_hdr(out, 18, ftable(lambda, flux));
+    } else {
+        fits::write_table(out, ftable(lambda, flux));
+    }
 
     return 0;
 }
@@ -59,10 +83,12 @@ void print_help() {
 
     print("List of options:");
     argdoc("seds", "[string]", "file containing the SEDs (mandatory)");
-    argdoc("id", "[uint]", "ID of the galaxy to extract (zero-based and mandatory) ");
+    argdoc("id", "[uint]", "ID of the galaxy to extract (matching the ID column of the "
+        "generated catalog, mandatory) ");
     argdoc("component", "[string]", "name of the galaxy component to extract (disk or bulge, "
         "mandatory)");
+    argdoc("ascii", "[flag]", "set this flag to save an ASCII table instead of FITS");
     argdoc("out", "[string]", "FITS file in which the SED will be extracted (default: "
-        "[out]-[component]-[id].fits)");
+        "[out]-[component]-[id].fits/cat)");
     print("");
 }
