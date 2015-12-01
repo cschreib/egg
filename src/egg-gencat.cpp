@@ -1446,7 +1446,7 @@ if (!no_flux) {
         sed_saver.wait();
         seds_data.close();
 
-        fits::write_table(file::remove_extension(seds_file)+"-header.fits",
+        fits::write_table(file::remove_extension(seds_file)+"-lookup.fits",
             "id", out.id,
             "bulge_start", save_sed_bulge_start, "bulge_nbyte", save_sed_bulge_nbyte,
             "disk_start", save_sed_disk_start, "disk_nbyte", save_sed_disk_nbyte,
