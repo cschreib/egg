@@ -218,6 +218,18 @@ int main(int argc, char* argv[]) {
         out_file = "egg-"+today()+".fits";
     }
 
+    if (verbose) {
+        note("will save catalog in '", out_file, "'");
+    }
+
+    if (save_sed && seds_file.empty()) {
+        seds_file = file::remove_extension(out_file)+"-seds.dat";
+
+        if (verbose) {
+            note("will save spectra in '", seds_file, "'");
+        }
+    }
+
     // Initialize random seed and cosmology
     // ------------------------------------
     auto seed = make_seed(tseed);
