@@ -9,6 +9,8 @@ You must have the [phy++] library installed on your machine to compile EGG, conf
 One you have installed all the dependencies, create yourself a directory called 'build' within the current directory. Navigate to the 'build' directory with your terminal, and call:
 
     cmake ../
+    make
+    # then
     make install
     # or
     sudo make install
