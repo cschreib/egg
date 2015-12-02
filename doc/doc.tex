@@ -247,7 +247,7 @@ Unfortunately, there are various ways an ASCII table can be defined, and buildin
 
 \subsubsection{Column-oriented FITS tables}
 
-For historical reasons tied to IDL, \egg and \phypp (the underlying C++ library) exclusively support column-oriented FITS tables. Although this is a perfectly valid way of doing things (according to the FITS standard), this is not the standard way FITS tables are used in community. It has, however, a number of advantages that I will not describe here (take a look at the \phypp documentation if you are interested). Instead, this section will tell you how you can read and write such kind of FITS tables.
+For historical reasons tied to IDL, \egg and \phypp (the underlying C++ library) exclusively support column-oriented FITS tables. Although this is a perfectly valid way of doing things (according to the FITS standard), this is not the standard way FITS tables are used in general. It has, however, a number of advantages that I will not describe here (take a look at the \phypp documentation if you are interested). Instead, this section will tell you how you can read and write such kind of FITS tables.
 
 {\bf In C++.} Using the \phypp library, reading and writing these tables is natural:
 \begin{cppcode}
@@ -263,7 +263,7 @@ m += 1+z; // some silly stuff
 // Writing is as simple
 fits::write_table("new_file.fits", ftable(m, z, ra, dec));
 \end{cppcode}
-Only the columns you need are actually read from the file, and the type of the variables you declare in C++ has to match the type of the columns that are found inside the FITS table. Diagnostics will be given if this is not the case. See the \phypp documentation for more detail.
+Only the columns you need are actually read from the file, and the type of the variables you declare in C++ has to match the type of the columns that are found inside the FITS table (conversions will be performed automatically only if they imply no potential loss of data). Diagnostics will be given if this is not the case. See the \phypp documentation for more detail.
 
 {\bf In IDL.} Column-oriented FITS tables can be read using \bashinline{mrdfits}, and written using \bashinline{mwrfits}:
 \begin{idlcode}
@@ -276,29 +276,24 @@ tbl.m += 1+tbl.z ; some silly stuff
 ; Writing is as simple
 mwrfits, tbl, 'new_file.fits', /create
 \end{idlcode}
-Contrary to the C++ version, these functions can only read the whole table at once, not specific columns. This can be convenient, but also inefficient. Be careful not to forget the \idlinline{/create} keyword, else the function will create a new extension to the FITS file if it already exists.
+Be careful not to forget the \idlinline{/create} keyword, else if the file already exists the function will add a new extension to the table to write the data, and this is not what you want.
 
-{\bf In Python.} Column-oriented FITS tables are not well supported by the standard FITS I/O module from \bashinline{astropy} (you can use \pythoninline{astropy.io.fits}, but it will be a bit cumbersome). However I have written a small module that implements this, you can download it \href{https://github.com/cschreib/phypp/blob/master/python/pycolfits.py}{[here]}. Usage is as simple as above:
+{\bf In Python.} Column-oriented FITS tables are not well supported by the standard FITS I/O module from \bashinline{astropy} (you \emph{can} use \pythoninline{astropy.io.fits}, but it will be a bit cumbersome). To cope with this situation, I have written a small module that implements this in a user-friendly way; you can download it \href{https://github.com/cschreib/phypp/blob/master/python/pycolfits.py}{[here]}. Usage is as simple as above:
 \begin{pythoncode}
 import pycolfits
 
 # Read the whole table
 tbl = pycolfits.readfrom('the_file.fits')
-# This almost works:
-#tbl = fits.getdata('the_file.fits', 1)
 
 # Now you can do whatever you want with these columns
 tbl['m'] += 1+tbl['z'] # some silly stuff
 
 # Writing is as simple
 pycolfits.writeto('new_file.fits', tbl, clobber=True)
-# This works:
-#fits.writeto('new_file.fits', tbl, clobber=True)
-# But how do you create 'tbl' manually in python?
 \end{pythoncode}
-As for the IDL version, do not forget the \pythoninline{clobber=True} argument, else the function will throw an exception if the file already exists (I don't like this, but looking at the rest of the \bashinline{astropy} library it seems to be the expected behavior).
+As for the IDL version, do not forget the \pythoninline{clobber=True} argument, else the function will throw an exception if the file already exists (I don't like this, but this seems to be the expected behavior in Python).
 
-{\bf In Topcat.} If you use a language that does not support column-oriented tables, you can always use Topcat to open these tables and convert them into a format of your choosing (would it be ASCII or some other FITS format). Be sure to load the FITS table as ``colfit-basic''. Unfortunately it does not support all the features of column-oriented tables, so all but the simplest files will be rejected. Consider instead investing time learning one of the above languages (and maybe not IDL).
+{\bf In Topcat.} If you use a language that does not support column-oriented tables, you can always try to use Topcat to open these tables and convert them into a format of your choosing (would it be ASCII or some other FITS format). Be sure to load the FITS table as ``colfit-basic''. Unfortunately it does not support all the features of column-oriented tables, so all but the simplest files will be rejected. Consider instead investing time learning one of the above languages (and maybe not IDL).
 
 
 \subsection{\bashinline{egg-gencat}}
@@ -393,13 +388,8 @@ print(f160w[54312]);
 ; Read the catalog in memory
 cat = mrdfits('egg-20151201.fits', 1, /silent)
 
-; Unfortunately, mrdfits does not understand correctly
-; our string columns. We have to perform the conversion
-; from bytes to string ourselves.
-bands = string(cat.bands)
-
 ; Find the band ID in this catalog
-bid = (where(bands eq 'hst-f160w'))[0]
+bid = (where(strpos(cat.bands, 'hst-f160w') eq 0))[0]
 
 ; Here is the flux
 ; Note: dimensions of "cat.flux" is [band]x[galaxy]
@@ -416,13 +406,8 @@ import pycolfits
 # Read the catalog in memory
 cat = pycolfits.readfrom('egg-20151201.fits')
 
-# Unfortunately, pycolfits does not understand correctly
-# our string columns. We have to perform the conversion
-# from bytes to string ourselves.
-bands = np.array([b.tostring() for b in cat['bands']])
-
 # Find the band ID in this catalog
-bid = np.where(bands == 'hst-f160w')[0][0]
+bid = np.where(cat['bands'] == 'hst-f160w')[0][0]
 
 # Here is the flux
 # Note: dimensions of "cat['flux']" is [galaxy]x[band]
@@ -509,14 +494,14 @@ mwrfits(cat, 'input_cat.fits', /create)
 {\bf In Python.}
 \begin{pythoncode}
 # Create a small catalog with two galaxies!
-cat = dict(
-    id      = np.array([1,        2]),
-    ra      = np.array([53.006,   53.008]),
-    dec     = np.array([124.0507, 124.051]),
-    z       = np.array([1.05,     2.6]),
-    m       = np.array([11.2,     10.5]),
-    passive = np.array([True,     False])
-)
+cat = {
+    'id'      : np.array([1,        2]),
+    'ra'      : np.array([53.006,   53.008]),
+    'dec'     : np.array([124.0507, 124.051]),
+    'z'       : np.array([1.05,     2.6]),
+    'm'       : np.array([11.2,     10.5]),
+    'passive' : np.array([True,     False])
+}
 
 # Write the file
 pycolfits.writeto('input_cat.fits', cat, clobber=True)
