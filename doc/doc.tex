@@ -284,12 +284,17 @@ import pycolfits
 
 # Read the whole table
 tbl = pycolfits.readfrom('the_file.fits')
+# This almost works:
+#tbl = fits.getdata('the_file.fits', 1)
 
 # Now you can do whatever you want with these columns
 tbl['m'] += 1+tbl['z'] # some silly stuff
 
 # Writing is as simple
 pycolfits.writeto('new_file.fits', tbl, clobber=True)
+# This works:
+#fits.writeto('new_file.fits', tbl, clobber=True)
+# But how do you create 'tbl' manually in python?
 \end{pythoncode}
 As for the IDL version, do not forget the \pythoninline{clobber=True} argument, else the function will throw an exception if the file already exists (I don't like this, but looking at the rest of the \bashinline{astropy} library it seems to be the expected behavior).
 
