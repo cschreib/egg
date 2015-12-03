@@ -10,11 +10,7 @@ egg-gennoise cat=egg-20151201.fits out=pacs160-noise.fits \
 \end{bashcode}
 The argument \bashinline{cat} gives the path to the mock catalog, while \bashinline{out} gives the name of the file into which the noise map will be saved. Then, \bashinline{psf} provides the FITS image of the point spread function of this instrument, \bashinline{aspix} is the pixel size (in arcseconds/pixel) and \bashinline{rms} is the desired noise level of the map (in map units, whatever they are). This latter value would be the standard deviation of the map pixel values without any galaxy painted on it. If you want to mimic the noise level of an existing image, simply measure the standard deviation of the pixels in an empty region and use this value for the \bashinline{rms} keyword. The noise is assumed to be Gaussian with zero average.
 
-Some common PSFs are provided with \egg. They are stored in the
-%\bashinline{$INSTALL_ROOT_DIR/share/egg/psfs}
-folder (see the installation instructions if you don't know what
-%\bashinline{$INSTALL_ROOT_DIR}
- is). If the program cannot find the PSF you provided in the current directory, it will each among these PSFs for a matching name. Use the \bashinline{list_psfs} argument to display a list of all the available PSFs.
+Some common PSFs are provided with \egg. They are stored in the \bashinline{$INSTALL_ROOT_DIR/share/egg/psfs} folder (see the installation instructions if you don't know what \bashinline{$INSTALL_ROOT_DIR} is). If the program cannot find the PSF you provided in the current directory, it will each among these PSFs for a matching name. Use the \bashinline{list_psfs} argument to display a list of all the available PSFs.
 
 One the process is complete, this will create a new image containing just noise. The dimensions of the image are computed automatically from the provided pixel size and the area covered by the mock catalog so that no galaxy is truncated close to the border of the image. A padding of 5 times the full-width at half-maximum of the PSF is included to ensure that this is true. The resulting noise map contains the necessary WCS astrometry.
 
