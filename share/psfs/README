@@ -8,10 +8,16 @@ Private communication
  + van der Wel et al. (2012)
 
 
+Spitzer IRAC
+============
+
+The PSFs were built by C. Schreiber by stacking stars in the COSMOS field. Care was taken to only stack PSFs of similar orientation. They are provided at the standard map resolution of 0.6"/pixel and are normalized to unit integral.
+
+
 Spitzer IRS 16um
 ================
 
-The PSF was built by Teplitz et al. (2011) by empirically stacking isolated objects in the observed GOODS-South map. It is provided at the standard map resolution of 0.9"/pixel, and is normalized to unit integral since MIPS maps are traditionally expressed in Jy/pixel (or uJy/sr).
+The PSF was built by Teplitz et al. (2011) by empirically stacking isolated objects in the observed GOODS-South map. It is provided at the standard map resolution of 0.9"/pixel, and is normalized to unit integral since IRS maps are traditionally expressed in Jy/pixel (or MJy/sr).
 
 Source:
 Private communication
@@ -21,7 +27,7 @@ Private communication
 Spitzer MIPS 24um
 =================
 
-The PSF was built by Magnelli et al. (2009) by empirically stacking isolated objects in the observed GOODS-South map. It is provided at the standard map resolution of 1.2"/pixel, and is normalized to unit integral since MIPS maps are traditionally expressed in Jy/pixel (or uJy/sr).
+The PSF was built by Magnelli et al. (2009) by empirically stacking isolated objects in the observed GOODS-South map. It is provided at the standard map resolution of 1.2"/pixel, and is normalized to unit integral since MIPS maps are traditionally expressed in Jy/pixel (or MJy/sr).
 
 Source:
 Private communication

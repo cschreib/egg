@@ -39,3 +39,29 @@ In this situation, if one wants to know in which tile lies a particular galaxy, 
 \subsubsection{Other features}
 
 By default the tool will create a \skymaker catalog including all the galaxies from the mock catalog. If you wish, you can ask it to only output the galaxies brighter than a given magnitude in this band. This can be done with the \bashinline{maglim} keyword, which must be set to the requested limiting magnitude in the AB system. This may improve the performances, at the expense of correctness. However, note that \skymaker takes into account the ``observability'' of a galaxy when it paints it on the image: if the galaxy is substantially fainter than the noise level, \skymaker will not draw it at all. So the performance gain of having fewer galaxies in the input list may not be noticeable.
+
+\subsubsection{Advices and hints to prepare \skymaker templates}
+
+Once the pixel scale and the PSF are defined in the \skymaker configuration file, the most important parameters are:
+\begin{itemize}
+\item \bashinline{MAG_ZEROPOINT}: sets the conversion factor between fluxes in $\uJy$ and map units (in [...]/seconds); this value is usually given in catalog/survey papers. It is such that:
+\begin{equation}
+    (S_\nu [\uJy]) = (S_\nu [{\rm map}]) \times 10^{0.4\,(23.9 - \bashinline{MAG_ZEROPOINT})}\,. \nonumber
+\end{equation}
+\item \bashinline{EXPOSURE_TIME}: as the name suggests, this is the exposure time (in seconds) of the image, often given in the survey papers.
+\item \bashinline{GAIN}: sets the conversion factor from electrons/seconds to map units. If you cannot figure out this value, set it to one.
+\item \bashinline{BACK_MAG}: this is the background surface brightness, which must be given in ``magnitudes per arcsec$^2$''. Together with the exposure time, this value defines the amplitude of the background Poissonian noise.
+\item \bashinline{READOUT_NOISE}: the amplitude of the Gaussian noise created by the read-out of the detector, given in electrons. For deep background-dominated images, this can be neglected and set to zero.
+\end{itemize}
+
+The trick is that \bashinline{BACK_MAG} is unknown and must be estimated indirectly. I give below a method that can be used to do so.
+\begin{itemize}
+\item Find a real image from which you will copy the noise level.
+\item Open the image in DS9.
+\item Create a circle region in some empty space devoid of galaxies.
+\item Use the analysis tools to measure the standard deviation of the pixel values within this circle. I will call this value \bashinline{RMS}.
+\item Assuming that all the noise in the image is Poissonian, the background surface brightness is given by:
+\begin{equation}
+    \bashinline{BACK_MAG} = -2.5\times\log_{10}(\bashinline{EXPOSURE_TIME} \times (\bashinline{RMS}/\bashinline{GAIN})^2/\bashinline{PIXEL_SIZE}^2) + \bashinline{MAG_ZEROPOINT} \nonumber
+\end{equation}
+\end{itemize}
