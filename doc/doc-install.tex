@@ -191,7 +191,8 @@ Also, a file called \bashinline{egg-2015xxxx.fits} (e.g., for me it was \bashinl
 
 Then it remains to test the program that will translate this catalog into a \skymaker-compatible catalog, one per band. Try:
 \begin{minted}{bash}
-egg-2skymaker egg-2015xxxx.fits verbose band=hst-f160w template=goodss-hst-f160w.conf
+egg-2skymaker cat=egg-2015xxxx.fits verbose band=hst-f160w \
+    template=goodss-hst-f160w.conf
 \end{minted}
 This will use one of the pre-defined \skymaker template to configure a \hubble image at the same quality as in the GOODS--{\it South} field. This should be very fast and print a few lines in the terminal:
 \begin{minted}[fontsize=\footnotesize]{bash}

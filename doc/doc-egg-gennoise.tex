@@ -1,0 +1,84 @@
+\subsubsection{Basic usage}
+
+These two tools can be used to create the images corresponding to a given mock catalog created by \bashinline{egg-gencat}. They provide a simple alternative to \skymaker, with the added limitation that galaxies are all considered as point sources. This is usually fine for long wavelength images (\spitzer MIPS and \herschel, typically) in cosmological deep fields. In addition, more control is given relative to the noise properties.
+
+The typical call sequence consists of two steps: creating the noise map with \bashinline{egg-gennoise}, then painting the galaxies on top of it with \bashinline{egg-genmap}. The standard way to use \bashinline{egg-gennoise} is the following:
+\begin{bashcode}
+# assume we want to create an image of the Herschel PACS 160um band
+egg-gennoise cat=egg-20151201.fits out=pacs160-noise.fits \
+    psf=herschel-pacs160.fits aspix=2.4 rms=1.68e-5 verbose
+\end{bashcode}
+The argument \bashinline{cat} gives the path to the mock catalog, while \bashinline{out} gives the name of the file into which the noise map will be saved. Then, \bashinline{psf} provides the FITS image of the point spread function of this instrument, \bashinline{aspix} is the pixel size (in arcseconds/pixel) and \bashinline{rms} is the desired noise level of the map (in map units, whatever they are). This latter value would be the standard deviation of the map pixel values without any galaxy painted on it. If you want to mimic the noise level of an existing image, simply measure the standard deviation of the pixels in an empty region and use this value for the \bashinline{rms} keyword. The noise is assumed to be Gaussian with zero average.
+
+Some common PSFs are provided with \egg. They are stored in the
+%\bashinline{$INSTALL_ROOT_DIR/share/egg/psfs}
+folder (see the installation instructions if you don't know what
+%\bashinline{$INSTALL_ROOT_DIR}
+ is). If the program cannot find the PSF you provided in the current directory, it will each among these PSFs for a matching name. Use the \bashinline{list_psfs} argument to display a list of all the available PSFs.
+
+One the process is complete, this will create a new image containing just noise. The dimensions of the image are computed automatically from the provided pixel size and the area covered by the mock catalog so that no galaxy is truncated close to the border of the image. A padding of 5 times the full-width at half-maximum of the PSF is included to ensure that this is true. The resulting noise map contains the necessary WCS astrometry.
+
+Once this noise map is created, we can use \bashinline{egg-genmap} to add the galaxies:
+\begin{bashcode}
+egg-genmap cat=egg-20151201.fits out=pacs160-sci.fits \
+    noise_map=pacs160-noise.fits band=herschel-pacs160 \
+    psf=herschel-pacs160.fits flux_factor=1.613e6 verbose
+\end{bashcode}
+The values of \bashinline{cat} and \bashinline{psf} must be the same as in the previous step. This time, \bashinline{out} gives the name of the file into which the final image will be saved, while \bashinline{noise_map} must be set to the name of the noise map created by \bashinline{egg-gennoise}. Finally, \bashinline{band} sets the photometric band from which the flux of each galaxy will be drawn, and \bashinline{flux_factor} is the conversion factor from fluxes to map units.
+
+The flux conversion factor is strongly tied to the properties of the PSF file. If the PSF is normalized to unit peak flux, then it is the conversion between $\uJy/{\rm beam}$ to map units. Else, if the PSF is normalized to unit total flux (the sum of all pixels is equal to one), then it is the conversion between $\uJy/{\rm pixel}$ and map units. Be careful that, in this latter case, the aperture correction resulting from a truncated PSF need to be included in the conversion factor. In all cases, a galaxy is placed on the map following:
+\begin{equation}
+\cppinline{map[i,j]} \mathrel{+}= \cppinline{flux_factor} \times \cppinline{psf[i,j]} \times (S_{\nu}/\uJy) \nonumber
+\end{equation}
+where \cppinline{psf[i,j]} is the pixel value of the PSF translated to the position of the galaxy and $S_{\nu}$ is the flux of this galaxy.
+
+
+\subsubsection{Using a custom astrometry and image dimensions}
+
+The tool \bashinline{egg-gennoise} can compute automatically a suitable astrometry and image dimensions according the input catalog. However, you also have the possibility to copy the astrometry and image properties of an existing file. To do so, just use the \bashinline{astro} command line argument and make it point to the FITS image you want to copy the data from:
+\begin{bashcode}
+egg-gennoise cat=egg-20151201.fits out=pacs160-noise.fits \
+    psf=herschel-pacs160.fits rms=1.68e-5 verbose \
+    astro=this_image_I_like_a_lot.fits
+\end{bashcode}
+In this case, the value of \bashinline{aspix} is not used and it can be omitted from the argument list.
+
+
+\subsubsection{Flag regions of the map with poor catalog coverage}
+
+By default the tools create a large map that encompasses the whole input catalog, with some margin. This means that, close to the borders of the image, the source density is very low and the image statistics are not realistic. This can be an issue for some applications. To cope for this, the \bashinline{egg-gennoise} option \bashinline{clip_borders} will identify the regions of the map with low source density, and flag them with ``not-a-number'' pixels so that no value can be read from there. This assumes that the input catalog does not contain holes, and will only affect the borders of the image.
+
+
+\subsubsection{Generate beam-smoothed images (sub-millimeter)}
+
+It is common practice in sub-millimeter astronomy to filter the observed maps with the PSF (or beam) of the instrument. Because these images usually have low signal-to-noise ratios, this allows easier identification of detections by eye or with blind source extraction tools. Note however that this is sub-optimal for prior-based source extraction or stacking because the size of the effective PSF is multiplied by $\sqrt{2}$, which increases the confusion. In addition, the gain is signal-to-noise is null since these methods already apply a sort of beam-smearing internally.
+
+Nevertheless, in order to be able to reproduce such kind of images, both \bashinline{egg-gennoise} and \bashinline{egg-genmap} provide a set of command line arguments. In all cases, \bashinline{beam_smoothed} must be set \emph{for both programs} to notify them of your intention. By default, the map will be smoothed using the PSF as kernel. If you prefer to use a custom kernel, use the \bashinline{smooth_fwhm} to specify the full-width at half-maximum of the kernel (in pixels).
+
+If this option is used, the behavior of the programs is the following:
+\begin{itemize}
+\item Create the noise map, \emph{unfiltered} (without smoothing), and with the requested noise level.
+\item Copy this map and apply the beam smoothing. Measure the new noise standard deviation (it is indeed modified by the smoothing process).
+\item Adjust the noise level of the \emph{unfiltered} map so that the noise level in the previous step matches the one requested by the user.
+\item Feed the \emph{unfiltered} map to \bashinline{egg-genmap}, add the galaxies.
+\item Finally perform the beam smoothing.
+\end{itemize}
+This means that the value of the \bashinline{rms} argument must be set to the expected noise standard deviation of the final, smoothed map.
+
+\subsubsection{Generate error and coverage maps}
+
+Without extra effort, the \bashinline{egg-gennoise} program can generate for you the error and coverage map corresponding to your noise map and input catalog. To do so, simply set the \bashinline{make_err} and \bashinline{make_cov} arguments; this will generate the error map as \cppinline{"[out]-err.fits"} and the coverage map as \cppinline{"[out]-cov.fits"} ($1$: covered, $0$ or not-a-number: not covered).
+
+These maps carry very little information since the noise generated by \bashinline{egg-gennoise} is uniform and covers the whole map by default. However, some external tools require the existence of either one or both of these.
+
+
+\subsubsection{Using a custom noise map}
+
+The whole point of separating the map-making process into two steps is that one can be used without the other. Indeed, \bashinline{egg-genmap} can work with noise map, provided that it contains valid WCS astrometry. The tool can handle sources outside of the map, so it is fine if the provided noise map does not overlap perfectly with the input catalog. Just make sure that the PSF you provide is tabulated on the same pixel scale as your noise map. If you use the \bashinline{beam_smoothed} option, note that the noise map must be provided \emph{unfiltered} (i.e., before beam convolution).
+
+For example, realistic \herschel noise maps can be obtained by jackknifing the observed data, and provide noise statistics (correlation, amplitude, etc.) that match very well the real images. Such kind of map can be fed naturally to \bashinline{egg-genmap} through the \bashinline{noise_map} argument.
+
+
+\subsubsection{Using a custom flux catalog}
+
+Similarly, both tools do not require that the input catalog be created by \bashinline{egg-gencat}. They only need a limited set of columns: \cppinline{"ra"} and \cppinline{"dec"} to know the position of each galaxy on the sky, and \cppinline{"flux"} and \cppinline{"bands"} to know their flux. The format of these columns must be the same as that created by \bashinline{egg-gencat}, but this can be easily achieved in any language. Alternatively, the program also supports a \cppinline{"flux"} column containing a single band (i.e., a 1D vector column), in which case the \cppinline{"bands"} column and the \bashinline{band} command line argument are useless and can be omitted.

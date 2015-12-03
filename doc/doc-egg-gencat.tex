@@ -1,0 +1,319 @@
+In this section, I first describe the most basic options and parameters of the tool. Then, I give you some clues on how to read and use the generated catalog. All the other sub sections are here to describe more advanced features, or smaller details that you do not need to worry about for your first contact with the tool.
+
+\subsubsection{Basic usage}
+
+This is the main program of the \egg suite. It will create a new mock catalog from scratch. You simply have to describe the parameters of the survey you want to simulate, i.e., the area of the sky that is covered (in square degrees), the depth (in AB magnitude) and the selection band. This is the standard way of using the software:
+\begin{bashcode}
+egg-gencat area=0.08 maglim=28 selection_band=hst-f160w
+\end{bashcode}
+This will create a new catalog in a FITS table called \bashinline{egg-[yyyymmdd].fits}, where \bashinline{[yyyymmdd]} is the current date. The name of this file can also be chosen using the command line parameter \bashinline{out}:
+\begin{bashcode}
+egg-gencat area=0.08 maglim=28 selection_band=hst-f160w out=some_folder/mycatalog.fits
+\end{bashcode}
+
+The program generates the fluxes of each galaxies in an arbitrary number of bands simultaneously. By default, a standard set of broad bands (mostly from the \hubble, \spitzer and \herschel telescopes) is chosen, but most likely you will want to change that. The list of photometric bands must be given as an array of band names through the \bashinline{bands} command line argument:
+\begin{bashcode}
+egg-gencat area=0.08 maglim=28 selection_band=hst-f160w \
+    bands=[vimos-u,hst-f160w,spitzer-irac1,herschel-pacs160]
+\end{bashcode}
+Here we ask for $4$ bands: \bashinline{vimos-u}, \bashinline{hst-f160w}, \bashinline{spitzer-irac1} and \bashinline{herschel-pacs160}, but you can have as many as you want. Note that the selection band does not need to be part of this list.
+
+The names of the bands is usually of the form \bashinline{[instrument]-[band]}. They are case-sensitive, so \bashinline{vimos-u} is good, but \bashinline{vimos-U} is not. Because these names are somewhat arbitrary, you can see the list of all available bands by calling:
+\begin{bashcode}
+egg-gencat list_bands
+\end{bashcode}
+This will print an alphabetically sorted list of bands, giving you the name, the reference wavelength and the width of all the filters. You can also filter this list by providing a value to \bashinline{list_bands}:
+\begin{bashcode}
+# print all the JWST bands
+egg-gencat list_bands="jwst-"
+
+# Result:
+# List of available bands (filter: 'jwst-'):
+#  - jwst-f070w  ref-lam = 0.695353 um, FWHM = 0.168 um
+#  - jwst-f090w  ref-lam = 0.902688 um, FWHM = 0.208 um
+#  - jwst-f115w  ref-lam = 1.15124 um,  FWHM = 0.271 um
+#  - jwst-f150w  ref-lam = 1.50168 um,  FWHM = 0.337 um
+#  - jwst-f200w  ref-lam = 1.99057 um,  FWHM = 0.471 um
+#  - jwst-f277w  ref-lam = 2.78408 um,  FWHM = 0.729 um
+#  - jwst-f356w  ref-lam = 3.55939 um,  FWHM = 0.831 um
+#  - jwst-f444w  ref-lam = 4.44572 um,  FWHM = 1.1526 um
+
+
+# print all the Ks bands
+egg-gencat list_band="-Ks"
+
+# Result:
+# List of available bands (filter: '-Ks'):
+#  - 2mass-Ks      ref-lam = 2.16848 um, FWHM = 0.271 um
+#  - flamingos-Ks  ref-lam = 2.15594 um, FWHM = 0.308 um
+#  - fourstar-Ks   ref-lam = 2.15584 um, FWHM = 0.322 um
+#  - hawki-Ks      ref-lam = 2.14845 um, FWHM = 0.3241 um
+#  - isaac-Ks      ref-lam = 2.16813 um, FWHM = 0.266 um
+#  - moircs-Ks     ref-lam = 2.15952 um, FWHM = 0.273 um
+#  - sofi-Ks       ref-lam = 2.16798 um, FWHM = 0.259 um
+#  - vista-Ks      ref-lam = 2.15276 um, FWHM = 0.301 um
+#  - wircam-Ks     ref-lam = 2.15923 um, FWHM = 0.322 um
+
+# The value of 'list_band' is a POSIX regular expression.
+# So you can do some smart filtering, like showing all
+# the J, H and K (Ks) bands:
+egg-gencat list_bands="-(J|H|K)"
+\end{bashcode}
+
+\subsubsection{Reading and using the generated catalog}
+
+The main objective of this tool is to produce fluxes. These fluxes are stored in the output catalog in FITS format as two-dimensional columns. The order of the dimensions depends on the language you use to browse the FITS table (see below), but one dimension corresponds to each galaxy, while the other corresponds to each simulated band. In the examples below, I assume that you want to read the fluxes in the \hubble F160W broad band (name: \cppinline{"hst-f160w"}).
+
+{\bf In C++.}
+\begin{cppcode}
+// Declare the arrays that we need
+vec2f flux;
+vec1s bands;
+// Read the data
+fits::read_table("egg-20151201.fits", ftable(flux, bands));
+
+// Find the band ID in this catalog
+uint_t bid = where(bands == "hst-f160w")[0];
+
+// Here is the flux
+// Note: dimensions of "flux" is [galaxy]x[band]
+vec1f f160w = flux(_,bid);
+
+// Print the flux of galaxy 54312
+print(f160w[54312]);
+\end{cppcode}
+
+{\bf In IDL.}
+\begin{idlcode}
+; Read the catalog in memory
+cat = mrdfits('egg-20151201.fits', 1, /silent)
+
+; Find the band ID in this catalog
+bid = (where(strpos(cat.bands, 'hst-f160w') eq 0))[0]
+
+; Here is the flux
+; Note: dimensions of "cat.flux" is [band]x[galaxy]
+f160w = cat.flux[bid,*]
+
+; Print the flux of galaxy 54312
+print, f160w[54312]
+\end{idlcode}
+
+{\bf In Python.}
+\begin{pythoncode}
+import pycolfits
+
+# Read the catalog in memory
+cat = pycolfits.readfrom('egg-20151201.fits', lower_case=True)
+
+# Find the band ID in this catalog
+bid = np.where(cat['bands'] == 'hst-f160w')[0][0]
+
+# Here is the flux
+# Note: dimensions of "cat['flux']" is [galaxy]x[band]
+f160w = cat['flux'][:,bid]
+
+# Print the flux of galaxy 54312
+print f160w[54312]
+\end{pythoncode}
+
+The simulated catalog contains many other columns to describe the physical properties of each galaxy. These include the sky position, the stellar mass, the redshift, the dust temperature, and so on. You may find some use in these parameters, for example if you want to see the redshift distribution that is predicted by the simulation for your next generation survey. Below is the list of such parameters and their definition.
+
+\begin{itemize}
+\item \cppinline{id}: Unique identifier of this galaxy.
+\item \cppinline{ra}, \cppinline{dec}: The position of the galaxy on the sky, given in degrees.
+\item \cppinline{z}, \cppinline{d}: The redshift and luminosity distance of the galaxy. The distance is computed assuming a cosmology where $H_0=70$, $\omega_L=0.7$, $\omega_m = 0.3$ and $k=0$. It is given in Mpc.
+\item \cppinline{m}, \cppinline{m_bulge}, \cppinline{m_disk}: The stellar mass of the galaxy, either the sum of all components, or the stellar mass of each individual component. It is given in base-$10$ logarithm and in units of $\msun$. Salpeter IMF.
+\item \cppinline{passive}: The quiescent flag: $1$ (or \cppinline{true}) for quiescent galaxies, $0$ (or \cppinline{false}) for star-forming galaxies.
+\item \cppinline{sfr}, \cppinline{rsb}: Star formation rate (SFR) and ``starburstiness'' of the galaxy. The SFR is given in units of $\msun/{\rm yr}$. Salpeter IMF. The starburstiness is the ratio between the SFR of the galaxy and the SFR of the Main Sequence at the redshift and the stellar mass of this galaxy. Starburstiness values above $1$ indicate galaxies with excess SFR compared to the average.
+\item \cppinline{bulge_angle}, \cppinline{disk_angle}: Position angle of each stellar component on the sky, in degrees.
+\item \cppinline{bulge_radius}, \cppinline{disk_radius}: The angular size of each stellar component, in arcseconds. This is the half-light radius for both.
+\item \cppinline{bulge_ratio}, \cppinline{disk_ratio}: The axis ratio of each stellar component: $1$ is perfectly round, $0$ (which never happens) is perfectly linear.
+\item \cppinline{bt}: The bulge-to-total stellar mass ratio, i.e., $M_{\rm bulge}/M_*$.
+\item \cppinline{rfuv_bulge}, \cppinline{rfvj_bulge}, \cppinline{rfuv_disk}, \cppinline{rfvj_disk}: The $U-V$ and $V-J$ rest-frame colors of the bulge and disk components. Given in differences of AB magnitudes.
+\item \cppinline{opt_sed_bulge}, \cppinline{opt_sed_disk}: Index of the SED in the stellar template library that was chosen for each component. This is a flattened index, since the stellar library is provided on the two-dimensional grid of colors. To get the actual 2D index, just take the modulo and integer division. In C++, you would have \cppinline{iuv = opt_sed/30} and \cppinline{ivj = opt_sed%30}.
+\item \cppinline{irx}, \cppinline{sfrir}, \cppinline{sfruv}: Contribution of the IR and UV light to the total SFR of the galaxy. The IRX is simply the ratio of the two.
+\item \cppinline{lir}: Infrared luminosity from $8$ to $1000\,\um$, in units of $\lsun$.
+\item \cppinline{tdust}: The average dust temperature, in Kelvins.
+\item \cppinline{mdust}: The total dust mass, in $\msun$ (note: not in logarithm...).
+\item \cppinline{fpah}: The fraction of the dust mass that is contributed by PAH molecules ($0$: no PAH, $1$: only PAH).
+\item \cppinline{ir_sed}: Index of the SED in the dust template library that was chosen for this galaxy. Corresponds to a given value of $\tdust$.
+\item \cppinline{bands}, \cppinline{lambda}: Arrays containing the names and reference wavelengths of each photometric band used to produce the observed fluxes. Wavelength is in $\um$.
+\item \cppinline{flux}, \cppinline{flux_bulge}, \cppinline{flux_disk}: Two dimensional columns containing the total observed flux of each galaxy in each band, or the flux in each component. See above. Given in $\uJy$.
+\item \cppinline{rfbands}, \cppinline{rflambda}: Arrays containing the names and reference wavelengths of each photometric band used to produce the absolute magnitudes. Wavelength is in $\um$.
+\item \cppinline{rfmag}, \cppinline{rfmag_bulge}, \cppinline{rfmag_disk}: Two dimensional columns containing the total absolute magnitude of each galaxy in each band (given in \cppinline{rfbands}), or the magnitude in each component. See below for more detail about absolute magnitudes. Given in AB magnitudes at $10\,{\rm pc}$.
+\item \cppinline{zb}: Redshift slices used by the program (two dimensions: one is for each slice, the second contains two elements: the lower and upper bounds of the slice).
+\item \cppinline{cmd}: Single string containing the command line arguments that were used to create this catalog.
+\end{itemize}
+
+\subsubsection{Choosing a seed}
+
+The catalog is created using a random number generator and a set of recipes. However, even with the random number generator, running the above commands will always produce the same catalog. This is because the same random \emph{seed} is used every time. The seed basically sets the starting point of the random number generator: choosing a slightly different seed will result in a completely different catalog. By default, this seed is chosen to be equal to the arbitrary value of \cppinline{42}. You can change this value using the command line argument \bashinline{seed}:
+\begin{bashcode}
+egg-gencat area=0.08 maglim=28 selection_band=hst-f160w seed=1456518
+\end{bashcode}
+The value of the seed can be any positive integer number (including 0) that your computer can handle (that is, a 32bit or 64bit integer depending on the architecture of your CPU). Nobody knows what is the seed of our own Universe, so feel free to use whatever value you like.
+
+\subsubsection{Starting from your own galaxies}
+The first step of the program is to generate the galaxies, with their position on the sky, their redshift, their stellar mass, and their star-forming classification (i.e., each galaxy is either star-forming or quiescent according to the \uvj diagram). This is done using the stellar-mass functions that I observed in the GOODS--South field combined with observations in the Local Universe, and this should be fairly realistic between $z=0$ to $z=3$. However, the program also gives you the opportunity to provide these parameters yourself. You could, for example, provide a true (observed) catalog of galaxies, and let the program run its recipes to predict the fluxes of each object.
+
+To do so, you must first create an input catalog suitable for ingestion by \bashinline{egg-gencat}. The program accepts two file formats: either a column-oriented FITS table or a plain ASCII table. The ASCII file must contain $6$ columns in the following order: the ID of the galaxy, the RA and Dec position in degrees (double precision is advisable), the redshift, the base-$10$ logarithm of the stellar mass, and the quiescent flag (1: quiescent, 0: star-forming). The FITS file must contain at least the columns \cppinline{"ra"}, \cppinline{"dec"}, \cppinline{"z"}, \cppinline{"m"}, and \cppinline{"passive"} with the same content as for the ASCII table, and the column \cppinline{"id"} is optional (if you don't provide it, \bashinline{egg-gencat} will create an ID for you, starting from zero and increasing by one for each galaxy).
+
+I assume you know how to handle ASCII tables yourself. For tables in the FITS format, since column-oriented tables are not very well known, I give below a small example in three common languages.
+
+{\bf In C++.}
+\begin{cppcode}
+// Create a small catalog with two galaxies!
+vec1u id      = {1,        2};
+vec1d ra      = {53.006,   53.008};
+vec1d dec     = {124.0507, 124.051};
+vec1f z       = {1.05,     2.6};
+vec1f m       = {11.2,     10.5};
+vec1b passive = {true,     false};
+
+// Write the file
+fits::write_table("input_cat.fits", ftable(id, ra, dec, z, m, passive));
+\end{cppcode}
+
+{\bf In IDL.}
+\begin{idlcode}
+; Create a small catalog with two galaxies!
+cat = { $
+    id      : [1,         2], $
+    ra      : [53.006d,   53.008d], $
+    dec     : [124.0507d, 124.051d], $
+    z       : [1.05,      2.6], $
+    m       : [11.2,      10.5], $
+    passive : [1,         0] $
+}
+
+; Write the file
+mwrfits(cat, 'input_cat.fits', /create)
+\end{idlcode}
+
+{\bf In Python.}
+\begin{pythoncode}
+# Create a small catalog with two galaxies!
+cat = {
+    'id'      : np.array([1,        2]),
+    'ra'      : np.array([53.006,   53.008]),
+    'dec'     : np.array([124.0507, 124.051]),
+    'z'       : np.array([1.05,     2.6]),
+    'm'       : np.array([11.2,     10.5]),
+    'passive' : np.array([True,     False])
+}
+
+# Write the file
+pycolfits.writeto('input_cat.fits', cat, clobber=True)
+\end{pythoncode}
+
+
+\subsubsection{Choosing the survey position}
+
+By default, the program creates a survey centered at the position RA=$53.558750$ and Dec=$-27.176001$, which is approximately the center of the GOODS--{\it South} field. You can specify another position if you wish, although for now this choice has no consequence on the simulated catalog itself. However, when stars are included in a future release of the program, the number density of foreground stars will likely depend on the survey position. On top of this, you may wish to perform some post-processing on the catalog to include additional components (cirrus emission, or whatever) that depend on the absolute sky position.
+
+The center of the field can be specified using the \bashinline{ra0} and \bashinline{dec0} command line arguments:
+\begin{bashcode}
+egg-gencat area=0.08 maglim=28 selection_band=hst-f160w ra0=2.45621 dec0=33.065632
+\end{bashcode}
+The current definition of the survey area is a bit naive, and may yield weird results for surveys very close to (or including) the poles. Try to avoid this. If you have to, at least double check that the results make sense.
+
+
+\subsubsection{Choosing the stellar mass range}
+
+The standard behavior of the program is to generate galaxies in redshift slices, going down in stellar mass until more than $90\%$ of the galaxies become fainter than the limiting magnitude specified in \bashinline{maglim}. An alternative is to use a fixed stellar mass range at all redshifts. To simulate flux-limited surveys, this is obviously less efficient, since you may miss visible galaxies at low redshifts, and/or include many unobservable galaxies at high redshifts.
+
+Still, in case you need this feature, you can specify the stellar mass interval using the \bashinline{mmin} and \bashinline{mmax} arguments (note: as always, the stellar mass must be specified in base-$10$ logarithm). By default, \bashinline{mmax=12}, and \bashinline{mmin} has no value. Providing a value for \bashinline{mmin} disables the limiting magnitude.
+\begin{bashcode}
+egg-gencat area=0.08 maglim=28 selection_band=hst-f160w mmin=8.5 mmax=11.5
+\end{bashcode}
+
+
+\subsubsection{Choosing the redshift range}
+
+A realistic simulation should include galaxies from all redshifts. However, for practical implementation reasons, this program can only handle a finite range, excluding $z=0$ (the Milky Way, as far as I known) and $z=\infty$ (the Big Bang, or whatever). By default, the program generates galaxies starting from $z=10.5$ up to $z=0.05$. These boundaries are well suited for deep cosmological surveys like GOODS, but may be inadequate for shallower surveys covering wider areas. Changing the highest simulated redshift will have a negligible impact on performances, so I would advise leaving it as it is. On the other hand, if you simulate areas larger than $1\,{\rm deg}^2$, a minimum redshift of $0.05$ may be too high. Conversely, if you are interested in pencil-beam surveys like the HUDF, you may want to increase the minimum redshift to avoid bright foreground galaxies.
+
+This can be achieved by modifying the \bashinline{zmin} and \bashinline{zmax} arguments:
+\begin{bashcode}
+egg-gencat area=0.08 maglim=28 selection_band=hst-f160w zmin=0.01 zmax=5.0
+\end{bashcode}
+
+There is no implicit restriction regarding the minimum redshift, except that it must be different from zero. Note that, since the redshift bins are defined so that $z_{i+1} = z_{i}\,(1 + z_{\rm min})$, the smaller the minimum redshift, the more redshift bins will be simulated. So you may start to degrade the performances if you go too low.
+
+
+\subsubsection{Adding new photometric bands}
+
+Most of the commonly used filters are in this data base. But the list is not complete. You may want to use a filter that is not provided there, or even create your own imaginary filter to test some hypothesis, or predict what a future instrument will see. There are several ways to do this.
+
+The easiest way is to define the filter in place, in the band list. For each filter in the \bashinline{bands} list, you can use an extended syntax: \bashinline{[band-name]:range:[lmin]:[lmax]}, where \bashinline{[band-name]} is the name that you chose for your new filter (avoid spaces), and \bashinline{[lmin]} and \bashinline{[lmax]} define the minimum an maximum wavelength of the filter. The filter is then constructed on the fly, using a simple top-hat function between the specified boundaries. For example, lets improve the previous band list by adding a new hypothetical filter \cppinline{"herschel-pacs40"} that spans $\lambda = 32$ to $51\,\um$:
+\begin{bashcode}
+egg-gencat area=0.08 maglim=28 selection_band=hst-f160w \
+    bands=[vimos-u,hst-f160w,spitzer-irac1,herschel-pacs40:range:32:51]
+\end{bashcode}
+
+This is rather crude though, and you may prefer to provide a more detailed filter response curve. To do so, use the syntax \bashinline{[band-name]:file:[path]}, where this time \bashinline{[path]} is the path to a file containing the filter response curve. This file can be either a column-oriented FITS table or an ASCII table. If it is an ASCII table, it must contain two columns: the wavelength (in $\um$), and the filter response curve, normalized to unit integral. If it is a FITS table, it must contain the columns \cppinline{"lam"}, the wavelength, and \cppinline{"res"}, the response curve. Note that, to be accurate, the filter \emph{must} be defined so that the flux in the corresponding band is obtained by integrating as a function of wavelength the product of the filter $f$ and the spectrum of the galaxy $s_\nu$ in flux per unit frequency. In other words:
+\begin{equation}
+    S_{\nu} = \int_0^{\infty} \!\!d\lambda\ \big[f(\lambda)\ s_\nu(\lambda)\big]\,. \nonumber
+\end{equation}
+
+If you see yourself using the same filter over and over again, and you are tired of re-defining it in the command line arguments, you may add this filter to your local \egg data base. This data base is located in the
+\bashinline{$INSTALL_ROOT_DIR/share/egg/filter-db} folder (see the installation instructions if you don't know what \bashinline{$INSTALL_ROOT_DIR} is).
+The first step is to copy your filter response curve into this directory (you can use sub-directories if you wish). Either FITS or ASCII format will do. Then, open the \bashinline{db.dat} file with your text editor, and add a new line somewhere in the file (the order of the lines is irrelevant):
+\begin{bashcode}
+[band-name]=[path]
+\end{bashcode}
+The \bashinline{[band-name]} is defined as above, and may not contain spaces. The \bashinline{[path]} must be relative to the location of the \bashinline{db.dat} file. Once this is done, you can use your filter like any other, by just specifying its name in the \bashinline{bands} list.
+
+
+\subsubsection{Computing absolute magnitudes}
+
+In addition to observed fluxes, the program can also compute for you the absolute magnitude of each galaxy in a set of bands. This works exactly as for observed fluxes, except that you must specify the bands in the \bashinline{rfbands} command line argument instead.
+
+
+\subsubsection{Disabling simulation steps}
+
+Sometimes you only care about one particular aspect of the simulation. To save time, you can disable the steps you do not need. In particular:
+\begin{itemize}
+\item \bashinline{no_pos}: do not generate sky positions
+\item \bashinline{no_clust}: do not put clustering in sky positions
+\item \bashinline{no_flux}: do not generate any flux, just galaxy parameters
+\item \bashinline{no_dust}: do not include dust emission in the fluxes
+\item \bashinline{no_stellar}: do not include stellar emission in the fluxes
+\end{itemize}
+
+
+\subsubsection{Saving the full spectrum of each galaxy}
+
+The output catalog produced by \bashinline{egg-gencat} can only contain broad-band fluxes, not spectra. Indeed, saving all the spectra occupies a lot of disk space, and it is usually not necessary. However, this can be a useful piece of information for some specific applications, therefore this program gives you a way to obtain it.
+
+To do so, just set the \bashinline{save_sed} command line flag. This will save the bulge and disk spectra separately. Because this can generate huge volumes of data, the spectra are not saved inside the generated catalog, but in another file. By default, the name of this file is the same as that of the generated catalog, but ending with \cppinline{"-seds.dat"}. You can change that using the \bashinline{seds_file} command line argument.
+\begin{bashcode}
+egg-gencat area=0.08 maglim=28 selection_band=hst-f160w save_sed
+\end{bashcode}
+The size of the file is typically about $40\,{\rm KB}$ per galaxy. So the command above, which generates some $100\,000$ galaxies, will generate about $4\,{\rm GB}$ of spectra. You have been warned.
+
+The spectra in this file are stored in a custom binary format, since neither standard FITS nor ASCII tables provide an efficient way to handle this. If you do not want to bother figuring out how to read this file, please use the \bashinline{egg-getsed} program like so:
+\begin{bashcode}
+# get the spectrum of the bulge of galaxy 54231
+egg-getsed seds=catalog-seds.dat id=54213 component=bulge
+# create the FITS file catalogs-seds-54213-bulge.fits
+# wavelength is column 'lambda', spectrum is in 'flux'
+
+# if you don't like FITS tables, you can also ask for ASCII
+egg-getsed seds=catalog-seds.dat id=54213 component=bulge ascii
+# create the ASCII table catalogs-seds-54213-bulge.cat
+# two columns: wavelength and flux
+\end{bashcode}
+Wavelength is given in $\um$, while the unit of the spectrum is a flux in $\uJy$.
+
+If you need more performance and/or do not want to create a spectrum file for each galaxy with the above command, you will need to read directly from the binary file. Each spectrum is stored contiguously, first the wavelengths (in $\um$), then the flux (in $\uJy$). Both are saved in single precision floating point numbers. To figure out the position of the spectrum of a given galaxy, a ``lookup'' file is created. Its name is the same as that of the spectrum file, except that it ends with \cppinline{"-seds-lookup.fits"}. This is a column-oriented FITS table. It contains five columns: \cppinline{"id"} is the ID of each galaxy, \cppinline{"bulge_start"} gives the position of the first element of the bulge spectrum of this galaxy in the file (in bytes, starting from the beginning of the file), \cppinline{"bulge_nbyte"} gives the total number of bytes occupied by this spectrum (including the wavelengths and the spectrum values), and finally \cppinline{"disk_start"} and \cppinline{"disk_nbyte"} provide the same informations for the disk component.
+
+So, to read the bulge spectrum of galaxy $54312$:
+\begin{itemize}
+\item Open the spectrum file in binary mode.
+\item Go to the position \cppinline{bulge_start[54312]}.
+\item Read \cppinline{bulge_nbyte[54321]/sizeof(float)/2} floating point numbers into the wavelength array.
+\item Read another \cppinline{bulge_nbyte[54321]/sizeof(float)/2} floating point numbers into the spectrum array.
+\item Close the file.
+\end{itemize}
+This is exactly what is done by \bashinline{egg-getset}. Look at the source code of this tool if you are unsure of how to implement it yourself.

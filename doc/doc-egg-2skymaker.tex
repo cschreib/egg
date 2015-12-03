@@ -1,0 +1,41 @@
+\subsubsection{Basic usage}
+
+This tool is used to convert a mock catalog created by \cppinline{egg-gencat} into input catalogs and configuration files for \skymaker. Each call to the tool creates one \skymaker setup for one band, and uses a ``template'' \skymaker configuration file to define the PSF and the noise properties of the image:
+\begin{bashcode}
+# assume we want to create an image of the Hubble F160W band
+egg-2skymaker cat=egg-20151201.fits band=hst-f160w \
+    template=goodss-hst-f160w.conf out=egg-f160w.cat verbose
+\end{bashcode}
+The \bashinline{cat} parameter holds the path to the mock catalog, \bashinline{band} is the name of the photometric band for which to generate a \skymaker setup, and \bashinline{template} gives the name of the \skymaker configuration template. The resulting \skymaker input catalog will be saved in \bashinline{out}. The \skymaker configuration file and FITS header will be written in \bashinline{[out]-sky.conf} and \bashinline{[out]-hdr.txt} (with the extension of \bashinline{out} removed). This parameter also defines the name of the image file that \skymaker will create (see below).
+
+The template file must be a valid \skymaker configuration file. You should provide there all the necessary parameters to simulate an image of this type (i.e., the right PSF, the right noise level, etc.). In particular, take special care with the following parameters:
+\begin{itemize}
+\item \bashinline{PIXEL_SIZE}: This parameter is needed by \bashinline{egg-2skymaker} to compute the size of the FITS image that \skymaker will generate. Must be in arcseconds/pixel.
+\item \bashinline{PSF_xxx}: If you want to use a PSF file, make sure that the path is either a) an absolute path, or b) relative to the location of the template configuration file. In the latter case, \bashinline{egg-2skymaker} will take care of converting this path to an absolute path. For example, if the template is located in \bashinline{"/home/cschreib/test/goods-hst-f160w.conf"} and the value of \bashinline{PSF_NAME} is \bashinline{"../psfs/hst-f160w.fits"}, then it will be automatically converted to \bashinline{"/home/cschreib/psfs/hst-f160w.conf"}. This is to ensure that \skymaker is able to find the PSF file wherever the template configuration file is located.
+\end{itemize}
+You do not have to provide the following parameters, since they will be replaced automatically by \bashinline{egg-2skymaker}:
+\begin{itemize}
+\item \bashinline{IMAGE_TYPE}: Set to \bashinline{SKY} (only filled if missing).
+\item \bashinline{LISTCOORD_TYPE}: Set to \bashinline{PIXELS}.
+\item \bashinline{IMAGE_NAME}: Set to \bashinline{[img_dir]/[out]-sci.fits}. The value of \bashinline{img_dir} is read from the command line arguments, and defaults to the current directory. In this context, only the base name of \bashinline{out} is used, i.e., the extension (\bashinline{".cat"}) and the directories are removed. For example, if \bashinline{out="catalogs/egg-f160w.cat"}, then the image name will be \bashinline{"[img_dir]/egg-f160w-sci.fits"}.
+\item \bashinline{IMAGE_SIZE}: Computed automatically from \bashinline{PIXEL_SIZE} and the area covered by the mock catalog (see below).
+\item \bashinline{IMAGE_HEADER}: Set to \bashinline{[out]-hdr.txt}.
+\end{itemize}
+
+Out of the box, \egg provides you with a set of pre-defined template files. These serve two purposes: provide realistic templates for the most common cases, and provide examples that you can build upon to create your own templates. These pre-defined templates are stored in the \bashinline{$INSTALL_ROOT_DIR/share/egg/skymaker-templates} folder (see the installation instructions if you don't know what \bashinline{$INSTALL_ROOT_DIR} is). The program will automatically look inside this directory if the template file name that you provided in the \bashinline{template} argument cannot be found in the current directory. Use the \bashinline{list_templates} command to display the list of available pre-defined templates.
+
+\subsubsection{Defining the image dimensions}
+
+By default the program will try to build one single image out of the provided mock catalog. Knowing the requested pixel size and the coordinates of each galaxy, it draws a rectangle bounding box around the projected $x$ and $y$ coordinates of the galaxies, taking into account their respective size so that no galaxy ends up being truncated at the border of the image. If this is not what you want, there are several ways to adjust this behavior.
+
+First, you can add a fixed extra amount of empty space at the border of the image using the \bashinline{inset} keyword (in arcseconds). This adds up with the padding computed from the sizes of the galaxies. If you want to disable the size-dependent padding, set the \bashinline{strict_clip} keyword (this will not disable the effect of \bashinline{inset} if both arguments are used at the same time).
+
+Second, creating a single image for the whole field might prove to be impractical if the pixel size is small and the area is large. The resulting image may be too big to handle conveniently with other programs such as DS9. In addition, \skymaker can only create images with total size smaller than the amount of available RAM memory on your computer. If you encounter either of these limitations, you can ask \bashinline{egg-2skymaker} to split the image into multiple tiles that \skymaker will create one by one. To do so, use the \bashinline{size_cap} keyword. The value must be the maximum allowed size of the image (or of a single tile) in GigaBytes. For example, if you set this value to $1\,{\rm GB}$ and if \bashinline{egg-2skymaker} realizes that the resulting image would be larger than this, it will create a number of tiles, each with a size less than $1\,{\rm GB}$ and covering a different region of the field.
+
+If multiple tiles are created, they are named according to their position. For example, if \bashinline{IMAGE_NAME} was chosen to \bashinline{"egg-f160w-sci.fits"}, then the tiles will be named \bashinline{"egg-f160w-sci-x-y.fits"} where \bashinline{"x"} and \bashinline{"y"} are the indices of the tile (starting from $1$) corresponding to increasing right-ascension and decreasing declination, respectively. One \skymaker configuration file and FITS header will be created for each tile according to the same naming scheme.
+
+In this situation, if one wants to know in which tile lies a particular galaxy, one should set the \bashinline{save_pixpos} keyword. This will create an additional column-oriented FITS table whose name is given by \bashinline{save_pixpos}. This table will contain the \bashinline{x} and \bashinline{y} position of each galaxy on their respective tile (given in pixel units, the first pixel of the map being \cppinline{{1,1}}), and the columns \bashinline{tilex} and \bashinline{tiley} provide the indices of the tile.
+
+\subsubsection{Other features}
+
+By default the tool will create a \skymaker catalog including all the galaxies from the mock catalog. If you wish, you can ask it to only output the galaxies brighter than a given magnitude in this band. This can be done with the \bashinline{maglim} keyword, which must be set to the requested limiting magnitude in the AB system. This may improve the performances, at the expense of correctness. However, note that \skymaker takes into account the ``observability'' of a galaxy when it paints it on the image: if the galaxy is substantially fainter than the noise level, \skymaker will not draw it at all. So the performance gain of having fewer galaxies in the input list may not be noticeable.
