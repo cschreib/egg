@@ -23,16 +23,31 @@ int main(int argc, char* argv[]) {
     double inset = 0.0;
     bool strict_clip = false;
     bool verbose = false;
+    bool list_templates = false;
     float size_cap = fnan;
     std::string save_pixpos;
 
     read_args(argc, argv, arg_list(
         band, name(cat_file, "cat"), name(out_file, "out"), img_dir, maglim, size_cap,
-        save_pixpos, verbose, strict_clip, name(template_file, "template")
+        save_pixpos, verbose, strict_clip, name(template_file, "template"), list_templates
     ));
 
     if (!img_dir.empty()) {
         img_dir = file::directorize(img_dir);
+    }
+
+    auto print_template_list = [&]() {
+        note("available default templates:");
+        vec1s tmps = file::list_files(egg_share_dir+"skymaker-templates/*.conf");
+        inplace_sort(tmps);
+        for (auto t : tmps) {
+            print(" - ", t);
+        }
+    }
+
+    if (list_templates) {
+        print_template_list();
+        return 0;
     }
 
     // Check for missing mandatory parameters
@@ -50,14 +65,7 @@ int main(int argc, char* argv[]) {
         }
         if (!file::exists(template_file)) {
             error("the template file '"+template_file+"' could not be found");
-
-            note("available default templates:");
-            vec1s tmps = file::list_files(egg_share_dir+"skymaker-templates/*.conf");
-            inplace_sort(tmps);
-            for (auto t : tmps) {
-                print(" - ", t);
-            }
-
+            print_template_list();
             bad = true;
         }
     }
@@ -489,6 +497,8 @@ void print_help() {
         "of the tile each galaxy is located.");
     argdoc("verbose", "[flag]", "display information about the progress of the program "
         "in the terminal");
+    argdoc("list_templates", "[flag]", "print the list of available pre-built templates "
+        "and exit");
 
     print("");
 }
