@@ -78,6 +78,7 @@ int main(int argc, char* argv[]) {
 
     file::mkdir(file::get_directory(out));
 
+    // Read the input catalog
     struct {
         vec1d ra, dec;
 
@@ -85,9 +86,23 @@ int main(int argc, char* argv[]) {
         vec1s bands;
     } cat;
 
-    fits::read_table(cat_file, ftable(cat.ra, cat.dec, cat.flux, cat.bands));
+    fits::input_table cat(cat_file);
+    cat.read_columns(ftable(cat.ra, cat.dec));
+    cat.read_column(fits::dim_promote, "flux", cat.flux);
 
-    uint_t idb; {
+    if (cat.flux.dims[1] > 1) {
+        cat.read_column("bands", cat.bands);
+    } else {
+        cat.read_column(fits::missing, "bands", cat.bands);
+    }
+
+    cat.close();
+
+    // Find the band we are looking for
+    uint_t idb;
+    if (cat.bands.empty() || cat.bands.size() == 1 && band.empty()) {
+        idb = 0;
+    } else {
         vec1u ids = where(cat.bands == band);
         if (ids.empty()) {
             warning("no band named '", band, "' in this catalog");
