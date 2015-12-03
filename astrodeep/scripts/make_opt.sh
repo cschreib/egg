@@ -25,7 +25,7 @@ echo "-----------------------------"
 echo "      Hubble WFC3 F160W      "
 echo "-----------------------------"
 
-egg-2skymaker $CATALOG $I2SKY_OPTIONS band=hst-f160w \
+egg-2skymaker cat=$CATALOG $I2SKY_OPTIONS band=hst-f160w \
     out=$SKYDIR/$CATBASE-f160w.cat \
     img_dir=$MAPDIR \
     template=goodss-hst-f160w.conf
