@@ -134,6 +134,12 @@ int main(int argc, char* argv[]) {
             std::string param = line.substr(0, pos);
             std::string value = trim(line.substr(pos));
 
+            if (param == "LISTCOORD_TYPE" || param == "IMAGE_NAME" || param == "IMAGE_SIZE" ||
+                param == "IMAGE_HEADER") {
+                // We will set these ourselves
+                continue;
+            }
+
             sky_param.push_back(param);
             sky_value.push_back(value);
 
@@ -152,7 +158,7 @@ int main(int argc, char* argv[]) {
 
     // Make sure that the PSF file is given with an absolute path
     if (count(sky_param == "PSF_NAME") != 0) {
-        uint_t i = where(sky_param == "PSF_NAME")[0];
+        uint_t i = where_first(sky_param == "PSF_NAME");
         if (!file::is_absolute_path(sky_value[i])) {
             sky_value[i] = file::get_directory(template_file)+sky_value[i];
         }
