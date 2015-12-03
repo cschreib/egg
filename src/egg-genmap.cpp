@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
     // Extend the PSF to the full cutout
     bool extpsf = false;
     // Output the map in single precision instead of double precision
-    bool cfloat = false;
+    bool cdouble = false;
     // Display the list of default available PSFs
     bool list_psfs = false;
     // Print some text on the console.
@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
     read_args(argc, argv, arg_list(
         out, name(psf_file, "psf"), noise_map, band, beam_smoothed, smooth_fwhm,
         verbose, no_source, no_subpixel, flux_factor, zero_mean, list_psfs,
-        name(extpsf, "extend_psf"), name(cfloat, "float"), name(cat_file, "cat")
+        name(extpsf, "extend_psf"), name(cdouble, "double"), name(cat_file, "cat")
     ));
 
     auto display_psf_list = [&]() {
@@ -234,11 +234,11 @@ int main(int argc, char* argv[]) {
     // Save the simulated map
     if (verbose) note("saving map to disk...");
 
-    if (cfloat) {
+    if (cdouble) {
+        fits::write(out, img, hdr);
+    } else {
         vec2f fimg = img;
         fits::write(out, fimg, hdr);
-    } else {
-        fits::write(out, img, hdr);
     }
 
     if (verbose) note("done.");
