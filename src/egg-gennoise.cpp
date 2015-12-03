@@ -51,6 +51,11 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    std::string out_base = file::remove_extension(out);
+    if (ends_width(out, "-noise")) {
+        out_base = erase_end(out, "-noise");
+    }
+
     if (!file::exists(psf_file)) {
         psf_file = egg_share_dir+"psfs/"+psf_file;
     }
@@ -176,7 +181,7 @@ int main(int argc, char* argv[]) {
         vec2d dist = convex_hull_distance(x, y, hull);
 
         if (save_dist) {
-            fits::write(out+"-dist.fits", dist, hdr);
+            fits::write(out_base+"-dist.fits", dist, hdr);
         }
 
         // Only use pixels that are more than 3 FWHM away from the border of the catalog
@@ -223,18 +228,18 @@ int main(int argc, char* argv[]) {
 
     // Save noise map
     if (verbose) note("write map to disk...");
-    fits::write(out+"-noise.fits", noise, hdr);
+    fits::write(out, noise, hdr);
 
     if (make_err) {
         // Build and save error map
         noise[idin] = rms;
-        fits::write(out+"-err.fits", noise, hdr);
+        fits::write(out_base+"-err.fits", noise, hdr);
     }
 
     if (make_cov) {
         // Build and save coverage map
         noise[idin] = 1.0;
-        fits::write(out+"-cov.fits", noise, hdr);
+        fits::write(out_base+"-cov.fits", noise, hdr);
     }
 
     if (verbose) note("done.");
@@ -264,9 +269,7 @@ void print_help() {
 
     print("List of mandatory parameters (no default value):");
     argdoc("cat", "[string]", "name of the file containing the mock catalog");
-    argdoc("out", "[string]", "base name of the file(s) into which the map(s) will be "
-        "saved. If out=\"file\", then the noise map will be saved in \"file-noise.fits\". "
-        "Similarly for the other maps that the program can output (RMS map, coverage map).");
+    argdoc("out", "[string]", "name of the file into which the noise map will be saved.");
     argdoc("psf", "[string]", "name of the file containing the PSF. Note that, "
         "if the provided file does not exists, the program will also search in the list "
         "of the pre-built templates provided with EGG ("+egg_share_dir+
@@ -294,8 +297,8 @@ void print_help() {
         "border are flagged with NaN, since they lack contribution from nearby sources. "
         "This option ensures that the map statistics is uniform, and that no edge effects "
         "are present, but some galaxies will be clipped out.");
-    argdoc("make_cov", "[flag]", "if set, save a coverage map (\"file-cov.fits\").");
-    argdoc("make_err", "[flag]", "if set, save an RMS map (\"file-err.fits\").");
+    argdoc("make_cov", "[flag]", "if set, save a coverage map (\"[out]-cov.fits\").");
+    argdoc("make_err", "[flag]", "if set, save an RMS map (\"[out]-err.fits\").");
     argdoc("verbose", "[flag]", "print additional information in the standard output while "
         "the program is running (default: false)");
     print("");
