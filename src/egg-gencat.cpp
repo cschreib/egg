@@ -494,6 +494,54 @@ int main(int argc, char* argv[]) {
             note(nz, " redshift slices");
         }
 
+        // Initialize mass functions
+        // -------------------------
+        if (verbose) {
+            note("reading mass functions...");
+        }
+
+        struct {
+            vec2f zb, mb;
+            vec1f zx, mx;
+            vec2d mz_active, mz_passive;
+            vec1d z_active, z_passive;
+            std::string imf;
+        } mf;
+
+        fits::read_table(mass_func_file, "zb", mf.zb, "mb", mf.mb, "active", mf.mz_active,
+            "passive", mf.mz_passive);
+        fits::read_table_loose(mass_func_file, "imf", mf.imf);
+
+        // Correct for the IMF, if not Salpeter
+        if (mf.imf.empty()) {
+            warning("no IMF specification given in the mass function file, assuming Salpeter");
+            mf.imf = "salpeter";
+        } else {
+            if (mf.imf == "salpeter") {
+                // Nothing to do
+            } else if (mf.imf == "chabrier") {
+                mf.mb += 0.24;
+            }
+        }
+
+        if (verbose) {
+            note("found ", mf.zb.dims[1], " redshift bins and ", mf.mb.dims[1], " mass bins");
+        }
+
+        double mmin_strict = min(mf.mb);
+
+        // Check that the provided mass functions cover all the parameter space we need
+        if (max(mf.zb) < max(zb)) {
+            error("mass functions do not cover redshifts > ", max(mf.zb));
+            note("requested: ", max(zb));
+            return 1;
+        }
+        if (min(mf.zb) > min(zb)) {
+            error("mass functions do not cover redshifts < ", min(mf.zb));
+            note("requested: ", min(zb));
+            return 1;
+        }
+
         // Compute evolving mass limit
         // ---------------------------
         vec1f z_mmin(nz);
@@ -538,7 +586,7 @@ int main(int argc, char* argv[]) {
                     vec1f sed = lsun2uJy(tz, td, rlam, rsed);
 
                     double funitmass = sed2flux(filsel, lam, sed);
-                    double mlim = log10(flim/funitmass);
+                    double mlim = std::max(mmin_strict, log10(flim/funitmass));
 
                     tm.push_back(mlim);
                 }
@@ -556,75 +604,6 @@ int main(int argc, char* argv[]) {
         } else {
             // If no magnitude limit is requested, just use a fixed mass limit.
             z_mmin[_] = mmin;
-        }
-
-        // Initialize sky positions
-        // ------------------------
-
-        // The shape of the generated survey can be changed here. The survey boundaries
-        // are defined as a *convex* polygon whose vertices are given in RA and Dec
-        // coordinates below.
-        // The default is to generate a square of requested area around the reference position
-        // given by ra0 and dec0.
-        convex_hull<double> hull; {
-            double dd = sqrt(area)/2.0;
-            double dr = sqrt(area)/2.0/cos(dec0*dpi/180.0);
-
-            vec1d hdec = {dec0-dd, dec0-dd, dec0+dd, dec0+dd};
-            vec1d hra = {ra0-dr, ra0+dr, ra0+dr, ra0-dr};
-
-            hull = build_convex_hull(hra, hdec);
-        }
-
-        // Initialize mass functions
-        // -------------------------
-        if (verbose) {
-            note("reading mass functions...");
-        }
-
-        struct {
-            vec2f zb, mb;
-            vec1f zx, mx;
-            vec2d mz_active, mz_passive;
-            vec1d z_active, z_passive;
-            std::string imf;
-        } mf;
-
-        fits::read_table(mass_func_file, "zb", mf.zb, "mb", mf.mb, "active", mf.mz_active,
-            "passive", mf.mz_passive);
-        fits::read_table_loose(mass_func_file, "imf", mf.imf);
-
-        // Correct for the IMF, if not Salpeter
-        if (mf.imf.empty()) {
-            warning("no IMF specification given in the mass function file, assuming Salpeter");
-            mf.imf = "salpeter";
-        } else {
-            if (mf.imf == "salpeter") {
-                // Nothing to do
-            } else if (mf.imf == "chabrier") {
-                mf.mb += 0.24;
-            }
-        }
-
-        if (verbose) {
-            note("found ", mf.zb.dims[1], " redshift bins and ", mf.mb.dims[1], " mass bins");
-        }
-
-        // Check that the provided mass functions cover all the parameter space we need
-        if (max(mf.zb) < max(zb)) {
-            error("mass functions do not cover redshifts > ", max(mf.zb));
-            note("requested: ", max(zb));
-            return 1;
-        }
-        if (min(mf.zb) > min(zb)) {
-            error("mass functions do not cover redshifts < ", min(mf.zb));
-            note("requested: ", min(zb));
-            return 1;
-        }
-        if (min(mf.mb) > mmin) {
-            error("mass functions do not cover masses < ", min(mf.mb));
-            note("requested: ", mmin);
-            return 1;
         }
 
         {
@@ -666,6 +645,24 @@ int main(int argc, char* argv[]) {
         }
 
         out.zb = zb;
+
+        // Initialize sky positions
+        // ------------------------
+
+        // The shape of the generated survey can be changed here. The survey boundaries
+        // are defined as a *convex* polygon whose vertices are given in RA and Dec
+        // coordinates below.
+        // The default is to generate a square of requested area around the reference position
+        // given by ra0 and dec0.
+        convex_hull<double> hull; {
+            double dd = sqrt(area)/2.0;
+            double dr = sqrt(area)/2.0/cos(dec0*dpi/180.0);
+
+            vec1d hdec = {dec0-dd, dec0-dd, dec0+dd, dec0+dd};
+            vec1d hra = {ra0-dr, ra0+dr, ra0+dr, ra0-dr};
+
+            hull = build_convex_hull(hra, hdec);
+        }
 
         // Generate redshifts
         // ------------------
