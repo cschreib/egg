@@ -7,6 +7,8 @@ void print_help();
 int main(int argc, char* argv[]) {
     // Random seed to use to generate the noise
     uint_t tseed = 42;
+    // Name of the FITS table containing the mock catalog
+    std::string cat_file;
     // Name of the output FITS file "basename" in which to store the map
     // If out="file", then the map will be saved in "file-noise.fits"
     std::string out;
@@ -34,14 +36,14 @@ int main(int argc, char* argv[]) {
     // Print some text on the console.
     bool verbose = false;
 
-    if (argc < 3) {
+    if (argc < 2) {
         print_help();
         return 0;
     }
 
-    read_args(argc-1, argv+1, arg_list(
+    read_args(argc, argv, arg_list(
         name(tseed, "seed"), out, name(psf_file, "psf"), astro, aspix, rms, beam_smoothed, smooth_fwhm,
-        verbose, make_err, make_cov, clip_borders, save_dist
+        verbose, make_err, make_cov, clip_borders, save_dist, name(cat_file, "cat")
     ));
 
     if (out.empty() || psf_file.empty() || (astro.empty() && !is_finite(aspix))) {
@@ -71,7 +73,7 @@ int main(int argc, char* argv[]) {
         vec1d ra, dec;
     } cat;
 
-    fits::read_table(argv[1], ftable(cat.ra, cat.dec));
+    fits::read_table(cat_file, ftable(cat.ra, cat.dec));
 
     // Read the PSF
     if (verbose) note("reading and normalizing PSF...");
@@ -258,9 +260,10 @@ void print_help() {
     };
 
     print("egg-gennoise v1.0rc1");
-    print("usage: egg-gennoise cat.fits out=... psf=... astro=... aspix=... rms=... [options]\n");
+    print("usage: egg-gennoise cat=... out=... psf=... astro=... aspix=... rms=... [options]\n");
 
     print("List of mandatory parameters (no default value):");
+    argdoc("cat", "[string]", "name of the file containing the mock catalog");
     argdoc("out", "[string]", "base name of the file(s) into which the map(s) will be "
         "saved. If out=\"file\", then the noise map will be saved in \"file-noise.fits\". "
         "Similarly for the other maps that the program can output (RMS map, coverage map).");

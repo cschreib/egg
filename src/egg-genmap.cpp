@@ -5,6 +5,8 @@ const std::string egg_share_dir = file::directorize(EGG_SHARE_DIR);
 void print_help();
 
 int main(int argc, char* argv[]) {
+    // Name of the FITS table containing the mock catalog
+    std::string cat_file;
     // Name of the output FITS file in which to store the map
     std::string out;
     // Name of the FITS file of the PSF
@@ -33,15 +35,15 @@ int main(int argc, char* argv[]) {
     // Print some text on the console.
     bool verbose = false;
 
-    if (argc < 3) {
+    if (argc < 2) {
         print_help();
         return 0;
     }
 
-    read_args(argc-1, argv+1, arg_list(
+    read_args(argc, argv, arg_list(
         out, name(psf_file, "psf"), noise_map, band, beam_smoothed, smooth_fwhm,
         verbose, no_source, no_subpixel, flux_factor, zero_mean,
-        name(extpsf, "extend_psf"), name(cfloat, "float")
+        name(extpsf, "extend_psf"), name(cfloat, "float"), name(cat_file, "cat")
     ));
 
     if (out.empty() || psf_file.empty() || noise_map.empty()) {
@@ -74,7 +76,7 @@ int main(int argc, char* argv[]) {
         vec1s bands;
     } cat;
 
-    fits::read_table(argv[1], ftable(cat.ra, cat.dec, cat.flux, cat.bands));
+    fits::read_table(cat_file, ftable(cat.ra, cat.dec, cat.flux, cat.bands));
 
     uint_t idb; {
         vec1u ids = where(cat.bands == band);
@@ -238,9 +240,10 @@ void print_help() {
     };
 
     print("egg-genmap v1.0rc1");
-    print("usage: egg-genmap cat.fits out=... psf=... noise_map=... band=... [options]\n");
+    print("usage: egg-genmap cat=... out=... psf=... noise_map=... band=... [options]\n");
 
     print("List of mandatory parameters (no default value):");
+    argdoc("cat", "[string]", "name of the file containing the mock catalog");
     argdoc("out", "[string]", "name of the file into which the map will be saved");
     argdoc("psf", "[string]", "name of the file containing the PSF. Note: the performance "
         "of this program depends greatly on the dimensions of this PSF image. Avoid using "
