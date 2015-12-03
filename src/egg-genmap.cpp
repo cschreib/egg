@@ -86,21 +86,21 @@ int main(int argc, char* argv[]) {
         vec1s bands;
     } cat;
 
-    fits::input_table cat(cat_file);
-    cat.read_columns(ftable(cat.ra, cat.dec));
-    cat.read_column(fits::dim_promote, "flux", cat.flux);
+    fits::input_table table(cat_file);
+    table.read_columns(ftable(cat.ra, cat.dec));
+    table.read_column(fits::dim_promote, "flux", cat.flux);
 
     if (cat.flux.dims[1] > 1) {
-        cat.read_column("bands", cat.bands);
+        table.read_column("bands", cat.bands);
     } else {
-        cat.read_column(fits::missing, "bands", cat.bands);
+        table.read_column(fits::missing, "bands", cat.bands);
     }
 
-    cat.close();
+    table.close();
 
     // Find the band we are looking for
     uint_t idb;
-    if (cat.bands.empty() || cat.bands.size() == 1 && band.empty()) {
+    if (cat.bands.empty() || (cat.bands.size() == 1 && band.empty())) {
         idb = 0;
     } else {
         vec1u ids = where(cat.bands == band);

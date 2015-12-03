@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::string out_base = file::remove_extension(out);
-    if (ends_width(out, "-noise")) {
+    if (end_with(out, "-noise")) {
         out_base = erase_end(out, "-noise");
     }
 
@@ -283,7 +283,7 @@ void print_help() {
     argdoc("psf", "[string]", "name of the file containing the PSF. Note that, "
         "if the provided file does not exists, the program will also search in the list "
         "of the default PSFs provided with EGG ("+egg_share_dir+
-        "/psfs) for a file with the same name, and use it if it exists.")
+        "/psfs) for a file with the same name, and use it if it exists.");
     argdoc("astro", "[string]", "name of an existing FITS file from which the astrometry "
         "should be copied. The alternative is to specify the pixel scale (see below).");
     argdoc("aspix", "[double, arcsec/pixel]", "if 'astro' is not provided, one can also "

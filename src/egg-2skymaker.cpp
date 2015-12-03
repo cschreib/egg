@@ -43,7 +43,7 @@ int main(int argc, char* argv[]) {
         for (auto t : tmps) {
             print(" - ", t);
         }
-    }
+    };
 
     if (list_templates) {
         print_template_list();
