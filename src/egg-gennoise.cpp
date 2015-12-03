@@ -77,6 +77,8 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    file::mkdir(file::get_directory(out));
+
     std::string out_base = file::remove_extension(out);
     if (end_with(out, "-noise")) {
         out_base = erase_end(out, "-noise");
