@@ -15,6 +15,7 @@ int main(int argc, char* argv[]) {
 
     // Read command line arguments
     std::string band;
+    std::string cat_file;
     std::string out_file;
     std::string img_dir;
     std::string template_file;
@@ -25,9 +26,9 @@ int main(int argc, char* argv[]) {
     float size_cap = fnan;
     std::string save_pixpos;
 
-    read_args(argc-1, argv+1, arg_list(
-        band, name(out_file, "out"), img_dir, maglim, size_cap, save_pixpos, verbose,
-        strict_clip, name(template_file, "template")
+    read_args(argc, argv, arg_list(
+        band, name(cat_file, "cat"), name(out_file, "out"), img_dir, maglim, size_cap,
+        save_pixpos, verbose, strict_clip, name(template_file, "template")
     ));
 
     if (!img_dir.empty()) {
@@ -80,7 +81,7 @@ int main(int argc, char* argv[]) {
         vec1f lambda;
     } cat;
 
-    fits::read_table(argv[1], ftable(
+    fits::read_table(cat_file, ftable(
         cat.id, cat.ra, cat.dec,
         cat.disk_angle, cat.disk_radius, cat.disk_ratio,
         cat.bulge_angle, cat.bulge_radius, cat.bulge_ratio,
@@ -167,7 +168,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (out_file.empty()) {
-        out_file = file::remove_extension(argv[1])+"-"+band+".cat";
+        out_file = file::remove_extension(cat_file)+"-"+band+".cat";
     }
 
     // Now start the real job
