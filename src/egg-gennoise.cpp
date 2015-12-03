@@ -33,6 +33,8 @@ int main(int argc, char* argv[]) {
     bool make_err = false;
     // Save the distance map (debug purposes, "file-dist.fits")
     bool save_dist = false;
+    // Display the list of default available PSFs
+    bool list_psfs = false;
     // Print some text on the console.
     bool verbose = false;
 
@@ -42,18 +44,28 @@ int main(int argc, char* argv[]) {
     }
 
     read_args(argc, argv, arg_list(
-        name(tseed, "seed"), out, name(psf_file, "psf"), astro, aspix, rms, beam_smoothed, smooth_fwhm,
-        verbose, make_err, make_cov, clip_borders, save_dist, name(cat_file, "cat")
+        name(tseed, "seed"), out, name(psf_file, "psf"), astro, aspix, rms, beam_smoothed,
+        smooth_fwhm, list_psfs, verbose, make_err, make_cov, clip_borders, save_dist,
+        name(cat_file, "cat")
     ));
+
+    auto display_psf_list = [&]() {
+        note("available default PSFs:");
+        vec1s tmps = file::list_files(egg_share_dir+"psfs/*.fits");
+        inplace_sort(tmps);
+        for (auto t : tmps) {
+            print(" - ", t);
+        }
+    };
+
+    if (list_psfs) {
+        display_psf_list();
+        return 0;
+    }
 
     if (out.empty() || psf_file.empty() || (astro.empty() && !is_finite(aspix))) {
         print_help();
         return 0;
-    }
-
-    std::string out_base = file::remove_extension(out);
-    if (ends_width(out, "-noise")) {
-        out_base = erase_end(out, "-noise");
     }
 
     if (!file::exists(psf_file)) {
@@ -61,15 +73,13 @@ int main(int argc, char* argv[]) {
     }
     if (!file::exists(psf_file)) {
         error("the PSF file '"+psf_file+"' could not be found");
-
-        note("available default PSFs:");
-        vec1s tmps = file::list_files(egg_share_dir+"psfs/*.fits");
-        inplace_sort(tmps);
-        for (auto t : tmps) {
-            print(" - ", t);
-        }
-
+        display_psf_list();
         return 1;
+    }
+
+    std::string out_base = file::remove_extension(out);
+    if (ends_width(out, "-noise")) {
+        out_base = erase_end(out, "-noise");
     }
 
     auto seed = make_seed(tseed);
@@ -272,8 +282,8 @@ void print_help() {
     argdoc("out", "[string]", "name of the file into which the noise map will be saved.");
     argdoc("psf", "[string]", "name of the file containing the PSF. Note that, "
         "if the provided file does not exists, the program will also search in the list "
-        "of the pre-built templates provided with EGG ("+egg_share_dir+
-        "/psfs) for a file with the same name, and use it if it exists.");
+        "of the default PSFs provided with EGG ("+egg_share_dir+
+        "/psfs) for a file with the same name, and use it if it exists.")
     argdoc("astro", "[string]", "name of an existing FITS file from which the astrometry "
         "should be copied. The alternative is to specify the pixel scale (see below).");
     argdoc("aspix", "[double, arcsec/pixel]", "if 'astro' is not provided, one can also "
@@ -301,5 +311,7 @@ void print_help() {
     argdoc("make_err", "[flag]", "if set, save an RMS map (\"[out]-err.fits\").");
     argdoc("verbose", "[flag]", "print additional information in the standard output while "
         "the program is running (default: false)");
+    argdoc("list_psfs", "[flag]", "display a list of all the default PSFs provided with EGG "
+        "and exit");
     print("");
 }

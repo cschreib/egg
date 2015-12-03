@@ -32,6 +32,8 @@ int main(int argc, char* argv[]) {
     bool extpsf = false;
     // Output the map in single precision instead of double precision
     bool cfloat = false;
+    // Display the list of default available PSFs
+    bool list_psfs = false;
     // Print some text on the console.
     bool verbose = false;
 
@@ -42,9 +44,23 @@ int main(int argc, char* argv[]) {
 
     read_args(argc, argv, arg_list(
         out, name(psf_file, "psf"), noise_map, band, beam_smoothed, smooth_fwhm,
-        verbose, no_source, no_subpixel, flux_factor, zero_mean,
+        verbose, no_source, no_subpixel, flux_factor, zero_mean, list_psfs,
         name(extpsf, "extend_psf"), name(cfloat, "float"), name(cat_file, "cat")
     ));
+
+    auto display_psf_list = [&]() {
+        note("available default PSFs:");
+        vec1s tmps = file::list_files(egg_share_dir+"psfs/*.fits");
+        inplace_sort(tmps);
+        for (auto t : tmps) {
+            print(" - ", t);
+        }
+    };
+
+    if (list_psfs) {
+        display_psf_list();
+        return 0;
+    }
 
     if (out.empty() || psf_file.empty() || noise_map.empty()) {
         print_help();
@@ -56,14 +72,7 @@ int main(int argc, char* argv[]) {
     }
     if (!file::exists(psf_file)) {
         error("the PSF file '"+psf_file+"' could not be found");
-
-        note("available default PSFs:");
-        vec1s tmps = file::list_files(egg_share_dir+"psfs/*.fits");
-        inplace_sort(tmps);
-        for (auto t : tmps) {
-            print(" - ", t);
-        }
-
+        display_psf_list();
         return 1;
     }
 
@@ -249,7 +258,7 @@ void print_help() {
         "of this program depends greatly on the dimensions of this PSF image. Avoid using "
         "large PSF images unless you have very bright sources in the catalog. Note that, "
         "if the provided file does not exists, the program will also search in the list "
-        "of the pre-built templates provided with EGG ("+egg_share_dir+
+        "of the default PSFs provided with EGG ("+egg_share_dir+
         "/psfs) for a file with the same name, and use it if it exists.");
     argdoc("noise_map", "[string]", "name of the file containing the noise map (e.g, "
         "created by egg-gennoise)");
@@ -281,5 +290,7 @@ void print_help() {
         "apply the pixel conversion and beam smoothing (default: false)");
     argdoc("verbose", "[flag]", "print additional information in the standard output while "
         "the program is running (default: false)");
+    argdoc("list_psfs", "[flag]", "display a list of all the default PSFs provided with EGG "
+        "and exit");
     print("");
 }
