@@ -463,9 +463,10 @@ void print_help() {
     };
 
     print("egg-2skymaker v1.0rc1");
-    print("usage: egg-2skymaker cat.fits [parameters and options]\n");
+    print("usage: egg-2skymaker cat=... band=... template=... [options]\n");
 
     print("List of mandatory parameters (no default):");
+    argdoc("cat", "[string]", "path to the mock catalog (FITS table)");
     argdoc("band", "[string]", "name of the photometric band for which a SkyMaker "
         "input catalg will be created");
     argdoc("template", "[string]", "path to a template SkyMaker configuration file. "
