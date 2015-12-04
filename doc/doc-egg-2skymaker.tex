@@ -49,8 +49,8 @@ Once the pixel scale and the PSF are defined in the \skymaker configuration file
     (S_\nu [\uJy]) = (S_\nu [{\rm map}]) \times 10^{0.4\,(23.9 - \bashinline{MAG_ZEROPOINT})}\,. \nonumber
 \end{equation}
 \item \bashinline{EXPOSURE_TIME}: as the name suggests, this is the exposure time (in seconds) of the image, often given in the survey papers.
-\item \bashinline{GAIN}: sets the conversion factor from electrons/seconds to map units. If you cannot figure out this value, set it to one.
-\item \bashinline{BACK_MAG}: this is the background surface brightness, which must be given in ``magnitudes per arcsec$^2$''. Together with the exposure time, this value defines the amplitude of the background Poissonian noise.
+\item \bashinline{GAIN}: sets the conversion factor from map units to electrons/seconds. If you cannot figure out this value, set it to one. As long as you use the same value to estimate the background surface brightness (see below), the actual value does not matter.
+\item \bashinline{BACK_MAG}: this is the background surface brightness, which must be given in AB magnitude within on arcsec$^2$. Together with the exposure time, this value defines the amplitude of the background Poissonian noise.
 \item \bashinline{READOUT_NOISE}: the amplitude of the Gaussian noise created by the read-out of the detector, given in electrons. For deep background-dominated images, this can be neglected and set to zero.
 \end{itemize}
 
@@ -62,6 +62,18 @@ The trick is that \bashinline{BACK_MAG} is unknown and must be estimated indirec
 \item Use the analysis tools to measure the standard deviation of the pixel values within this circle. I will call this value \bashinline{RMS}.
 \item Assuming that all the noise in the image is Poissonian, the background surface brightness is given by:
 \begin{equation}
-    \bashinline{BACK_MAG} = -2.5\times\log_{10}(\bashinline{EXPOSURE_TIME} \times (\bashinline{RMS}/\bashinline{GAIN})^2/\bashinline{PIXEL_SIZE}^2) + \bashinline{MAG_ZEROPOINT} \nonumber
+    \bashinline{BACK_MAG} = -2.5\times\log_{10}(\bashinline{EXPOSURE_TIME}\times\bashinline{GAIN} \times \bashinline{RMS}^2/\bashinline{PIXEL_SIZE}^2) + \bashinline{MAG_ZEROPOINT} \nonumber
 \end{equation}
 \end{itemize}
+
+\subsubsection{Unit of the \skymaker images}
+
+\skymaker produces the images with pixel values in ADU, i.e., number of electrons divided by the gain. The image also includes the absolute background level from the sky. This is uncommon: most often, images are provided in ADU/seconds and with the sky subtracted by construction. You can correct for that yourself as a post-processing step, since you know the sky surface brightness (see previous section) and the exposure time.
+
+To make it more convenient, \egg provides a simple tool to do just that: \bashinline{egg-postskymaker}. It reads all the necessary information from the \skymaker configuration file and performs the steps described above (conversion from ADU to ADU/seconds and background subtraction). The usage is very simple:
+\begin{bashcode}
+egg-postskymaker conf=egg-f160w-sky.conf
+\end{bashcode}
+And that's it. It reads the image filename directly from the configuration file, and overwrites the original image.
+
+In addition, this tool also takes care of setting the FITS keywords \bashinline{BUNIT}, \bashinline{MAGZERO}, \bashinline{FLUXCONV}, \bashinline{GAIN} and \bashinline{EXPTIME} (set to $1$ since the image is the number of ADU in one second).
