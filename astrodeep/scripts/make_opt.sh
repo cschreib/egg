@@ -31,6 +31,25 @@ egg-2skymaker cat=$CATALOG $I2SKY_OPTIONS band=hst-f160w \
     template=goodss-hst-f160w.conf
 
 for SKYCAT in $SKYDIR/$CATBASE-f160w*.cat; do
-    sky $SKYCAT -c $(dirname $SKYCAT)/$(basename $SKYCAT .cat)-sky.conf
+    SKYCONF=$(dirname $SKYCAT)/$(basename $SKYCAT .cat)-sky.conf
+    sky $SKYCAT -c $SKYCONF
+    egg-postskymaker conf=$SKYCONF
+    rm $MAPDIR/$(basename $SKYCAT .cat)-sci.list
+done
+
+
+echo "-----------------------------"
+echo "      Spitzer IRAC ch2       "
+echo "-----------------------------"
+
+egg-2skymaker cat=$CATALOG $I2SKY_OPTIONS band=spitzer-irac2 \
+    out=$SKYDIR/$CATBASE-irac2.cat \
+    img_dir=$MAPDIR \
+    template=goodss-spitzer-irac2.conf
+
+for SKYCAT in $SKYDIR/$CATBASE-irac2*.cat; do
+    SKYCONF=$(dirname $SKYCAT)/$(basename $SKYCAT .cat)-sky.conf
+    sky $SKYCAT -c $SKYCONF
+    egg-postskymaker conf=$SKYCONF
     rm $MAPDIR/$(basename $SKYCAT .cat)-sci.list
 done
