@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    if (out.empty() || psf_file.empty() || (astro.empty() && !is_finite(aspix))) {
+    if (cat_file.empty() || out.empty() || psf_file.empty() || (astro.empty() && !is_finite(aspix))) {
         print_help();
         return 0;
     }

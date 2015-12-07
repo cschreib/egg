@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    if (out.empty() || psf_file.empty() || noise_map.empty()) {
+    if (cat_file.empty() || out.empty() || psf_file.empty() || noise_map.empty()) {
         print_help();
         return 0;
     }

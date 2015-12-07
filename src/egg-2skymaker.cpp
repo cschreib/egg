@@ -52,6 +52,10 @@ int main(int argc, char* argv[]) {
 
     // Check for missing mandatory parameters
     bool bad = false;
+    if (cat_file.empty()) {
+        error("missing input catalog file (cat=...)");
+        bad = true;
+    }
     if (band.empty()) {
         error("missing band ID (band=...)");
         bad = true;
