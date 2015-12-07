@@ -31,12 +31,14 @@ int main(int argc, char* argv[]) {
     bool make_cov = false;
     // Also build an error map ("file-err.fits")
     bool make_err = false;
-    // Save the distance map (debug purposes, "file-dist.fits")
-    bool save_dist = false;
+    // Save maps with double precision
+    bool tdouble = false;
     // Display the list of default available PSFs
     bool list_psfs = false;
     // Print some text on the console.
     bool verbose = false;
+    // Save the distance map (debug purposes, "file-dist.fits")
+    bool save_dist = false;
 
     if (argc < 2) {
         print_help();
@@ -46,7 +48,7 @@ int main(int argc, char* argv[]) {
     read_args(argc, argv, arg_list(
         name(tseed, "seed"), out, name(psf_file, "psf"), astro, aspix, rms, beam_smoothed,
         smooth_fwhm, list_psfs, verbose, make_err, make_cov, clip_borders, save_dist,
-        name(cat_file, "cat")
+        name(cat_file, "cat"), name(tdouble, "double")
     ));
 
     auto display_psf_list = [&]() {
@@ -80,8 +82,8 @@ int main(int argc, char* argv[]) {
     file::mkdir(file::get_directory(out));
 
     std::string out_base = file::remove_extension(out);
-    if (end_with(out, "-noise")) {
-        out_base = erase_end(out, "-noise");
+    if (end_with(out_base, "-noise")) {
+        out_base = erase_end(out_base, "-noise");
     }
 
     auto seed = make_seed(tseed);
@@ -125,7 +127,7 @@ int main(int argc, char* argv[]) {
     // Read astrometry
     if (verbose) note("configure astrometry...");
 
-    vec2f noise;
+    vec2d noise;
     fits::header hdr; {
         if (astro.empty()) {
             // From parameters
@@ -240,18 +242,31 @@ int main(int argc, char* argv[]) {
 
     // Save noise map
     if (verbose) note("write map to disk...");
-    fits::write(out, noise, hdr);
+    if (tdouble) {
+        fits::write(out, noise, hdr);
+    } else {
+        fits::write(out, vec2f{noise}, hdr);
+    }
+
 
     if (make_err) {
         // Build and save error map
         noise[idin] = rms;
-        fits::write(out_base+"-err.fits", noise, hdr);
+        if (tdouble) {
+            fits::write(out_base+"-err.fits", noise, hdr);
+        } else {
+            fits::write(out_base+"-err.fits", vec2f{noise}, hdr);
+        }
     }
 
     if (make_cov) {
         // Build and save coverage map
         noise[idin] = 1.0;
-        fits::write(out_base+"-cov.fits", noise, hdr);
+        if (tdouble) {
+            fits::write(out_base+"-cov.fits", noise, hdr);
+        } else {
+            fits::write(out_base+"-cov.fits", vec2f{noise}, hdr);
+        }
     }
 
     if (verbose) note("done.");
@@ -311,6 +326,8 @@ void print_help() {
         "are present, but some galaxies will be clipped out.");
     argdoc("make_cov", "[flag]", "if set, save a coverage map (\"[out]-cov.fits\").");
     argdoc("make_err", "[flag]", "if set, save an RMS map (\"[out]-err.fits\").");
+    argdoc("double", "[flag]", "write maps on the disk with double precision (default: "
+        "use single precision)");
     argdoc("verbose", "[flag]", "print additional information in the standard output while "
         "the program is running (default: false)");
     argdoc("list_psfs", "[flag]", "display a list of all the default PSFs provided with EGG "
