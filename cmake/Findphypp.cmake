@@ -78,10 +78,12 @@ if(NOT PHYPP_FOUND)
     endif()
 
     # find required libraries
-    find_package(CFITSIO)
+    find_package(CFITSIO REQUIRED)
+    find_package(Threads REQUIRED)
 
     set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIRS} ${CFITSIO_INCLUDES})
     set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${CFITSIO_LIBRARIES})
+    set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
     # find optional libraries
     find_package(GSL)
