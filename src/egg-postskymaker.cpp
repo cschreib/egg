@@ -63,9 +63,10 @@ int main(int argc, char* argv[]) {
 
     // Read command line arguments
     std::string config_file;
+    double background = 0.0;
 
     read_args(argc, argv, arg_list(
-        name(config_file, "conf")
+        name(config_file, "conf"), background
     ));
 
     // Read template SkyMaker configuration file
@@ -100,7 +101,7 @@ int main(int argc, char* argv[]) {
     img /= exposure;
 
     // Background subtraction
-    img -= e10(0.4*(magzp - bgmag))*sqr(aspix);
+    img += background - e10(0.4*(magzp - bgmag))*sqr(aspix);
 
     // Write back the post-processed image
     img_fits.update(img);

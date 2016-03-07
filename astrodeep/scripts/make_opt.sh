@@ -50,6 +50,6 @@ egg-2skymaker cat=$CATALOG $I2SKY_OPTIONS band=spitzer-irac2 \
 for SKYCAT in $SKYDIR/$CATBASE-irac2*.cat; do
     SKYCONF=$(dirname $SKYCAT)/$(basename $SKYCAT .cat)-sky.conf
     sky $SKYCAT -c $SKYCONF
-    egg-postskymaker conf=$SKYCONF
+    egg-postskymaker conf=$SKYCONF background=-0.0029
     rm $MAPDIR/$(basename $SKYCAT .cat)-sci.list
 done
