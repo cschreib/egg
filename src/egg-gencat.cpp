@@ -1298,7 +1298,7 @@ if (!no_flux) {
     out.rfmag_bulge.resize(ngal, rfbands.size());
 
     if (verbose) {
-        note("computing fluxes ", (rffilters.empty() ? "" : "and absolute magnitudes"), "...");
+        note("computing fluxes", (rffilters.empty() ? "" : " and absolute magnitudes"), "...");
     }
 
     if (file::get_basename(ir_lib_file) == "ir_lib_cs15.fits") {
