@@ -372,7 +372,7 @@ int main(int argc, char* argv[]) {
         vec1f bulge_angle, bulge_radius, bulge_ratio;
         vec1f bt, m_disk, m_bulge;
 
-        vec1f tdust, fpah, mdust;
+        vec1f tdust, ir8, fpah, mdust;
 
         vec1b passive;
 
@@ -1230,23 +1230,28 @@ if (!no_flux) {
         note("generate IR properties...");
     }
 
-    // Tdust and f_PAH as observed in stacks and detections of Herschel galaxies
+    // Tdust and IR8 as observed in stacks and detections of Herschel galaxies
     out.tdust.resize(ngal);
-    out.fpah.resize(ngal);
+    out.ir8.resize(ngal);
 
-    out.tdust = min(20.2*pow(1.0+out.z, 0.44), 26.3*pow(1.0+out.z, 0.20))
+    out.tdust = 4.65*(out.z-2.0) + 31.0
         // Starbursts are warmer
         + 6.6*out.rsb
         // Add some random scatter
-        + 3.0*randomn(seed, ngal);
+        + 3.0*randomn(seed, ngal)
+        // Massive galaxies are colder (= downfall of SFE)
+        - 1.5*min(0.0, out.z-2.0)*clamp(out.m - 10.7, 0.0, 1.0);
 
-    out.fpah = (0.04 + 0.035*(1.0-0.85*clamp(out.z, 1.0, 2.0)))
-        // Starburst have weaker PAH
-        *e10(-0.47*max(1.0, out.rsb))
+    out.ir8 = (1.95*min(0.0, out.z - 2.0) + 7.73)
+        // Starburst have larger IR8
+        *e10(0.43*max(0.0, out.rsb))
         // Add some random scatter
-        *e10(0.2*randomn(seed, ngal));
+        *e10(0.1*randomn(seed, ngal))
+        // Low-mass galaxies have larger IR8
+        *e10(-1.8*clamp(out.m - 10.0, -1, 0.0));
 
-    out.fpah = clamp(out.fpah, 0.0, 1.0);
+    out.ir8 = clamp(out.ir8, 0.48, 22.8); // range allowed by IR library
+    out.fpah = 0.267/(out.ir8 - 0.217) - 0.0118;
 
     out.lir = out.sfrir/1.72e-10;
     vec1u idb = where(!is_finite(out.lir));
@@ -1487,7 +1492,7 @@ if (!no_flux) {
         out.rfuv_bulge, out.rfuv_disk, out.rfvj_bulge, out.rfvj_disk,
         out.sfrir, out.sfruv, out.irx, out.lir, out.ir_sed,
         out.opt_sed_bulge, out.opt_sed_disk,
-        out.tdust, out.fpah, out.mdust,
+        out.tdust, out.ir8, out.fpah, out.mdust,
         out.zb, out.cmd
     ));
 
