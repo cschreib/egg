@@ -57,6 +57,8 @@ int main(int argc, char* argv[]) {
     bool no_flux = false;        // do not generate fluxes
     bool no_stellar = false;     // do not generate fluxes from stellar origin
     bool no_dust = false;        // do not generate fluxes from dust origin
+    bool no_random = false;      // disable all randomization of parameters
+                                 // (just passive, M*, z, and position + pos angle)
 
     // Save the full spectrum of each galaxy to a file
     // Warning: the current implementation will consume a lot of RAM memory
@@ -113,8 +115,8 @@ int main(int argc, char* argv[]) {
     read_args(argc, argv, arg_list(
         ra0, dec0, area, mmin, maglim, zmin, zmax, name(bin_dz, "dz"), min_dz,
         name(bin_dm, "dm"), ms_disp,
-        no_pos, no_clust, no_flux, no_stellar, no_dust, no_passive_lir, save_sed,
-        name(mass_func_file, "mass_func"),
+        no_pos, no_clust, no_flux, no_stellar, no_dust, no_passive_lir, no_random,
+        save_sed, name(mass_func_file, "mass_func"),
         name(ir_lib_file, "ir_lib"), name(opt_lib_file, "opt_lib"),
         name(out_file, "out"), name(filter_db_file, "filter_db"),
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
@@ -996,13 +998,15 @@ int main(int argc, char* argv[]) {
     // Calibrated from Lang et al. (2014), assuming no redshift evolution
     out.bt.resize(ngal);
 
-    out.bt[ida] = clamp(
-        e10(0.27*(out.m[ida] - 10.0) - 0.7 + 0.2*randomn(seed, nactive)), 0.0, 1.0
-    );
+    out.bt[ida] = e10(0.27*(out.m[ida] - 10.0) - 0.7);
+    out.bt[idp] = e10(0.1*(out.m[idp] - 10.0) - 0.3);
 
-    out.bt[idp] = clamp(
-        e10(0.1*(out.m[idp] - 10.0) - 0.3 + 0.2*randomn(seed, npassive)), 0.0, 1.0
-    );
+    // Add random scatter
+    if (!no_random) {
+        out.bt *= e10(0.2*randomn(seed, ngal));
+    }
+
+    out.bt = clamp(out.bt, 0.0, 1.0);
 
     out.m_bulge = out.m + log10(out.bt);
     vec1u idnf = where(!is_finite(out.m_bulge));
@@ -1032,8 +1036,11 @@ int main(int argc, char* argv[]) {
         {0.0, 0.0,  165.0, 428.0, 773.0, 914.0, 1069.0, 1191.0, 1154.0, 1067.0, 639.0, 450.0};
     out.bulge_ratio = random_pdf(seed, bulge_ratio_x, bulge_ratio_p, ngal);
 
-    out.bulge_radius = 8.0*e10(-1.3*log10(1.0+out.z) + 0.56*(out.m - 11.25)
-        + 0.2*randomn(seed, ngal));
+    out.bulge_radius = 8.0*e10(-1.3*log10(1.0+out.z) + 0.56*(out.m - 11.25));
+
+    if (!no_random) {
+        out.bulge_radius *= e10(0.2*randomn(seed, ngal));
+    }
 
     // Calibration from n<1.5 galaxies and M* > 9.0
     vec1f disk_ratio_x =
@@ -1046,13 +1053,19 @@ int main(int argc, char* argv[]) {
     double zmid = 1.7;
     vec1u idhz = where(out.z > zmid);
     fz[idhz] = -0.7*log10((1.0 + out.z[idhz])/(1.0 + zmid)) - 0.3*log10(1.0 + zmid);
-    out.disk_radius = 2.8*e10(fz + 0.2*(out.m - 9.35)
-        + 0.25*randomn(seed, ngal));
+    out.disk_radius = 2.8*e10(fz + 0.2*(out.m - 9.35));
+
+    if (!no_random) {
+        out.disk_radius *= e10(0.25*randomn(seed, ngal));
+    }
 
     // Use similar size for bulges of disk-dominated galaxies
     vec1u idd = where(out.bt < 0.5);
-    out.bulge_radius[idd] = 2.8*e10(fz[idd] + 0.2*(out.m[idd] - 9.35)
-        + 0.25*randomn(seed, idd.size()));
+    out.bulge_radius[idd] = 2.8*e10(fz[idd] + 0.2*(out.m[idd] - 9.35));
+
+    if (!no_random) {
+        out.bulge_radius[idd] *= e10(0.25*randomn(seed, idd.size()));
+    }
 
     vec1d psize = propsize(out.z, cosmo);
     out.disk_radius /= psize;
@@ -1075,18 +1088,18 @@ int main(int argc, char* argv[]) {
 
         out.sfr[ida] = sfrms[ida];
 
-        // Add dispersion
-        out.sfr[ida] += ms_disp*randomn(seed, nactive);
-
-        // Add starbursts
-        vec1u idsb = where(random_coin(seed, 0.033, nactive));
-        out.sfr[ida[idsb]] += 0.72;
-
         // Passive galaxies
         out.sfr[idp] = min(sfrms[idp], 0.5*(out.m[idp] - 11) + az[idp] - 0.6);
 
-        // Add dispersion
-        out.sfr[idp] += 0.4*randomn(seed, npassive);
+        if (!no_random) {
+            // Add dispersion
+            out.sfr[ida] += ms_disp*randomn(seed, nactive);
+            out.sfr[idp] += 0.4*randomn(seed, npassive);
+
+            // Add starbursts
+            vec1u idsb = where(random_coin(seed, 0.033, nactive));
+            out.sfr[ida[idsb]] += 0.72;
+        }
 
         // Compute RSB and get final SFR in linear units
         out.rsb = out.sfr - sfrms;
@@ -1102,7 +1115,11 @@ int main(int argc, char* argv[]) {
         double airx = 1.2;
         double ss = 0.45, so = 0.35;
         vec1f slope = ss*min(out.z, 3.0) + so;
-        out.irx = e10(slope*(out.m - am) + airx + 0.4*randomn(seed, ngal));
+        out.irx = e10(slope*(out.m - am) + airx);
+
+        if (!no_random) {
+            out.irx *= e10(0.4*randomn(seed, ngal));
+        }
 
         if (no_passive_lir) {
             out.irx[idp] = 0.0;
@@ -1119,32 +1136,50 @@ int main(int argc, char* argv[]) {
     out.rfuv_disk.resize(ngal);
     out.rfuv_bulge.resize(ngal);
 
-    auto gen_blue = [&seed](const vec1f& m, const vec1f& z, vec1f& uv, vec1f& vj) {
+    auto gen_blue = [&seed,no_random](const vec1f& m, const vec1f& z, vec1f& uv, vec1f& vj) {
         // Calibrate "UVJ vector" from mass and redshift
         vec1f a0 = 0.58*erf(m-10) + 1.39;
         vec1f as = -0.34 + 0.3*max(m-10.35, 0.0);
         vec1f a = min(a0 + as*z, 2.0);
-        vec1d rnd_amp = 0.3*clamp(z-1.0, 0, 1)*clamp(1.0 - abs(m - 10.3), 0, 1)
-            + 0.1 + 0.05*clamp(z-1.0, 0, 1);
-        a += rnd_amp*randomn(seed, m.size());
+
+        if (!no_random) {
+            vec1d rnd_amp = 0.3*clamp(z-1.0, 0, 1)*clamp(1.0 - abs(m - 10.3), 0, 1) + 0.1 + 0.05*clamp(z-1.0, 0, 1);
+            a += rnd_amp*randomn(seed, m.size());
+        }
 
         // Move in the UVJ diagram according to the UVJ vector
         double slope = 0.65;
         double theta = atan(slope);
-        vj = 0.0  + a*cos(theta) + 0.12*randomn(seed, m.size());
-        uv = 0.45 + a*sin(theta) + 0.12*randomn(seed, m.size());
+        vj = 0.0  + a*cos(theta);
+        uv = 0.45 + a*sin(theta);
+
+        if (!no_random) {
+            vj += 0.12*randomn(seed, m.size());
+            uv += 0.12*randomn(seed, m.size());
+        }
 
         // Add an additional global color offset depending on redshift
         uv += 0.4*max((0.5 - z)/0.5, 0.0);
         vj += 0.2*max((0.5 - z)/0.5, 0.0);
     };
 
-    auto gen_red = [&seed](const vec1f& m, const vec1f& z, vec1f& uv, vec1f& vj) {
+    auto gen_red = [&seed,no_random](const vec1f& m, const vec1f& z, vec1f& uv, vec1f& vj) {
         double pvj = 1.25, puv = 1.85;
-        vec1f mspread = clamp(0.1*(m - 11.0) + 0.1*randomn(seed, m.size()), -0.1, 0.2);
+        vec1f mspread = 0.1*(m - 11.0);
 
-        vj = pvj + mspread      + 0.1*randomn(seed, m.size());
-        uv = puv + mspread*0.88 + 0.1*randomn(seed, m.size());
+        if (!no_random) {
+            mspread += 0.1*randomn(seed, m.size());
+        }
+
+        mspread = clamp(mspread, -0.1, 0.2);
+
+        vj = pvj + mspread;
+        uv = puv + mspread*0.88;
+
+        if (!no_random) {
+            vj += 0.1*randomn(seed, m.size());
+            uv += 0.1*randomn(seed, m.size());
+        }
 
         // Add an additional global color offset depending on redshift
         uv += 0.4*max((0.5 - z)/0.5, 0.0);
@@ -1157,7 +1192,10 @@ int main(int argc, char* argv[]) {
     // Bulges of bulge-dominated galaxies are always red
     // Other bulges have a 50% chance of being red
     {
-        vec1b red_bulge = out.bt > 0.6 || random_coin(seed, 0.5, ngal);
+        vec1b red_bulge = out.bt > 0.6;
+        if (!no_random) {
+            red_bulge = red_bulge || random_coin(seed, 0.5, ngal);
+        }
 
         vec1f tuv, tvj;
         vec1u idb = where(red_bulge);
@@ -1237,18 +1275,20 @@ if (!no_flux) {
     out.tdust = 4.65*(out.z-2.0) + 31.0
         // Starbursts are warmer
         + 6.6*out.rsb
-        // Add some random scatter
-        + 3.0*randomn(seed, ngal)
         // Massive galaxies are colder (= downfall of SFE)
         - 1.5*min(0.0, out.z-2.0)*clamp(out.m - 10.7, 0.0, 1.0);
 
     out.ir8 = (1.95*min(0.0, out.z - 2.0) + 7.73)
         // Starburst have larger IR8
         *e10(0.43*max(0.0, out.rsb))
-        // Add some random scatter
-        *e10(0.1*randomn(seed, ngal))
         // Low-mass galaxies have larger IR8
         *e10(-1.8*clamp(out.m - 10.0, -1, 0.0));
+
+    if (!no_random) {
+        // Add some random scatter
+        out.tdust += 3.0*randomn(seed, ngal);
+        out.ir8 *= e10(0.1*randomn(seed, ngal));
+    }
 
     out.ir8 = clamp(out.ir8, 0.48, 22.8); // range allowed by IR library
     out.fpah = 0.267/(out.ir8 - 0.217) - 0.0118;
@@ -1568,6 +1608,8 @@ void print_help() {
     argdoc("no_pos", "[flag]", "do not generate galaxy positions on the sky");
     argdoc("no_clust", "[flag]", "do not generate clustering in galaxy positions");
     argdoc("no_flux", "[flag]", "do not generate fluxes");
+    argdoc("no_random", "[flag]", "disable most randomization in the simulation, and use "
+        "fully deterministic recipes");
     print("");
 
     print("List of sky position related options:");
