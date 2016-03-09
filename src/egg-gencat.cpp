@@ -201,7 +201,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    if (zmin == 0.0) {
+    if (zmin <= 0.0) {
         error("minimum redshift must be > 0 (zmin=...)");
         return 1;
     }
