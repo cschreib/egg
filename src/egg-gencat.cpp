@@ -433,6 +433,14 @@ int main(int argc, char* argv[]) {
             );
         }
 
+        // Verify input
+        uint_t nbad = count(out.z <= 0 || out.m <= 4 || out.m > 13);
+        if (nbad != 0) {
+            error("input catalog contains ", nbad, " unphysical galax", (nbad == 1 ? "y" : "ies"));
+            note("must have z > 0 and 4 < m < 13");
+            return 1;
+        }
+
         if (verbose) {
             note("found ", out.z.size(), " galaxies");
         }
