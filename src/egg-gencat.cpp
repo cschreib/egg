@@ -194,9 +194,10 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    if (!(is_finite(maglim) && !selection_band.empty()) && !is_finite(mmin)) {
+    if (!(is_finite(maglim) && !selection_band.empty()) && !is_finite(mmin) && input_cat_file.empty()) {
         error("please specify either the minimum stellar mass (mmin=...), or a magnitude "
-            "limit (maglim=..., selection_band=...)");
+            "limit (maglim=..., selection_band=...), or provide an input catalog with "
+            "galaxy redshifts, masses, UVJ flag and positions (input_cat=...)");
         note("type 'egg-gencat help' for more information");
         return 1;
     }
