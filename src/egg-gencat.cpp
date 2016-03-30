@@ -428,7 +428,24 @@ int main(int argc, char* argv[]) {
                 out.id = uindgen(out.ra.size());
             }
 
-            tbl.read_columns(fits::narrow, ftable(out.ra, out.dec, out.z, out.m, out.passive));
+            tbl.read_columns(fits::narrow, ftable(
+                out.ra, out.dec, out.z, out.m, out.passive
+            ));
+
+            tbl.read_columns(fits::missing, ftable(
+                out.lir, out.tdust, out.ir8
+            ));
+
+            if (verbose) {
+                vec1s found;
+                if (!out.lir.empty())   found.push_back("LIR");
+                if (!out.tdust.empty()) found.push_back("Tdust");
+                if (!out.ir8.empty())   found.push_back("IR8");
+
+                if (!found.empty()) {
+                    note("found user provided values for "+collapse(found, ", ")+" in the input catalog");
+                }
+            }
         } else {
             file::read_table(input_cat_file, file::find_skip(input_cat_file),
                 out.id, out.ra, out.dec, out.z, out.m, out.passive
@@ -1080,11 +1097,12 @@ int main(int argc, char* argv[]) {
     out.sfr.resize(ngal);
     out.rsb.resize(ngal);
 
+    vec1f sfrms;
+
     {
         // Active galaxies
         vec1f az = log10(1.0 + out.z);
-        vec1f sfrms = out.m - 9.67 + 1.82*az
-            - 0.38*sqr(max(0.0, out.m - 9.59 - 2.22*az));
+        sfrms = out.m - 9.67 + 1.82*az - 0.38*sqr(max(0.0, out.m - 9.59 - 2.22*az));
 
         out.sfr[ida] = sfrms[ida];
 
@@ -1269,8 +1287,9 @@ if (!no_flux) {
     }
 
     // Tdust and IR8 as observed in stacks and detections of Herschel galaxies
-    out.tdust.resize(ngal);
-    out.ir8.resize(ngal);
+    vec1f olir = out.lir;
+    vec1f oir8 = out.ir8;
+    vec1f otdust = out.tdust;
 
     out.tdust = 4.65*(out.z-2.0) + 31.0
         // Starbursts are warmer
@@ -1290,12 +1309,66 @@ if (!no_flux) {
         out.ir8 *= e10(0.1*randomn(seed, ngal));
     }
 
+    out.lir = out.sfrir/1.72e-10;
+
+    // Function to update a source's properties if its LIR is changed
+    auto update_properties = [&out,&sfrms](uint_t id) {
+        out.sfrir[id] = out.lir[id]*1.72e-10;
+        out.sfr[id] = out.sfruv[id] + out.sfrir[id];
+        out.irx[id] = out.sfrir[id]/out.sfruv[id];
+        double orsb = out.rsb[id];
+        out.rsb[id] = log10(out.sfr[id]) - sfrms[id];
+        out.tdust[id] += 6.6*(out.rsb[id] - orsb);
+        out.ir8[id] *= e10(0.43*(max(0.0, out.rsb[id]) - max(0.0, orsb)));
+    };
+
+    // Keep the values provided by the user in the input catalog (if any)
+    if (!olir.empty()) {
+        vec1u idg = where(is_finite(olir));
+
+        // For each provided LIR, find the source at a similar redshift and M* with
+        // the closest LIR, and give it the old LIR of the provided source.
+        // This preserves as much as possible the overall LIR distribution
+        for (uint_t i : idg) {
+            vec1u idl = where(abs(out.m[i] - out.m) < 0.3 &&
+                abs(out.z[i] - out.z)/(1.0 + out.z) < 0.1 &&
+                !is_finite(olir) && out.passive[i] == out.passive);
+
+            if (idl.empty()) {
+                // No one? Try loosening the constraints a little
+                idl = where(abs(out.m[i] - out.m) < 0.4 &&
+                    abs(out.z[i] - out.z)/(1.0 + out.z) < 0.2 &&
+                    !is_finite(olir) && out.passive[i] == out.passive);
+            }
+
+            if (idl.empty()) {
+                // Found one, give it the old LIR and adjust all its other
+                // properties to reflect this change
+                uint_t mid = min_id(abs(log10(olir[i]/out.lir[idl])));
+                out.lir[mid] = out.lir[i];
+                update_properties(mid);
+            }
+
+            out.lir[i] = olir[i];
+            update_properties(i);
+        }
+    }
+
+    if (!oir8.empty()) {
+        vec1u idg = where(is_finite(oir8));
+        out.ir8[idg] = oir8[idg];
+    }
+
+    if (!otdust.empty()) {
+        vec1u idg = where(is_finite(otdust));
+        out.tdust[idg] = otdust[idg];
+    }
+
+    // Make sure the values are valid
     out.ir8 = clamp(out.ir8, 0.48, 22.8); // range allowed by IR library
     out.fpah = 0.267/(out.ir8 - 0.217) - 0.0118;
+    out.lir[where(!is_finite(out.lir))] = 0.0;
 
-    out.lir = out.sfrir/1.72e-10;
-    vec1u idb = where(!is_finite(out.lir));
-    out.lir[idb] = 0.0;
 
     // Assign IR SED
     // -------------

@@ -208,6 +208,11 @@ cat = {
 pycolfits.writeto('input_cat.fits', cat, clobber=True)
 \end{pythoncode}
 
+Optionally, you can also provide your own values for the infrared luminosity ($\lir$, in solar luminosity $\lsun$), the $\ireight$ and $\tdust$ (in Kelvins) in the \texttt{lir}, \texttt{ir8} and \texttt{tdust} columns, respectively. Each of them can be provided independently, depending on which data you have at hands. To let the program randomly generate one of these quantities for a particular galaxy, set the value to NaN.
+
+If there are galaxies for which you provide the $\lir$, the program will adapt its recipes to match what is expected for galaxies of the chosen luminosity. For example, if you give a source a huge IR luminosity, it will be considered as a ``starburst'' and be given a higher dust temperature, among other things). Obviously, if you also provide the $\tdust$ and/or $\ireight$ for these galaxies, these values will be used instead.
+
+In addition, and in order to preserve the statistical quality of the simulated catalog, the program will automatically balance the $\lir$ of the \emph{other} galaxies for which you did not provide a $\lir$. More precisely, for each galaxy with a provided $\lir$, the program will search in the simulated catalog for an existing galaxy with similar properties (stellar mass, redshift and quiescent flag) and the closest $\lir$, and assign it the properties that would have been given to your galaxy if you had not given it your own $\lir$ value.
 
 \subsubsection{Choosing the survey position}
 
