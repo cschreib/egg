@@ -885,7 +885,7 @@ int main(int argc, char* argv[]) {
 
                         // Compute how many deeper levels we need to go with respect to
                         // rstart to reach the local density
-                        opt.levels = ceil(log(rho*dpi*sqr(rstart))/log(opt.eta));
+                        opt.levels = ceil(max(0, log(rho*dpi*sqr(rstart)))/log(opt.eta));
 
                         // Compute how many homogeneous starting positions we need
                         // above rstart
