@@ -92,7 +92,11 @@ int main(int argc, char* argv[]) {
         vec1d ra, dec;
     } cat;
 
-    fits::read_table(cat_file, ftable(cat.ra, cat.dec));
+    if (end_with(cat_file, ".fits")) {
+        fits::read_table(cat_file, ftable(cat.ra, cat.dec));
+    } else {
+        file::read_table(cat_file, file::find_skip(cat_file), cat.ra, cat.dec);
+    }
 
     // Read the PSF
     if (verbose) note("reading and normalizing PSF...");

@@ -86,33 +86,40 @@ int main(int argc, char* argv[]) {
         vec1s bands;
     } cat;
 
-    fits::input_table table(cat_file);
-    table.read_columns(ftable(cat.ra, cat.dec));
-    table.read_column(fits::dim_promote, "flux", cat.flux);
-
-    if (cat.flux.dims[1] > 1) {
-        table.read_column("bands", cat.bands);
-    } else {
-        table.read_column(fits::missing, "bands", cat.bands);
-    }
-
-    table.close();
-
-    // Find the band we are looking for
     uint_t idb;
-    if (cat.bands.empty() || (cat.bands.size() == 1 && band.empty())) {
-        idb = 0;
-    } else {
-        vec1u ids = where(cat.bands == band);
-        if (ids.empty()) {
-            warning("no band named '", band, "' in this catalog");
-            return 1;
-        } else if (ids.size() > 1) {
-            warning("multiple bands matching '", band, "'");
-            return 1;
+    if (end_with(cat_file, ".fits")) {
+        fits::input_table table(cat_file);
+        table.read_columns(ftable(cat.ra, cat.dec));
+        table.read_column(fits::dim_promote, "flux", cat.flux);
+
+        if (cat.flux.dims[1] > 1) {
+            table.read_column("bands", cat.bands);
+        } else {
+            table.read_column(fits::missing, "bands", cat.bands);
         }
 
-        idb = ids[0];
+        table.close();
+
+        // Find the band we are looking for
+        if (cat.bands.empty() || (cat.bands.size() == 1 && band.empty())) {
+            idb = 0;
+        } else {
+            vec1u ids = where(cat.bands == band);
+            if (ids.empty()) {
+                warning("no band named '", band, "' in this catalog");
+                return 1;
+            } else if (ids.size() > 1) {
+                warning("multiple bands matching '", band, "'");
+                return 1;
+            }
+
+            idb = ids[0];
+        }
+    } else {
+        file::read_table(cat_file, file::find_skip(cat_file),
+            cat.ra, cat.dec, file::columns(1,cat.flux));
+
+        idb = 0;
     }
 
     // Read the PSF
