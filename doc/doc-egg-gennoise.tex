@@ -12,7 +12,7 @@ The argument \bashinline{cat} gives the path to the mock catalog, while \bashinl
 
 Some common PSFs are provided with \egg. They are stored in the \bashinline{$INSTALL_ROOT_DIR/share/egg/psfs} folder (see the installation instructions if you don't know what \bashinline{$INSTALL_ROOT_DIR} is). If the program cannot find the PSF you provided in the current directory, it will each among these PSFs for a matching name. Use the \bashinline{list_psfs} argument to display a list of all the available PSFs.
 
-One the process is complete, this will create a new image containing just noise. The dimensions of the image are computed automatically from the provided pixel size and the area covered by the mock catalog so that no galaxy is truncated close to the border of the image. A padding of 5 times the full-width at half-maximum of the PSF is included to ensure that this is true. The resulting noise map contains the necessary WCS astrometry.
+Once the process is complete, this will create a new image containing just noise. The dimensions of the image are computed automatically from the provided pixel size and the area covered by the mock catalog, so that no galaxy is truncated close to the border of the image. A padding of 5 times the full-width at half-maximum of the PSF is included to ensure that this is true. The resulting noise map contains the necessary WCS astrometry.
 
 Once this noise map is created, we can use \bashinline{egg-genmap} to add the galaxies:
 \begin{bashcode}
@@ -22,7 +22,7 @@ egg-genmap cat=egg-20151201.fits out=pacs160-sci.fits \
 \end{bashcode}
 The values of \bashinline{cat} and \bashinline{psf} must be the same as in the previous step. This time, \bashinline{out} gives the name of the file into which the final image will be saved, while \bashinline{noise_map} must be set to the name of the noise map created by \bashinline{egg-gennoise}. Finally, \bashinline{band} sets the photometric band from which the flux of each galaxy will be drawn, and \bashinline{flux_factor} is the conversion factor from fluxes to map units.
 
-The flux conversion factor is strongly tied to the properties of the PSF file. If the PSF is normalized to unit peak flux, then it is the conversion between $\uJy/{\rm beam}$ to map units. Else, if the PSF is normalized to unit total flux (the sum of all pixels is equal to one), then it is the conversion between $\uJy/{\rm pixel}$ and map units. Be careful that, in this latter case, the aperture correction resulting from a truncated PSF need to be included in the conversion factor. In all cases, a galaxy is placed on the map following:
+The flux conversion factor is strongly tied to the properties of the PSF file. If the PSF is normalized to unit peak flux, then it is the conversion between $\uJy/{\rm beam}$ to map units. Else, if the PSF is normalized to unit total flux (the sum of all pixels is equal to one), then it is the conversion between $\uJy/{\rm pixel}$ and map units. Be careful that, in this latter case, the aperture correction resulting from a truncated PSF need to be included, either in the flux conversion factor or in the normalization of the PSF itself (the program will not renormalize it internally). In all cases, a galaxy is placed on the map following:
 \begin{equation}
 \cppinline{map[i,j]} \mathrel{+}= \cppinline{flux_factor} \times \cppinline{psf[i,j]} \times (S_{\nu}/\uJy) \nonumber
 \end{equation}
