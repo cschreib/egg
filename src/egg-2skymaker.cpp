@@ -7,7 +7,7 @@ void print_help();
 // SkyMaker pixel type (see PIXTYPE in skymaker/src/fits/fitscat.h)
 using SkyPixType = float;
 
-int main(int argc, char* argv[]) {
+int phypp_main(int argc, char* argv[]) {
     if (argc < 2) {
         print_help();
         return 1;

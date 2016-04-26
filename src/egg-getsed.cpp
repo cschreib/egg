@@ -2,7 +2,7 @@
 
 void print_help();
 
-int main(int argc, char* argv[]) {
+int phypp_main(int argc, char* argv[]) {
     uint_t id = npos;
     std::string component, seds, out;
     bool ascii = false;

@@ -55,7 +55,7 @@ bool sky_get_param(const sky_conf& conf, const std::string& param, T& value) {
     }
 }
 
-int main(int argc, char* argv[]) {
+int phypp_main(int argc, char* argv[]) {
     if (argc < 2) {
         print_help();
         return 1;
