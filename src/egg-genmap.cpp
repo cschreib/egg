@@ -4,7 +4,7 @@ const std::string egg_share_dir = file::directorize(EGG_SHARE_DIR);
 
 void print_help();
 
-int main(int argc, char* argv[]) {
+int phypp_main(int argc, char* argv[]) {
     // Name of the FITS table containing the mock catalog
     std::string cat_file;
     // Name of the output FITS file in which to store the map

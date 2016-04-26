@@ -4,7 +4,7 @@ const std::string egg_share_dir = file::directorize(EGG_SHARE_DIR);
 
 void print_help();
 
-int main(int argc, char* argv[]) {
+int phypp_main(int argc, char* argv[]) {
     // Random seed to use to generate the noise
     uint_t tseed = 42;
     // Name of the FITS table containing the mock catalog

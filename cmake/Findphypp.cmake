@@ -86,6 +86,8 @@ if(NOT PHYPP_FOUND)
     set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 
     # find optional libraries
+    find_package(LibUnwind)
+    find_package(LibDwarf)
     find_package(GSL)
     find_package(FFTW 3)
     find_package(GooglePerfTools)
@@ -126,6 +128,24 @@ if(NOT PHYPP_FOUND)
     else()
         set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIRS} ${FFTW_INCLUDES})
         set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${FFTW_LIBRARIES})
+    endif()
+
+    # handle conditional LibUnwind support
+    if (NOT LIBUNWIND_FOUND OR NO_LIBUNWIND)
+        set(NO_UNWIND 1)
+        add_definitions(-DNO_LIBUNWIND)
+    else()
+        set(NO_UNWIND 0)
+        set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIRS} ${LIBUNWIND_INCLUDE_DIR})
+        set(PHYPP_LIBRARIES ${LIBUNWIND_LIBRARIES})
+    endif()
+
+    # handle conditional LibDwarf support
+    if (NO_UNWIND OR NOT LIBDWARF_FOUND OR NO_LIBDWARF)
+        add_definitions(-DNO_LIBDWARF)
+    else()
+        set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIRS} ${LIBDWARF_INCLUDE_DIRS})
+        set(PHYPP_LIBRARIES ${LIBDWARF_LIBRARIES})
     endif()
 
     # handle conditional Google perftools support
