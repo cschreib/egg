@@ -137,7 +137,7 @@ if(NOT PHYPP_FOUND)
     else()
         set(NO_UNWIND 0)
         set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIRS} ${LIBUNWIND_INCLUDE_DIR})
-        set(PHYPP_LIBRARIES ${LIBUNWIND_LIBRARIES})
+        set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${LIBUNWIND_LIBRARIES})
     endif()
 
     # handle conditional LibDwarf support
@@ -145,7 +145,7 @@ if(NOT PHYPP_FOUND)
         add_definitions(-DNO_LIBDWARF)
     else()
         set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIRS} ${LIBDWARF_INCLUDE_DIRS})
-        set(PHYPP_LIBRARIES ${LIBDWARF_LIBRARIES})
+        set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${LIBDWARF_LIBRARIES})
     endif()
 
     # handle conditional Google perftools support
