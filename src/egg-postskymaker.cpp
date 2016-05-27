@@ -93,7 +93,7 @@ int phypp_main(int argc, char* argv[]) {
     // Now start the real job
     fits::image img_fits(img_file);
 
-    vec2d img;
+    vec2f img;
     img_fits.read(img);
 
     // ADU -> ADU/sec (/exposure)
