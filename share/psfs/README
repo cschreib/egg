@@ -27,11 +27,13 @@ Private communication
 Spitzer MIPS 24um
 =================
 
-The PSF was built by Magnelli et al. (2009) by empirically stacking isolated objects in the observed GOODS-South map. It is provided at the standard map resolution of 1.2"/pixel, and is normalized to unit integral since MIPS maps are traditionally expressed in Jy/pixel (or MJy/sr).
-
-Source:
-Private communication
- + Magnelli et al. (2009)
+The PSF was built using a analytic radial model fitted to a bright source in GOODS South (a Gaussian core plus a Gaussian ring) at 1.2"/pixel resolution. It is normalized to unit integral since MIPS images are usually in Jy/pixel (or MJy/sr). The model is:
+exp(-r^2/(2.0*p[0]^2)) + p[1]*exp(-(r-p[2])^2/(2.0*p[3]^2))
+r: distance from center in pixels
+p[0]: width of the core (1.952 pixels)
+p[1]: relative amplitude of the ring (0.0485)
+p[2]: distance of the ring from center (7.756 pixels)
+p[3]: width of the ring (1.222 pixels)
 
 
 Herschel PACS
