@@ -53,12 +53,15 @@ int main(int argc, char* argv[]) {
     // Disable some components of the simulation
     bool no_pos = false;         // do not generate positions
     bool no_clust = false;       // do not generate clustering
-    bool no_passive_lir = false; // do not generate dust for passive galaxies
     bool no_flux = false;        // do not generate fluxes
     bool no_stellar = false;     // do not generate fluxes from stellar origin
     bool no_dust = false;        // do not generate fluxes from dust origin
     bool no_random = false;      // disable all randomization of parameters
                                  // (just passive, M*, z, and position + pos angle)
+    // Debug - testing
+    bool no_passive_lir = false; // do not generate dust for passive galaxies
+    bool magdis_tdust = false;   // use Magdis+12 Tdust evolution (lower)
+
 
     // Save the full spectrum of each galaxy to a file
     // Warning: the current implementation will consume a lot of RAM memory
@@ -122,7 +125,7 @@ int main(int argc, char* argv[]) {
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
         name(input_cat_file, "input_cat"), selection_band, bands, rfbands, help, list_bands,
         clust_r0, clust_r1, clust_lambda, clust_eta, clust_frnd_mlim, clust_frnd_lom,
-        clust_frnd_him, clust_urnd_mlim
+        clust_frnd_him, clust_urnd_mlim, magdis_tdust
     ));
 
     if (help) {
@@ -423,16 +426,35 @@ int main(int argc, char* argv[]) {
         if (end_with(input_cat_file, ".fits")) {
             fits::input_table tbl(input_cat_file);
 
+            // Read main parameters
+            tbl.read_columns(fits::narrow, ftable(
+                out.ra, out.dec, out.z, out.m
+            ));
+
             // See if there is an 'ID' column, else create our own
             if (!tbl.read_column("id", out.id)) {
                 out.id = uindgen(out.ra.size());
             }
 
-            tbl.read_columns(fits::narrow, ftable(
-                out.ra, out.dec, out.z, out.m, out.passive
+            // See if there is either 'passive' or 'passive_prob'
+            vec1f passive_prob;
+            tbl.read_columns(fits::missing | fits::narrow, ftable(
+                out.lir, out.tdust, out.ir8, out.passive, passive_prob
             ));
 
-            tbl.read_columns(fits::missing, ftable(
+            if (out.passive.empty()) {
+                if (passive_prob.empty()) {
+                    error("you must provide the 'passive' flag in the input catalog, "
+                        "or prodive the 'passive_prob' value");
+                    return 1;
+                }
+
+                // Generate passive flag according to the given probability
+                out.passive = random_coin(seed, passive_prob);
+            }
+
+            // See if there is data on the IR spectrum
+            tbl.read_columns(fits::missing | fits::narrow, ftable(
                 out.lir, out.tdust, out.ir8
             ));
 
@@ -485,7 +507,7 @@ int main(int argc, char* argv[]) {
         // Build the redshift bins with logarithmic bins
         // To prevent too narrow bins with very few galaxies, we impose a minimum
         // redshift width 'min_dz' (only used for the clustering slices)
-        auto make_zbins = [](double zstart, double zend, double dz, double mdz){
+        auto make_zbins = [](double zstart, double zend, double dz, double mdz) {
             vec1d tzb;
             double z1 = zstart;
             while (z1 < zend) {
@@ -1291,11 +1313,17 @@ if (!no_flux) {
     vec1f oir8 = out.ir8;
     vec1f otdust = out.tdust;
 
-    out.tdust = 4.65*(out.z-2.0) + 31.0
-        // Starbursts are warmer
-        + 6.6*out.rsb
-        // Massive galaxies are colder (= downfall of SFE)
-        - 1.5*min(0.0, out.z-2.0)*clamp(out.m - 10.7, 0.0, 1.0);
+    out.tdust = 4.65*(out.z-2.0) + 31.0;
+
+    if (magdis_tdust) {
+        vec1u idz = where(out.z > 1);
+        out.tdust[idz] = 2.0*(clamp(out.z[idz], 0.0, 2.0)-1.0) + 27.0;
+    }
+
+    // Starbursts are warmer
+    out.tdust += 6.6*out.rsb;
+    // Massive galaxies are colder (= downfall of SFE)
+    out.tdust -= 1.5*min(0.0, out.z-2.0)*clamp(out.m - 10.7, 0.0, 1.0);
 
     out.ir8 = (1.95*min(0.0, out.z - 2.0) + 7.73)
         // Starburst have larger IR8
