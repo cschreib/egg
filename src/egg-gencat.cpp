@@ -7,7 +7,7 @@ const std::string filters_dir = filters_dir_env.empty() ?
 
 void print_help();
 
-int main(int argc, char* argv[]) {
+int phypp_main(int argc, char* argv[]) {
     // Initialization
     // --------------
 

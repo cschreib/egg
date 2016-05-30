@@ -7,7 +7,7 @@ vec1d schechter2(vec1d m, double mstar1, double index1, double phistar1,
     return log(10.0)*(exp(-tm1)*phistar1*pow(tm1, 1+index1) + exp(-tm2)*phistar2*pow(tm2, 1+index2));
 }
 
-int main(int argc, char* argv[]) {
+int phypp_main(int argc, char* argv[]) {
     double mmin = 4.0, mmax = 13.0;
     double zmax = 10.5;
     double dm = 0.05;

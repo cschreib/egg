@@ -55,7 +55,7 @@ bool sky_get_param(const sky_conf& conf, const std::string& param, T& value) {
     }
 }
 
-int main(int argc, char* argv[]) {
+int phypp_main(int argc, char* argv[]) {
     if (argc < 2) {
         print_help();
         return 1;
@@ -93,7 +93,7 @@ int main(int argc, char* argv[]) {
     // Now start the real job
     fits::image img_fits(img_file);
 
-    vec2d img;
+    vec2f img;
     img_fits.read(img);
 
     // ADU -> ADU/sec (/exposure)
