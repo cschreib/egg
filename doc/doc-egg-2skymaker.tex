@@ -50,7 +50,7 @@ Once the pixel scale and the PSF are defined in the \skymaker configuration file
 \end{equation}
 \item \bashinline{EXPOSURE_TIME}: as the name suggests, this is the exposure time (in seconds) of the image, often given in the survey papers.
 \item \bashinline{GAIN}: sets the conversion factor from map units to electrons/seconds. If you cannot figure out this value, set it to one. As long as you use the same value to estimate the background surface brightness (see below), the actual value does not matter.
-\item \bashinline{BACK_MAG}: this is the background surface brightness, which must be given in AB magnitude within on arcsec$^2$. Together with the exposure time, this value defines the amplitude of the background Poissonian noise.
+\item \bashinline{BACK_MAG}: this is the background surface brightness, which must be given in AB magnitude within one arcsec$^2$. Together with the exposure time, this value defines the amplitude of the background Poissonian noise.
 \item \bashinline{READOUT_NOISE}: the amplitude of the Gaussian noise created by the read-out of the detector, given in electrons. For deep background-dominated images, this can be neglected and set to zero.
 \end{itemize}
 
