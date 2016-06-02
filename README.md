@@ -24,4 +24,4 @@ For further and more detailed help, see the documentation in the 'doc/' folder.
 [SkyMaker]: http://www.astromatic.net/software/skymaker
 [phy++]: http://cschreib.github.io/phypp/
 [CMake]: http://www.cmake.org/
-[install.sh]: https://raw.githubusercontent.com/cschreib/egg/1.0rc1/doc/scripts/install.sh
+[install.sh]: https://raw.githubusercontent.com/cschreib/egg/master/doc/scripts/install.sh
