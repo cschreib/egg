@@ -139,14 +139,9 @@ int phypp_main(int argc, char* argv[]) {
     });
 
     {
-        vec1u idok = where(psf > 0.2*max(psf));
-        auto res = linfit(log(psf[idok]/max(psf)), 1, r2[idok]);
-        if (res.params[0] >= 0) {
-            error("could not estimate FWHM of the PSF");
-            return 1;
-        }
-
-        fwhm = 2*sqrt(-log(2)/res.params[0]);
+        vec1u idok = where(psf > 0.2*max(psf) && r2 > 0);
+        double res = mean(log(psf[idok]/max(psf))/r2[idok]);
+        fwhm = 2*sqrt(-log(2)/res);
 
         if (verbose) note("FWHM=", fwhm, " pixels");
     }
