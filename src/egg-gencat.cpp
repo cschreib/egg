@@ -34,16 +34,16 @@ int phypp_main(int argc, char* argv[]) {
     double bin_dz = dnan;
 
     // Clustering parameters
-    double clust_r0 = 0.05;        // clustering outer truncation radius in degree
-    double clust_r1 = 0.0006;      // clustering inner truncation radius in degree
-    uint_t clust_eta = 5;          // number of sub haloes per halo
-    double clust_lambda = 6.0;     // radius shrinking factor of subhaloes
-    double clust_frnd_him = 0.4;   // fraction of random vs clustered positions for
-                                   // high-mass galaxies
-    double clust_frnd_lom = 0.2;   // fraction of random vs clustered positions for
-                                   // low-mass galaxies
-    double clust_frnd_mlim = 10.5; // threshold between high and low mass for the above
-    double clust_urnd_mlim = 8.0;  // threshold in mass below which there is no clustering
+    double clust_r0 = 0.05;          // clustering outer truncation radius in degree
+    double clust_r1 = 0.0006;        // clustering inner truncation radius in degree
+    uint_t clust_eta = 5;            // number of sub haloes per halo
+    double clust_lambda = 6.0;       // radius shrinking factor of subhaloes
+    double clust_fclust_him = 0.4;   // fraction of clustered vs uniform positions for
+                                     // high-mass galaxies
+    double clust_fclust_lom = 0.2;   // fraction of clustered vs uniform positions for
+                                     // low-mass galaxies
+    double clust_fclust_mlim = 10.5; // threshold between high and low mass for the above
+    double clust_urnd_mlim = 8.0;    // threshold in mass below which there is no clustering
 
     // Dispersion of the Main Sequence in SFR, at fixed Mstar
     // Changing this value will alter the quality of the simulation.
@@ -124,8 +124,8 @@ int phypp_main(int argc, char* argv[]) {
         name(out_file, "out"), name(filter_db_file, "filter_db"),
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
         name(input_cat_file, "input_cat"), selection_band, bands, rfbands, help, list_bands,
-        clust_r0, clust_r1, clust_lambda, clust_eta, clust_frnd_mlim, clust_frnd_lom,
-        clust_frnd_him, clust_urnd_mlim, magdis_tdust
+        clust_r0, clust_r1, clust_lambda, clust_eta, clust_fclust_mlim, clust_fclust_lom,
+        clust_fclust_him, clust_urnd_mlim, magdis_tdust
     ));
 
     if (help) {
@@ -978,13 +978,20 @@ int phypp_main(int argc, char* argv[]) {
 
                         vec1b cls = replicate(true, z_ngal);
 
-                        // Each galaxy has a probability of not being clustered
-                        vec1d prnd = replicate(1-clust_frnd_lom, z_ngal);
+                        // Each galaxy has a probability of being clustered
+                        vec1d prnd = replicate(clust_fclust_lom, z_ngal);
                         // We treat massive and low mass galaxies differently,
                         // assuming more clustering for the most massive objects.
-                        prnd[where(out.m[idz] > clust_frnd_mlim)] = 1-clust_frnd_him;
+                        prnd[where(out.m[idz] > clust_fclust_mlim)] = clust_fclust_him;
                         // and no clustering at all below a certain mass
-                        prnd[where(out.m[idz] < clust_urnd_mlim)] = 1;
+                        prnd[where(out.m[idz] < clust_urnd_mlim)] = 0;
+                        // then reduce clustering at low redshifts (Béthermin+15)
+                        {
+                            vec1u idlz = where(out.z[idz] < 1.0);
+                            prnd[idlz] *= max(0.0, out.z[idz[idlz]] - 0.5)/0.5;
+                        }
+
+                        prnd = 1-prnd;
 
                         vec1u idr = where(random_coin(seed, prnd));
                         uint_t nrnd = idr.size();
