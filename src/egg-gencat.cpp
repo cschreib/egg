@@ -1095,7 +1095,7 @@ int phypp_main(int argc, char* argv[]) {
     out.disk_radius = 2.8*e10(fz + 0.2*(out.m - 9.35));
 
     if (!no_random) {
-        out.disk_radius *= e10(0.25*randomn(seed, ngal));
+        out.disk_radius *= e10(0.17*randomn(seed, ngal));
     }
 
     // Use similar size for bulges of disk-dominated galaxies
@@ -1103,7 +1103,7 @@ int phypp_main(int argc, char* argv[]) {
     out.bulge_radius[idd] = 2.8*e10(fz[idd] + 0.2*(out.m[idd] - 9.35));
 
     if (!no_random) {
-        out.bulge_radius[idd] *= e10(0.25*randomn(seed, idd.size()));
+        out.bulge_radius[idd] *= e10(0.17*randomn(seed, idd.size()));
     }
 
     vec1d psize = propsize(out.z, cosmo);
