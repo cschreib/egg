@@ -207,6 +207,15 @@ h6 {
   margin: 2.33em 0;
 }
 
+.multicolor {
+  margin: 0 0 0 0;
+}
+
+.legend {
+  font-size: 0.85em;
+  line-height: 120%;
+}
+
 /*
  * Addresses styling not present in IE7/8/9, S5, Chrome
  */

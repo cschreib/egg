@@ -21,8 +21,7 @@
       <div id="header">
         <nav>
           <li class="fork"><a href="https://github.com/cschreib/egg">View On GitHub <img border="0" src="images/octocat-white-small.png" alt="GitHub" style="vertical-align:middle"></a></li>
-          <li class="downloads"><a href="https://github.com/cschreib/egg/zipball/1.0rc1"><img border="0" src="images/archive.png" alt="ZIP" style="vertical-align:middle"> ZIP</a></li>
-          <li class="downloads"><a href="https://github.com/cschreib/egg/tarball/1.0rc1"><img border="0" src="images/archive.png" alt="TAR" style="vertical-align:middle"> TAR</a></li>
+          <li class="downloads"><a href="https://github.com/cschreib/egg/releases/latest"><img border="0" src="images/archive.png" alt="TAR/ZIP" style="vertical-align:middle"> TGZ or ZIP</a></li>
           <li class="title">DOWNLOADS:</li>
           <li class="downloads"><a href="files/EGG.pdf"><img border="0" src="images/document-pdf.png" alt="PDF" style="vertical-align:middle"> PDF</a></li>
           <li class="title">DOCUMENTATION:</li>
@@ -60,27 +59,24 @@
 
 <p>The generated catalogs can be used to produce realistic maps and mock observations to test source extraction codes, or to evaluate the reliability of any map-based science (stacking, dropout identification, ...).</p>
 
-<h1>
-<a id="examples" class="anchor" href="#examples" aria-hidden="true"><span class="octicon octicon-link"></span></a>Examples</h1>
-
-<p>Below is a comparison between real observations from the GOODS-South field (left) and a similar region of the sky simulated with EGG (right). The Hubble WFC3 F160W and Spitzer IRAC 4.5um images have been created with <a href="http://www.astromatic.net/software/skymaker">SkyMaker</a>, while the Spitzer MIPS 24um and Herschel PACS 160um images are built with <em>EGG</em>.</p>
-
-<p><img src="images/simu_example.jpg" alt=""></p>
+<p class="multicolor"><a href="images/multicolor.png"><img src="images/multicolor_small.jpg" alt=""></a></p>
+<p class="legend"><b>Legend.</b> Example of a simulated cosmological deep field simulated with <em>EGG</em>. The image on the left is a false color image built from the <em>Hubble</em> <em>B</em> (blue), <em>z</em> (green) and <em>H</em> (red) bands. The image on the right is a false color image of the <em>Herschel</em> 100µm band. You can click the image for a larger version.</p>
 
 <h1>
 <a name="how-to-get-it" class="anchor" href="#how-to-get-it"><span class="octicon octicon-link"></span></a>How to get it?</h1>
 
-<p>Simply download the code, either by cloning the git repository:</p>
+<p>Simply download the code using the link provided at the top of this page, which will give you the latest stable version. You will then need to follow the installation instructions to compile the program before you start using it. Alternatively, you can download a Bash install script that will take care of most of this dirty work for you: <a href="files/install.sh"><inlinecode>[install.sh]</inlinecode></a> (usage instructions are given at the beginning of the file, be sure to read them before executing the script). In all cases, please refer to the <a href="files/EGG.pdf">documentation</a> for in depth instructions.</p>
 
+<p>If you wish, you can also obtain the very latest development version by cloning the git repository:
 <div class="highlight highlight-bash"><pre>git clone https://github.com/cschreib/egg.git
 </pre></div>
 
-<p>or by downloading .tgz or .zip archives from this page. Alternatively, you can download a Bash install script that will take care of most of the dirty work for you: <a href="files/install.sh"><inlinecode>[install.sh]</inlinecode></a> (usage instructions are given at the beginning of the file, be sure to read them before executing the script). In all cases, please refer to the <a href="https://github.com/cschreib/egg/raw/master/doc/doc.pdf">documentation</a> for in depth instructions.</p>
+<p>This will give you access to the latest features, but may not be as stable and well tested.</p>
 
 <h1>
 <a id="reference" class="anchor" href="#reference" aria-hidden="true"><span class="octicon octicon-link"></span></a>References</h1>
 
-<p>C. Schreiber and the ASTRODEEP collaboration, <i>EGG: an empirical simulation of the observable Universe</i>, to be submitted.</p>
+<p>C. Schreiber and the ASTRODEEP collaboration, <i>EGG: hatching a mock Universe from empirical prescriptions, submitted to A&amp;A.</p>
 
 <p><em>EGG</em> is written with the <a href="http://cschreib.github.io/phypp/"><i>phy</i><sub>++</sub></a> C++ library.</p>
       </section>
