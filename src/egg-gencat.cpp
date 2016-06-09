@@ -518,8 +518,9 @@ int phypp_main(int argc, char* argv[]) {
                 }
             }
 
-            if ((zend - tzb.back())/(1.0 + zend) > 0.5*dz &&
-                (!is_finite(mdz) || zend - tzb.back() > mdz)) {
+            if (tzb.size() == 1 ||
+                ((zend - tzb.back())/(1.0 + zend) > 0.5*dz &&
+                (!is_finite(mdz) || zend - tzb.back() > mdz))) {
                 tzb.push_back(zend);
             } else {
                 tzb.back() = zend;
@@ -529,20 +530,16 @@ int phypp_main(int argc, char* argv[]) {
         };
 
         vec2d zb = make_zbins(zmin, zmax, bin_dz, dnan);
+        uint_t nz = zb.dims[1];
 
         if (verbose) {
+            note(nz, " redshift slices");
             vec1f tdz = bin_width(zb);
             note("min dz: ", min(tdz), ", max dz: ", max(tdz));
         }
 
         // Compute the corresponding volume of the Universe
         vec2d vb = vuniverse(zb, cosmo);
-
-        uint_t nz = zb.dims[1];
-
-        if (verbose) {
-            note(nz, " redshift slices");
-        }
 
         // Initialize mass functions
         // -------------------------
