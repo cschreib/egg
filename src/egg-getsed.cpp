@@ -22,7 +22,7 @@ int phypp_main(int argc, char* argv[]) {
 
     vec1u ids, tstart, tnbyte;
     uint_t elem_size;
-    fits::read_table(file::remove_extension(seds)+"-header.fits",
+    fits::read_table(file::remove_extension(seds)+"-lookup.fits",
         "id", ids, component+"_start", tstart, component+"_nbyte", tnbyte,
         "elem_size", elem_size
     );
