@@ -384,7 +384,7 @@ int phypp_main(int argc, char* argv[]) {
         // Flux properties
         vec1f rfuv_bulge, rfuv_disk, rfvj_bulge, rfvj_disk;
         vec1f sfrir, sfruv, irx;
-        vec1f lir;
+        vec1f m2lcor, lir;
         vec1u ir_sed;
         vec1u opt_sed_bulge;
         vec1u opt_sed_disk;
@@ -1259,6 +1259,9 @@ int phypp_main(int argc, char* argv[]) {
         out.rfvj_bulge[idb] = tvj;
     }
 
+    // Generate redshift-dependent mass-to-light correction
+    out.m2lcor = interpolate({-0.15,-0.15,0.0,0.0}, {0.0,0.45,1.3,10.0}, out.z);
+
     // Assign optical SED
     // ------------------
 
@@ -1517,7 +1520,7 @@ if (!no_flux) {
             vec1f rlam, rsed;
             if (no_ir) {
                 // Just the stellar component
-                get_opt_sed(m[i], optsed[i], rlam, rsed);
+                get_opt_sed(m[i]+out.m2lcor[i], optsed[i], rlam, rsed);
             } else if (no_stellar) {
                 // Just the dust component
                 get_ir_sed(i, rlam, rsed);
@@ -1525,7 +1528,7 @@ if (!no_flux) {
                 // Both stellar and dust components
                 vec1f orlam, orsed;
                 vec1f irlam, irsed;
-                get_opt_sed(m[i], optsed[i], orlam, orsed);
+                get_opt_sed(m[i]+out.m2lcor[i], optsed[i], orlam, orsed);
                 get_ir_sed(i, irlam, irsed);
 
                 // Combine IR SED with optical SED
@@ -1636,7 +1639,7 @@ if (!no_flux) {
 
     fits::write_table(out_file, ftable(
         out.id, out.ra, out.dec, out.clustered, out.z, out.d, out.m,
-        out.sfr, out.rsb,
+        out.sfr, out.rsb, out.m2lcor,
         out.disk_angle, out.disk_radius, out.disk_ratio,
         out.bulge_angle, out.bulge_radius, out.bulge_ratio,
         out.bt, out.m_disk, out.m_bulge, out.passive,
