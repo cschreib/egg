@@ -1068,48 +1068,54 @@ int phypp_main(int argc, char* argv[]) {
         note("generating morphology...");
     }
 
+    // Declare functions to assign sizes
+    auto size_disk = vectorize_lambda([](double z, double m) {
+        if (z < 1.7) {
+            return e10(0.41 - 0.22*log10(1.0+z) + 0.2*(min(m, 10.6) - 9.35));
+        } else {
+            return e10(0.62 - 0.7*log10(1.0+z) + 0.2*(min(m, 10.6) - 9.35));
+        }
+    });
+
+    auto size_bulge = vectorize_lambda([&size_disk](double z, double m, double bt) {
+        if (z < 0.5) {
+            return e10(0.78 - 0.6*log10(1.0+z) + 0.56*(m - 11.25));
+        } else {
+            return e10(0.90 - 1.3*log10(1.0+z) + 0.56*(m - 11.25));
+        }
+    });
+
     // Bulge and disk have the same position angle, which is completely random
     out.disk_angle = (randomu(seed, ngal) - 0.5)*90.0;
     out.bulge_angle = out.disk_angle;
 
-    // Calibration from n>2.5 galaxies and M* > 10.5
+    // Bulges: calibration from n>2.5 galaxies and M* > 10.5
     vec1f bulge_ratio_x =
         {0.0, 0.1, 0.15,  0.25,  0.35,  0.45,  0.55,   0.65,   0.75,   0.85,   0.95,  1.0};
     vec1f bulge_ratio_p =
         {0.0, 0.0,  165.0, 428.0, 773.0, 914.0, 1069.0, 1191.0, 1154.0, 1067.0, 639.0, 450.0};
     out.bulge_ratio = random_pdf(seed, bulge_ratio_x, bulge_ratio_p, ngal);
 
-    out.bulge_radius = 8.0*e10(-1.3*log10(1.0+out.z) + 0.56*(out.m - 11.25));
+    out.bulge_radius = size_bulge(out.z, out.m, out.bt);
 
     if (!no_random) {
         out.bulge_radius *= e10(0.2*randomn(seed, ngal));
     }
 
-    // Calibration from n<1.5 galaxies and M* > 9.0
+    // Disks: calibration from n<1.5 galaxies and M* > 9.0
     vec1f disk_ratio_x =
         {0.0, 0.1, 0.15,  0.25,  0.35,   0.45,   0.55,   0.65,  0.75,  0.85,  0.95,  1.0};
     vec1f disk_ratio_p =
         {0.0, 0.0,  313.0, 900.0, 1143.0, 1127.0, 1059.0, 898.0, 775.0, 548.0, 318.0, 200.0};
     out.disk_ratio = random_pdf(seed, disk_ratio_x, disk_ratio_p, ngal);
 
-    vec1f fz = -0.3*log10(1.0+out.z);
-    double zmid = 1.7;
-    vec1u idhz = where(out.z > zmid);
-    fz[idhz] = -0.7*log10((1.0 + out.z[idhz])/(1.0 + zmid)) - 0.3*log10(1.0 + zmid);
-    out.disk_radius = 2.8*e10(fz + 0.2*(out.m - 9.35));
+    out.disk_radius = size_disk(out.z, out.m);
 
     if (!no_random) {
         out.disk_radius *= e10(0.17*randomn(seed, ngal));
     }
 
-    // Use similar size for bulges of disk-dominated galaxies
-    vec1u idd = where(out.bt < 0.5);
-    out.bulge_radius[idd] = 2.8*e10(fz[idd] + 0.2*(out.m[idd] - 9.35));
-
-    if (!no_random) {
-        out.bulge_radius[idd] *= e10(0.17*randomn(seed, idd.size()));
-    }
-
+    // Convert proper sizes to angular sizes
     vec1d psize = propsize(out.z, cosmo);
     out.disk_radius /= psize;
     out.bulge_radius /= psize;
