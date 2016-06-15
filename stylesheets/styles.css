@@ -802,6 +802,43 @@ dt {
   font-size: 11px;
 }
 
+#header2 {
+  z-index: 90;
+  left: 0;
+  top: 60px;
+  height: 40px;
+  width: 100%;
+  position: fixed;
+  background: #202020;
+  border-bottom: 4px solid #434343;
+  -moz-box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.25);
+  -webkit-box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.25);
+  -o-box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.25);
+  box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+#header2 nav {
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+#header2 nav li {
+  display: inline;
+  font-variant: small-caps;
+  margin-left: 6px;
+  margin-right: 6px;
+  line-height: 40px;
+}
+
+#header2 nav li a {
+  color: #cecece;
+}
+
+#header2 nav li a:hover {
+  color: white;
+}
+
 section {
   max-width: 700px;
   padding: 30px 0px 50px 0px;

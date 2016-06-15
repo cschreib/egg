@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <title>EGG: the Empirical Galaxy Generator</title>
+    <link rel="stylesheet" href="stylesheets/styles.css">
+    <link rel="stylesheet" href="stylesheets/github-dark.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/respond.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <!--[if lt IE 8]>
+    <link rel="stylesheet" href="stylesheets/ie.css">
+    <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
+  </head>
+  <body>
+      <div id="header">
+        <nav>
+          <li class="fork"><a href="https://github.com/cschreib/egg">View On GitHub <img border="0" src="images/octocat-white-small.png" alt="GitHub" style="vertical-align:middle"></a></li>
+          <li class="downloads"><a href="https://github.com/cschreib/egg/releases/latest"><img border="0" src="images/archive.png" alt="TAR/ZIP" style="vertical-align:middle"> TGZ or ZIP</a></li>
+          <li class="title">DOWNLOADS:</li>
+          <li class="downloads"><a href="files/EGG.pdf"><img border="0" src="images/document-pdf.png" alt="PDF" style="vertical-align:middle"> PDF</a></li>
+          <li class="title">DOCUMENTATION:</li>
+        </nav>
+      </div>
+      <div id="header2">
+        <nav>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="counts.html">Predicted counts</a></li>
+        </nav>
+      </div><!-- end header -->
+
+    <div class="wrapper">
+
+      <section>
+        <!-- <div id="title">
+          <table>
+            <tr>
+              <td><img src="images/full-logo.svg" alt="" style="float:right; padding-right:15px"></td>
+              <td>
+                <table>
+                  <tr><td><h1><B>EGG:</B></h1></td></tr>
+                  <tr><td><h1>the Empirical</h1></td></tr>
+                  <tr><td><h1>Galaxy Generator</h1></td></tr>
+                  <tr><td>Builds your own Universe during the coffee break.</td></tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+          <hr>
+          <span class="credits left">Project maintained by <a href="https://github.com/cschreib">cschreib</a></span>
+          <span class="credits right">Hosted on GitHub Pages &mdash; Theme by <a href="https://twitter.com/michigangraham">mattgraham</a></span>
+        </div> -->
+
+        <h1>
+<a id="description" class="anchor" href="#description" aria-hidden="true"><span class="octicon octicon-link"></span></a>Predicted number counts</h1>
+
+<p>This page provides the galaxy number counts predicted by <em>EGG</em> in a large set of broad bands from the <em>U</em> band up to the ALMA 2mm. These counts were produced from the combination of three simulated catalogs: first, a wide (1 deg²) and deep ([4.5] < 30) field; second, a wider (20 deg²) but shallower ([4.5] < 20) field for the bright end; and third, a narrower (0.05 deg²) and deepr ([4.5] < 36) field for the faint end. The deepest catalog is used when the counts go above 300,000 galaxies per deg², while the widest catalog is used for counts below 100 per deg².</p>
+
+<p>The tabulated data can be found below.</p>
+
+<p class="multicolor"><a href="files/diff1.pdf"><img src="images/diff1.png" alt=""></a></p>
+<p class="multicolor"><a href="files/diff2.pdf"><img src="images/diff2.png" alt=""></a></p>
+<p class="legend"><b>Legend.</b> Predicted counts from <em>EGG</em>. The solid curves are the predicted counts, while the small symbols represent various observations either from GOODS-<em>South</em>, CANDELS or other data from the literature (in particular GAMA). You can click the images for a larger PDF version.</p>
+
+<h1>
+<a name="how-to-get-it" class="anchor" href="#how-to-get-it"><span class="octicon octicon-link"></span></a>Tabulated data</h1>
+
+<p>You can obtain a machine-readable table for all the above curves from the links below. The counts in each band are stored in a simply ASCII file with two columns: first is the flux (in uJy) and second is the corresponding source density in number of galaxies per deg² (or galaxies per dex and per deg², for differential counts). These counts do <em>not</em> include foreground stars from the Milky Way.</p>
+
+<p>The first link in the list should correspond to the latest release of <em>EGG</em>. If not, please contact me so I can add an updated version.</p>
+
+<li><a href=files/cumulative-counts-egg-v1.0.2.tar.gz>cumulative-counts-egg-v1.0.2.tar.gz</a><br>
+<a href=files/differential-counts-egg-v1.0.2.tar.gz>differential-counts-egg-v1.0.2.tar.gz</a></li>
+
+    </div>
+    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+
+  </body>
+</html>
