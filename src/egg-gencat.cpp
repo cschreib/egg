@@ -213,7 +213,7 @@ int phypp_main(int argc, char* argv[]) {
     }
 
     if (!is_finite(bin_dz)) {
-        bin_dz = zmin;
+        bin_dz = (zmin >= 0.1 ? 0.1 : zmin);
     }
 
     if (no_dust && no_stellar) {
