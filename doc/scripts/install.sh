@@ -42,7 +42,7 @@ INSTALL_ROOT_DIR=""
 CFITSIO_VERSION="_latest"
 WCSLIB_VERSION=""
 PHYPP_VERSION="master"
-EGG_VERSION="v1.0.1"
+EGG_VERSION="v1.0.2"
 
 
 # -----------------------------------------
