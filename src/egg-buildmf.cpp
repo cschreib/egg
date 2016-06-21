@@ -103,22 +103,23 @@ int phypp_main(int argc, char* argv[]) {
     //       decreasing phistar, following the total stellar mass density of
     //       Grazian et al. (2015)
     uint_t ilast = a_mstar1.size()-1;
-    uint_t nhzb = ceil((zmax - max(zu))/0.5);
+    uint_t nhzb = ceil((zmax - max(zu))/0.2);
     double dhz = (zmax - max(zu))/nhzb;
 
     append(zl, findgen(nhzb)*dhz + max(zu));
     append(zu, findgen(nhzb)*dhz + max(zu) + dhz);
 
     auto g15_rhostar = vectorize_lambda([](double z){
-        return e10(-0.43*z);
+        return (z < 6 ? e10(-0.43*z) : e10(-0.43*6.0)*e10(-0.7*(z-6.0)));
     });
 
     vec1d decrease = g15_rhostar(0.5*(zl+zu)[(ilast+1)-_])/g15_rhostar(0.5*(zl[ilast] + zu[ilast]));
+    vec1d index = interpolate({-2.0, -2.0, -2.2}, {4.0, 5.0, 6.0}, 0.5*(zl+zu)[(ilast+1)-_]);
 
     for (uint_t i : range(decrease)) {
         a_mstar1.push_back(a_mstar1[ilast]);
         a_mstar2.push_back(a_mstar2[ilast]);
-        a_index1.push_back(a_index1[ilast]);
+        a_index1.push_back(index[i]);
         a_index2.push_back(a_index2[ilast]);
         a_phistar1.push_back(decrease[i]*a_phistar1[ilast]);
         a_phistar2.push_back(decrease[i]*a_phistar2[ilast]);
