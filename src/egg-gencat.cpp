@@ -1190,7 +1190,7 @@ int phypp_main(int argc, char* argv[]) {
         // Calibrate "UVJ vector" from mass and redshift
         vec1f a0 = 0.58*erf(m-10) + 1.39;
         vec1f as = -0.34 + 0.3*max(m-10.35, 0.0);
-        vec1f a = min(a0 + as*z, 2.0);
+        vec1f a = min(a0 + as*min(z, 3.3), 2.0);
 
         if (!no_random) {
             vec1d rnd_amp = 0.3*clamp(z-1.0, 0, 1)*clamp(1.0 - abs(m - 10.3), 0, 1) + 0.1 + 0.05*clamp(z-1.0, 0, 1);
