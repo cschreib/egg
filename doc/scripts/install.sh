@@ -42,7 +42,7 @@ INSTALL_ROOT_DIR=""
 CFITSIO_VERSION="_latest"
 WCSLIB_VERSION=""
 PHYPP_VERSION="master"
-EGG_VERSION="v1.0.2"
+EGG_VERSION="v1.0.3"
 
 
 # -----------------------------------------
@@ -143,7 +143,8 @@ wget https://github.com/cschreib/egg/archive/$EGG_VERSION.tar.gz \
 tar -xvzf $EGG_VERSION.tar.gz && rm $EGG_VERSION.tar.gz
 
 # Configure it
-mkdir -p egg-$EGG_VERSION/build && cd egg-$EGG_VERSION/build
+EGG_DIR=egg-$(echo $EGG_VERSION | sed "s/v//g")
+mkdir -p $EGG_DIR/build && cd $EGG_DIR/build
 if [ -n "$INSTALL_ROOT_DIR" ]; then
     DINSTALL_ROOT_DIR="-DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT_DIR"
 fi
@@ -153,7 +154,7 @@ cmake ../  $DINSTALL_ROOT_DIR \
 
 # Extract install dir from CMake to check if we need sudo
 if [ -z "$INSTALL_ROOT_DIR" ]; then
-    INSTALL_ROOT_DIR=`cat CMakeCache.txt | grep -Po "(?<=CMAKE_INSTALL_PREFIX:PATH=).*$"`
+    INSTALL_ROOT_DIR=`cat CMakeCache.txt | grep CMAKE_INSTALL_PREFIX | sed "s/CMAKE_INSTALL_PREFIX:PATH=//g"`
 fi
 
 mkdir -p $INSTALL_ROOT_DIR
