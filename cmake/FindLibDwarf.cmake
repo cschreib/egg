@@ -7,11 +7,6 @@
 #  LIBDWARF_DEFINITIONS - Compiler switches required for using libdwarf
 #
 
-# Locate libelf library at first
-if (NOT LIBELF_FOUND)
-  find_package (LibElf)
-endif (NOT LIBELF_FOUND)
-
 if (LIBDWARF_LIBRARIES AND LIBDWARF_INCLUDE_DIRS)
   set (LibDwarf_FIND_QUIETLY TRUE)
 endif (LIBDWARF_LIBRARIES AND LIBDWARF_INCLUDE_DIRS)
@@ -48,16 +43,15 @@ include (FindPackageHandleStandardArgs)
 # handle the QUIETLY and REQUIRED arguments and set LIBDWARF_FOUND to TRUE
 # if all listed variables are TRUE
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(LibDwarf DEFAULT_MSG
-  LIBELF_FOUND
   LIBDWARF_LIBRARIES
   LIBDWARF_INCLUDE_DIRS)
 
 if (LIBDWARF_LIBRARIES AND LIBDWARF_INCLUDE_DIRS)
-  set(LIBDWARF_LIBRARIES ${LIBDWARF_LIBRARIES} ${LIBELF_LIBRARIES})
-  set(LIBDWARF_INCLUDE_DIRS ${LIBDWARF_INCLUDE_DIRS} ${LIBELF_INCLUDE_DIRS})
+  set(LIBDWARF_LIBRARIES ${LIBDWARF_LIBRARIES})
+  set(LIBDWARF_INCLUDE_DIRS ${LIBDWARF_INCLUDE_DIRS})
 
   set(CMAKE_REQUIRED_INCLUDES ${LIBDWARF_INCLUDE_DIRS})
-  set(CMAKE_REQUIRED_LIBRARIES ${LIBDWARF_LIBRARIES} ${LIBELF_LIBRARIES})
+  set(CMAKE_REQUIRED_LIBRARIES ${LIBDWARF_LIBRARIES})
 
   # libdwarf makes breaking changes occasionally and doesn't provide an easy
   # way to test for them. The following checks should detect the changes and

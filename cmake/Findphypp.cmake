@@ -90,6 +90,7 @@ if(NOT PHYPP_FOUND)
         find_package(LibUnwind)
     endif()
     if (NOT NO_LIBDWARF)
+        find_package(LibElf)
         find_package(LibDwarf)
     endif()
     if (NOT NO_FFTW)
@@ -155,11 +156,11 @@ if(NOT PHYPP_FOUND)
     endif()
 
     # handle conditional LibDwarf support
-    if (NO_UNWIND OR NOT LIBDWARF_FOUND OR NO_LIBDWARF)
+    if (NO_UNWIND OR NOT LIBELF_FOUND OR NOT LIBDWARF_FOUND OR NO_LIBDWARF)
         add_definitions(-DNO_LIBDWARF)
     else()
         set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIRS} ${LIBDWARF_INCLUDE_DIRS})
-        set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${LIBDWARF_LIBRARIES})
+        set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${LIBDWARF_LIBRARIES} ${LIBELF_LIBRARIES})
     endif()
 
     # handle conditional Google perftools support
