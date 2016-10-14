@@ -1,4 +1,5 @@
 #include <phypp.hpp>
+#include "egg-utils.hpp"
 
 const std::string egg_share_dir = file::directorize(EGG_SHARE_DIR);
 const std::string filters_dir_env = file::directorize(system_var("EGG_FILTERS_PATH", ""));
