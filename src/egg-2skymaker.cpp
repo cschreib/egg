@@ -280,7 +280,7 @@ int phypp_main(int argc, char* argv[]) {
     // Inline function to write a catalog to disk
     auto write_catalog = [&](std::string ofile, const vec1u& oids, uint_t sx, uint_t sy){
         // Write catalog
-        file::write_table_hdr(ofile, 16,
+        ascii::write_table_hdr(ofile, 16,
             {"type", "x", "y", "mag", "bt",
             "bulge_radius", "bulge_ratio", "bulge_angle",
             "disk_radius", "disk_ratio", "disk_angle"},

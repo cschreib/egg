@@ -53,7 +53,7 @@ int phypp_main(int argc, char* argv[]) {
     file.read(reinterpret_cast<char*>(flux.data.data()), nbyte);
 
     if (ascii) {
-        file::write_table_hdr(out, 18, ftable(lambda, flux));
+        ascii::write_table_hdr(out, 18, ftable(lambda, flux));
     } else {
         fits::write_table(out, ftable(lambda, flux));
     }
