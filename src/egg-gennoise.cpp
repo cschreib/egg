@@ -15,7 +15,7 @@ int phypp_main(int argc, char* argv[]) {
     // Name of the FITS file of the PSF
     std::string psf_file;
     // Name of the file from which to copy the astrometry
-    std::string astro;
+    std::string astrometry;
     // If not the above, specify the pixel scale
     double aspix = dnan;
     // The amplitude of the noise
@@ -46,8 +46,8 @@ int phypp_main(int argc, char* argv[]) {
     }
 
     read_args(argc, argv, arg_list(
-        name(tseed, "seed"), out, name(psf_file, "psf"), astro, aspix, rms, beam_smoothed,
-        smooth_fwhm, list_psfs, verbose, make_err, make_cov, clip_borders, save_dist,
+        name(tseed, "seed"), out, name(psf_file, "psf"), name(astrometry, "astro"), aspix, rms, 
+        beam_smoothed, smooth_fwhm, list_psfs, verbose, make_err, make_cov, clip_borders, save_dist,
         name(cat_file, "cat"), name(tdouble, "double")
     ));
 
@@ -65,7 +65,7 @@ int phypp_main(int argc, char* argv[]) {
         return 0;
     }
 
-    if (cat_file.empty() || out.empty() || psf_file.empty() || (astro.empty() && !is_finite(aspix))) {
+    if (cat_file.empty() || out.empty() || psf_file.empty() || (astrometry.empty() && !is_finite(aspix))) {
         print_help();
         return 0;
     }
@@ -128,23 +128,23 @@ int phypp_main(int argc, char* argv[]) {
 
     vec2d noise;
     fits::header hdr; {
-        if (astro.empty()) {
+        if (astrometry.empty()) {
             // From parameters
 
             // Try a first naive projection where the first pixel is defined by the
             // most extreme galaxy in the corner of the field
-            fits::make_wcs_header_params wcs_params;
+            astro::make_wcs_header_params wcs_params;
             wcs_params.pixel_scale = aspix;
             wcs_params.pixel_ref_x = 1.0; wcs_params.pixel_ref_y = 1.0;
             wcs_params.sky_ref_ra = max(cat.ra); wcs_params.sky_ref_dec = min(cat.dec);
 
-            if (!fits::make_wcs_header(wcs_params, hdr)) {
+            if (!astro::make_wcs_header(wcs_params, hdr)) {
                 error("could not make WCS header");
                 return 1;
             }
 
             vec1d x, y;
-            fits::ad2xy(fits::wcs(hdr), cat.ra, cat.dec, x, y);
+            astro::ad2xy(astro::wcs(hdr), cat.ra, cat.dec, x, y);
 
             // Now, because of the spherical projection, some galaxies can have negative pixel
             // coordinates even though we picked the most extreme one in RA and Dec.
@@ -155,12 +155,12 @@ int phypp_main(int argc, char* argv[]) {
             wcs_params.pixel_ref_x += dx;
             wcs_params.pixel_ref_y += dy;
 
-            if (!fits::make_wcs_header(wcs_params, hdr)) {
+            if (!astro::make_wcs_header(wcs_params, hdr)) {
                 error("could not make WCS header");
                 return 1;
             }
 
-            fits::ad2xy(fits::wcs(hdr), cat.ra, cat.dec, x, y);
+            astro::ad2xy(astro::wcs(hdr), cat.ra, cat.dec, x, y);
 
             uint_t npx = ceil(max(x) + 5*fwhm);
             uint_t npy = ceil(max(y) + 5*fwhm);
@@ -170,7 +170,7 @@ int phypp_main(int argc, char* argv[]) {
             noise.resize(npy, npx);
         } else {
             // From an existing FITS file
-            fits::read(astro, noise, hdr);
+            fits::read(astrometry, noise, hdr);
 
             if (verbose) note("map will be ", noise.dims[0], " x ", noise.dims[1]);
         }
@@ -181,11 +181,11 @@ int phypp_main(int argc, char* argv[]) {
 
     if (clip_borders) {
         if (verbose) note("clipping field borders...");
-        fits::wcs wcs(hdr);
+        astro::wcs wcs(hdr);
 
         // Build convex hull around catalog sources
         vec1d sx, sy;
-        fits::ad2xy(wcs, cat.ra, cat.dec, sx, sy);
+        astro::ad2xy(wcs, cat.ra, cat.dec, sx, sy);
         auto hull = build_convex_hull(sx, sy);
 
         // Compute distance of each pixel to the hull
@@ -291,7 +291,7 @@ void print_help() {
     };
 
     print("egg-gennoise v1.0rc1");
-    print("usage: egg-gennoise cat=... out=... psf=... astro=... aspix=... rms=... [options]\n");
+    print("usage: egg-gennoise cat=... out=... psf=... astrometry=... aspix=... rms=... [options]\n");
 
     print("List of mandatory parameters (no default value):");
     argdoc("cat", "[string]", "name of the file containing the mock catalog");
@@ -300,9 +300,9 @@ void print_help() {
         "if the provided file does not exists, the program will also search in the list "
         "of the default PSFs provided with EGG ("+egg_share_dir+
         "/psfs) for a file with the same name, and use it if it exists.");
-    argdoc("astro", "[string]", "name of an existing FITS file from which the astrometry "
+    argdoc("astrometry", "[string]", "name of an existing FITS file from which the astrometry "
         "should be copied. The alternative is to specify the pixel scale (see below).");
-    argdoc("aspix", "[double, arcsec/pixel]", "if 'astro' is not provided, one can also "
+    argdoc("aspix", "[double, arcsec/pixel]", "if 'astrometry' is not provided, one can also "
         "define the astrometry solution simply by giving the pixel scale. In this case "
         "the WCS data will be set so that the resulting image encompasses the whole "
         "input catalog.");

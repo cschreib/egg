@@ -159,9 +159,9 @@ int phypp_main(int argc, char* argv[]) {
     fits::read(noise_map, img, hdr);
 
     // Read astrometry
-    fits::wcs astro = fits::extast(hdr);
+    astro::wcs w(hdr);
     vec1d tx, ty;
-    fits::ad2xy(astro, cat.ra, cat.dec, tx, ty);
+    astro::ad2xy(w, cat.ra, cat.dec, tx, ty);
     tx -= 1; ty -= 1;
     vec1i x = round(tx), y = round(ty);
 

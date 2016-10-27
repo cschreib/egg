@@ -219,20 +219,20 @@ int phypp_main(int argc, char* argv[]) {
 
     // Try a first naive projection where the first pixel is defined by the
     // most extreme galaxy in the corner of the field
-    fits::make_wcs_header_params wcs_params;
+    astro::make_wcs_header_params wcs_params;
     wcs_params.pixel_scale = aspix;
     wcs_params.pixel_ref_x = 1.0; wcs_params.pixel_ref_y = 1.0;
     wcs_params.sky_ref_ra = max(cat.ra); wcs_params.sky_ref_dec = min(cat.dec);
 
     fits::header hdr;
-    if (!fits::make_wcs_header(wcs_params, hdr)) {
+    if (!astro::make_wcs_header(wcs_params, hdr)) {
         error("could not make WCS header");
         return 1;
     }
 
     vec1d x, y;
-    fits::wcs wcs_big(hdr);
-    fits::ad2xy(wcs_big, cat.ra, cat.dec, x, y);
+    astro::wcs wcs_big(hdr);
+    astro::ad2xy(wcs_big, cat.ra, cat.dec, x, y);
 
     // Now, because of the spherical projection, some galaxies can have negative pixel
     // coordinates even though we picked the most extreme one in RA and Dec.
@@ -244,13 +244,13 @@ int phypp_main(int argc, char* argv[]) {
     wcs_params.pixel_ref_x += dx;
     wcs_params.pixel_ref_y += dy;
 
-    if (!fits::make_wcs_header(wcs_params, hdr)) {
+    if (!astro::make_wcs_header(wcs_params, hdr)) {
         error("could not make WCS header");
         return 1;
     }
 
-    wcs_big = fits::wcs(hdr);
-    fits::ad2xy(wcs_big, cat.ra, cat.dec, x, y);
+    wcs_big = astro::wcs(hdr);
+    astro::ad2xy(wcs_big, cat.ra, cat.dec, x, y);
 
     // Compute expected full image size in GB
     uint_t nx = ceil(max(x + gsize) + inset/aspix);
@@ -393,13 +393,13 @@ int phypp_main(int argc, char* argv[]) {
             wcs_params.pixel_ref_x = dx+1-nx*double(ix);
             wcs_params.pixel_ref_y = dy+1-ny*double(iy);
 
-            if (!fits::make_wcs_header(wcs_params, hdr)) {
+            if (!astro::make_wcs_header(wcs_params, hdr)) {
                 error("could not make WCS header");
                 return 1;
             }
 
             vec1d ttx, tty;
-            fits::ad2xy(fits::wcs(hdr), cat.ra[idi], cat.dec[idi], ttx, tty);
+            astro::ad2xy(astro::wcs(hdr), cat.ra[idi], cat.dec[idi], ttx, tty);
             x[idi]        = ttx;       y[idi]        = tty;
             tx[idi[idis]] = ttx[idis]; ty[idi[idis]] = tty[idis];
 
