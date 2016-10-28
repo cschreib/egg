@@ -423,6 +423,100 @@ int phypp_main(int argc, char* argv[]) {
     // Either generate everything from scratch, or provide
     // all these data in input, i.e., from an existing catalog.
 
+    // First define the functions to generate UVJ colors to have a prior on colors 
+    // This is used for computing the stellar mass limit for a given magnitude cut.
+    // It is also used later to actually generate the colors of the simulated galaxies.
+    auto gen_blue_uvj = [&seed](const vec1f& m, const vec1f& z, vec1f& uv, vec1f& vj, bool norand) {
+        // Calibrate "UVJ vector" from mass and redshift
+        vec1f a0 = 0.58*erf(m-10) + 1.39;
+        vec1f as = -0.34 + 0.3*max(m-10.35, 0.0);
+        vec1f a = min(a0 + as*min(z, 3.3), 2.0);
+
+        if (!norand) {
+            vec1d rnd_amp = 0.3*clamp(z-1.0, 0, 1)*clamp(1.0 - abs(m - 10.3), 0, 1) + 0.1 + 0.05*clamp(z-1.0, 0, 1);
+            a += rnd_amp*randomn(seed, m.size());
+        }
+
+        // Move in the UVJ diagram according to the UVJ vector
+        double slope = 0.65;
+        double theta = atan(slope);
+        vj = 0.0  + a*cos(theta);
+        uv = 0.45 + a*sin(theta);
+
+        if (!norand) {
+            vj += 0.12*randomn(seed, m.size());
+            uv += 0.12*randomn(seed, m.size());
+        }
+
+        // Add an additional global color offset depending on redshift
+        uv += 0.4*max((0.5 - z)/0.5, 0.0);
+        vj += 0.2*max((0.5 - z)/0.5, 0.0);
+    };
+
+    auto gen_red_uvj = [&seed](const vec1f& m, const vec1f& z, vec1f& uv, vec1f& vj, bool norand) {
+        double pvj = 1.25, puv = 1.85;
+        vec1f mspread = 0.1*(m - 11.0);
+
+        if (!norand) {
+            mspread += 0.1*randomn(seed, m.size());
+        }
+
+        mspread = clamp(mspread, -0.1, 0.2);
+
+        vj = pvj + mspread;
+        uv = puv + mspread*0.88;
+
+        if (!norand) {
+            vj += 0.1*randomn(seed, m.size());
+            uv += 0.1*randomn(seed, m.size());
+        }
+
+        // Add an additional global color offset depending on redshift
+        uv += 0.4*max((0.5 - z)/0.5, 0.0);
+        vj += 0.2*max((0.5 - z)/0.5, 0.0);
+    };
+
+    auto get_sed_uvj = [&opt_lib](const vec1f& uv, const vec1f& vj, vec1u& sed, bool doprint) {
+        uint_t snb = opt_lib.buv.dims[1];
+
+        sed.resize(uv.size());
+        sed[_] = npos;
+
+        auto pg = progress_start(snb*snb);
+        for (uint_t u  : range(snb)) {
+            vec1b ibu = in_bin_open(uv, opt_lib.buv, u);
+            for (uint_t v  : range(snb)) {
+                // Find galaxies which are in this bin
+                vec1u idl = where(ibu && in_bin_open(vj, opt_lib.bvj, v));
+
+                if (!idl.empty()) {
+                    // Find the closest usable SED in the library
+                    uint_t lu = u, lv = v;
+                    if (!astar_find(opt_lib.use, lu, lv)) {
+                        error("could not find good SEDs in the optical library!");
+                        note("this should not have happened...");
+                        note(u, ", ", v);
+                        return false;
+                    }
+
+                    // Assign the SED to these galaxies
+                    uint_t ised = flat_id(opt_lib.use, lu, lv);
+                    sed[idl] = ised;
+                }
+
+                if (doprint) progress(pg);
+            }
+        }
+
+        return true;
+    };
+
+    auto get_opt_sed = [&opt_lib](double m, uint_t ised, vec1f& orlam, vec1f& orsed) {
+        vec1u did = mult_ids(opt_lib.use, ised);
+        orlam = opt_lib.lam(did[0],did[1],_);
+        orsed = e10(m)*opt_lib.sed(did[0],did[1],_);
+    };
+
     if (!input_cat_file.empty()) {
         if (verbose) {
             note("reading input catalog '", input_cat_file, "'...");
@@ -610,41 +704,52 @@ int phypp_main(int argc, char* argv[]) {
             }
 
             // A magnitude limit was requested.
-            // Use the optical library to estimate a rough mass completeness, and compute
-            // the minimum mass needed to be 90% complete at the requested magnitude.
-            // To do so, we compute the flux in the selection band of all the templates
-            // in the library (within the corresponding redshift interval). Since the library
-            // is in flux per unit mass, we can just divide the requested flux limit by each
-            // computed flux to estimate the minimum detectable mass for each template. By
-            // picking the 10% lowest value, we should be close to 90% completeness.
+            // Use the relations between mass and UVJ colors to have an estimate of the typical
+            // M/L ratio (hence flux) of a galaxy of a given mass at any redshift, and use that
+            // to estimate the typical minimum mass that is observed for a given flux limit.
+            // We add a safety margin to this estimate to take into account the scatter in the 
+            // M/L ratios. Note that here we want to be complete at the requested magnitude limit,
+            // which means we should go down in mass such that the brightest galaxies at that mass
+            // are not seen.
 
-            double comp = 0.9;
             double flim = mag2uJy(maglim);
-            uint_t nb = opt_lib.buv.dims[1];
 
             auto pg = progress_start(nz);
             for (uint_t z : range(nz)) {
                 double tz = bin_center(zb(_,z));
                 double td = lumdist(tz, cosmo);
 
-                vec1f tm;
-                for (uint_t iu : range(nb))
-                for (uint_t iv : range(nb)) {
-                    if (!opt_lib.use(iu,iv)) continue;
-
-                    vec1f rlam = opt_lib.lam(iu,iv,_);
-                    vec1f rsed = opt_lib.sed(iu,iv,_);
+                // Generate M* - flux relation
+                // First generate M* and z
+                vec1f tmx = rgen(mmin_strict, mmax, 1000);
+                vec1f tzx = replicate(tz, tmx.size());
+                // Then UVJ colors
+                vec1f tuvx, tvjx;
+                gen_blue_uvj(tmx, tzx, tuvx, tvjx, true);
+                // Then find the corresponding SED in the library
+                vec1u tsx;
+                get_sed_uvj(tuvx, tvjx, tsx, false);
+                // And estimate the flux in the selection band
+                double mlcor = get_m2l_cor(tz);
+                vec1d tflx(tmx.dims);
+                for (uint_t it : range(tmx)) {
+                    vec1f rlam, rsed;
+                    get_opt_sed(tmx[it]-mlcor, tsx[it], rlam, rsed);
 
                     vec1f lam = rlam*(1.0 + tz);
                     vec1f sed = lsun2uJy(tz, td, rlam, rsed);
 
-                    double funitmass = sed2flux(filsel, lam, sed);
-                    double mlim = std::max(mmin_strict, log10(flim/funitmass));
-
-                    tm.push_back(mlim);
+                    tflx[it] = sed2flux(filsel, lam, sed);
                 }
 
-                z_mmin[z] = percentile(tm, 1.0 - comp);
+                // Minimum mass is obtained from the M* - flux relation
+                // And we add a safety margin
+                uint_t idf = where_first(tflx - flim > 0);
+                if (idf != npos) {
+                    z_mmin[z] = max(mmin_strict, tmx[idf] - 0.2);
+                } else {
+                    z_mmin[z] = mmax;
+                }
 
                 if (verbose) progress(pg);
             }
@@ -1192,58 +1297,8 @@ int phypp_main(int argc, char* argv[]) {
     out.rfuv_disk.resize(ngal);
     out.rfuv_bulge.resize(ngal);
 
-    auto gen_blue = [&seed,no_random](const vec1f& m, const vec1f& z, vec1f& uv, vec1f& vj) {
-        // Calibrate "UVJ vector" from mass and redshift
-        vec1f a0 = 0.58*erf(m-10) + 1.39;
-        vec1f as = -0.34 + 0.3*max(m-10.35, 0.0);
-        vec1f a = min(a0 + as*min(z, 3.3), 2.0);
-
-        if (!no_random) {
-            vec1d rnd_amp = 0.3*clamp(z-1.0, 0, 1)*clamp(1.0 - abs(m - 10.3), 0, 1) + 0.1 + 0.05*clamp(z-1.0, 0, 1);
-            a += rnd_amp*randomn(seed, m.size());
-        }
-
-        // Move in the UVJ diagram according to the UVJ vector
-        double slope = 0.65;
-        double theta = atan(slope);
-        vj = 0.0  + a*cos(theta);
-        uv = 0.45 + a*sin(theta);
-
-        if (!no_random) {
-            vj += 0.12*randomn(seed, m.size());
-            uv += 0.12*randomn(seed, m.size());
-        }
-
-        // Add an additional global color offset depending on redshift
-        uv += 0.4*max((0.5 - z)/0.5, 0.0);
-        vj += 0.2*max((0.5 - z)/0.5, 0.0);
-    };
-
-    auto gen_red = [&seed,no_random](const vec1f& m, const vec1f& z, vec1f& uv, vec1f& vj) {
-        double pvj = 1.25, puv = 1.85;
-        vec1f mspread = 0.1*(m - 11.0);
-
-        if (!no_random) {
-            mspread += 0.1*randomn(seed, m.size());
-        }
-
-        mspread = clamp(mspread, -0.1, 0.2);
-
-        vj = pvj + mspread;
-        uv = puv + mspread*0.88;
-
-        if (!no_random) {
-            vj += 0.1*randomn(seed, m.size());
-            uv += 0.1*randomn(seed, m.size());
-        }
-
-        // Add an additional global color offset depending on redshift
-        uv += 0.4*max((0.5 - z)/0.5, 0.0);
-        vj += 0.2*max((0.5 - z)/0.5, 0.0);
-    };
-
     // Disks are always blue
-    gen_blue(out.m, out.z, out.rfuv_disk, out.rfvj_disk);
+    gen_blue_uvj(out.m, out.z, out.rfuv_disk, out.rfvj_disk, no_random);
 
     // Bulges of bulge-dominated galaxies are always red
     // Other bulges have a 50% chance of being red
@@ -1255,12 +1310,12 @@ int phypp_main(int argc, char* argv[]) {
 
         vec1f tuv, tvj;
         vec1u idb = where(red_bulge);
-        gen_red(out.m[idb], out.z[idb], tuv, tvj);
+        gen_red_uvj(out.m[idb], out.z[idb], tuv, tvj, no_random);
         out.rfuv_bulge[idb] = tuv;
         out.rfvj_bulge[idb] = tvj;
 
         idb = where(!red_bulge);
-        gen_blue(out.m[idb], out.z[idb], tuv, tvj);
+        gen_blue_uvj(out.m[idb], out.z[idb], tuv, tvj, no_random);
         out.rfuv_bulge[idb] = tuv;
         out.rfvj_bulge[idb] = tvj;
     }
@@ -1276,46 +1331,11 @@ if (!no_flux) {
         note("assigning optical SEDs...");
     }
 
-    auto get_sed = [&](const vec1f& uv, const vec1f& vj, vec1u& sed) {
-        uint_t snb = opt_lib.buv.dims[1];
-
-        sed.resize(uv.size());
-        sed[_] = npos;
-
-        auto pg = progress_start(snb*snb);
-        for (uint_t u  : range(snb)) {
-            vec1b ibu = in_bin_open(uv, opt_lib.buv, u);
-            for (uint_t v  : range(snb)) {
-                // Find galaxies which are in this bin
-                vec1u idl = where(ibu && in_bin_open(vj, opt_lib.bvj, v));
-
-                if (!idl.empty()) {
-                    // Find the closest usable SED in the library
-                    uint_t lu = u, lv = v;
-                    if (!astar_find(opt_lib.use, lu, lv)) {
-                        error("could not find good SEDs in the optical library!");
-                        note("this should not have happened...");
-                        note(u, ", ", v);
-                        return false;
-                    }
-
-                    // Assign the SED to these galaxies
-                    uint_t ised = flat_id(opt_lib.use, lu, lv);
-                    sed[idl] = ised;
-                }
-
-                if (verbose) progress(pg);
-            }
-        }
-
-        return true;
-    };
-
-    if (!get_sed(out.rfuv_bulge, out.rfvj_bulge, out.opt_sed_bulge)) {
+    if (!get_sed_uvj(out.rfuv_bulge, out.rfvj_bulge, out.opt_sed_bulge, verbose)) {
         return 1;
     }
 
-    if (!get_sed(out.rfuv_disk,  out.rfvj_disk,  out.opt_sed_disk)) {
+    if (!get_sed_uvj(out.rfuv_disk,  out.rfvj_disk,  out.opt_sed_disk, verbose)) {
         return 1;
     }
 }
@@ -1472,12 +1492,6 @@ if (!no_flux) {
     if (file::get_basename(ir_lib_file) == "ir_lib_cs15.fits") {
         out.mdust.resize(ngal);
     }
-
-    auto get_opt_sed = [&](double m, uint_t ised, vec1f& orlam, vec1f& orsed) {
-        vec1u did = mult_ids(opt_lib.use, ised);
-        orlam = opt_lib.lam(did[0],did[1],_);
-        orsed = e10(m)*opt_lib.sed(did[0],did[1],_);
-    };
 
     auto get_ir_sed = [&](uint_t i, vec1f& irlam, vec1f& irsed) {
         if (file::get_basename(ir_lib_file) == "ir_lib_cs15.fits") {
