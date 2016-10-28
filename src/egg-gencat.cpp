@@ -361,6 +361,11 @@ int phypp_main(int argc, char* argv[]) {
         return 1;
     }
 
+    // Manual tuning of the M/L ratio as a function of z
+    auto get_m2l_cor = vectorize_lambda([](double z) {
+       return interpolate({0.15,0.15,0.0,0.0,-0.6}, {0.0,0.45,1.3,6.0,8.0}, z); 
+    });
+
     // Output catalog format
     // ---------------------
 
@@ -1260,8 +1265,8 @@ int phypp_main(int argc, char* argv[]) {
         out.rfvj_bulge[idb] = tvj;
     }
 
-    // Generate redshift-dependent mass-to-light correction
-    out.m2lcor = interpolate({-0.15,-0.15,0.0,0.0}, {0.0,0.45,1.3,10.0}, out.z);
+    // Generate redshift-dependent mass-to-light ratio correction
+    out.m2lcor = get_m2l_cor(out.z);
 
     // Assign optical SED
     // ------------------
@@ -1521,7 +1526,7 @@ if (!no_flux) {
             vec1f rlam, rsed;
             if (no_ir) {
                 // Just the stellar component
-                get_opt_sed(m[i]+out.m2lcor[i], optsed[i], rlam, rsed);
+                get_opt_sed(m[i]-out.m2lcor[i], optsed[i], rlam, rsed);
             } else if (no_stellar) {
                 // Just the dust component
                 get_ir_sed(i, rlam, rsed);
@@ -1529,7 +1534,7 @@ if (!no_flux) {
                 // Both stellar and dust components
                 vec1f orlam, orsed;
                 vec1f irlam, irsed;
-                get_opt_sed(m[i]+out.m2lcor[i], optsed[i], orlam, orsed);
+                get_opt_sed(m[i]-out.m2lcor[i], optsed[i], orlam, orsed);
                 get_ir_sed(i, irlam, irsed);
 
                 // Combine IR SED with optical SED
