@@ -1,4 +1,5 @@
 #include <phypp.hpp>
+#include "egg-utils.hpp"
 
 void print_help();
 
@@ -8,23 +9,26 @@ int phypp_main(int argc, char* argv[]) {
     bool ascii = false;
     read_args(argc, argv, arg_list(seds, out, id, component, ascii));
 
-    if (seds.empty() || id == npos || component.empty()) {
+    if (seds.empty() || id == npos) {
         print_help();
         return 0;
     }
 
     if (out.empty()) {
-        out = file::remove_extension(seds)+"-"+component+"-"+
-            strn(id)+(ascii ? ".cat" : ".fits");
+        std::string cmp_str;
+        if (!component.empty()) {
+            cmp_str = component+"-";
+        }
+
+        out = file::remove_extension(seds)+"-"+cmp_str+strn(id)+(ascii ? ".cat" : ".fits");
     } else {
         file::mkdir(file::get_directory(out));
     }
 
-    vec1u ids, tstart, tnbyte;
+    vec1u ids;
     uint_t elem_size;
     fits::read_table(file::remove_extension(seds)+"-lookup.fits",
-        "id", ids, component+"_start", tstart, component+"_nbyte", tnbyte,
-        "elem_size", elem_size
+        "id", ids, "elem_size", elem_size
     );
 
     if (elem_size != sizeof(float)) {
@@ -43,17 +47,63 @@ int phypp_main(int argc, char* argv[]) {
 
     id = nid;
 
-    uint_t start = tstart[id], nbyte = tnbyte[id]/2, npt = nbyte/sizeof(float);
+    vec1f lambda, flux;
 
-    vec1f lambda(npt), flux(npt);
+    if (!component.empty()) {
+        // Read lookup table
+        vec1u tstart, tnbyte;
+        fits::read_table(file::remove_extension(seds)+"-lookup.fits",
+            component+"_start", tstart, component+"_nbyte", tnbyte
+        );
 
-    std::ifstream file(seds);
-    file.seekg(start);
-    file.read(reinterpret_cast<char*>(lambda.data.data()), nbyte);
-    file.read(reinterpret_cast<char*>(flux.data.data()), nbyte);
+        // Read component
+        uint_t start = tstart[id];
+        uint_t nbyte = tnbyte[id]/2;
+        uint_t npt = nbyte/sizeof(float);
+
+        lambda.resize(npt);
+        flux.resize(npt);
+
+        std::ifstream file(seds);
+        file.seekg(start);
+        file.read(reinterpret_cast<char*>(lambda.data.data()), nbyte);
+        file.read(reinterpret_cast<char*>(flux.data.data()), nbyte);
+    } else {
+        // Read lookup table
+        vec1u tstart_bulge, tnbyte_bulge, tstart_disk, tnbyte_disk;
+        fits::read_table(file::remove_extension(seds)+"-lookup.fits",
+            "bulge_start", tstart_bulge, "bulge_nbyte", tnbyte_bulge,
+            "disk_start",  tstart_disk,  "disk_nbyte",  tnbyte_disk
+        );
+
+        std::ifstream file(seds);
+
+        // Read bulge        
+        uint_t start = tstart_bulge[id];
+        uint_t nbyte = tnbyte_bulge[id]/2;
+        uint_t npt = nbyte/sizeof(float);
+
+        vec1f lambda1(npt), flux1(npt);
+        file.seekg(start);
+        file.read(reinterpret_cast<char*>(lambda1.data.data()), nbyte);
+        file.read(reinterpret_cast<char*>(flux1.data.data()), nbyte);
+
+        // Read disk
+        start = tstart_disk[id];
+        nbyte = tnbyte_disk[id]/2;
+        npt = nbyte/sizeof(float);
+
+        vec1f lambda2(npt), flux2(npt);
+        file.seekg(start);
+        file.read(reinterpret_cast<char*>(lambda2.data.data()), nbyte);
+        file.read(reinterpret_cast<char*>(flux2.data.data()), nbyte);
+
+        // Sum them up
+        merge_add(lambda1, lambda2, flux1, flux2, lambda, flux);
+    }
 
     if (ascii) {
-        ascii::write_table_hdr(out, 18, ftable(lambda, flux));
+        ascii::write_table_hdr(out, 18, ftable(lambda, strna_sci(flux)));
     } else {
         fits::write_table(out, ftable(lambda, flux));
     }
@@ -85,8 +135,8 @@ void print_help() {
     argdoc("seds", "[string]", "file containing the SEDs (mandatory)");
     argdoc("id", "[uint]", "ID of the galaxy to extract (matching the ID column of the "
         "generated catalog, mandatory) ");
-    argdoc("component", "[string]", "name of the galaxy component to extract (disk or bulge, "
-        "mandatory)");
+    argdoc("component", "[string]", "name of the galaxy component to extract (disk or bulge); "
+        "if not provided then the total SED of the galaxy (disk+bulge) is extracted");
     argdoc("ascii", "[flag]", "set this flag to save an ASCII table instead of FITS");
     argdoc("out", "[string]", "FITS file in which the SED will be extracted (default: "
         "[out]-[component]-[id].fits/cat)");
