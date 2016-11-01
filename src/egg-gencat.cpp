@@ -1515,7 +1515,6 @@ if (!no_flux) {
     uint_t nsed = 0;
     std::atomic<uint_t> nwritten(0);
     std::ofstream seds_data;
-    uint_t nbyte = 0;
     vec1u save_sed_bulge_start, save_sed_bulge_nbyte;
     vec1u save_sed_disk_start,  save_sed_disk_nbyte;
 
@@ -1574,7 +1573,9 @@ if (!no_flux) {
                 ++nsed;
                 sed_saver.push(
                     [&nwritten,&seds_data,&save_sed_bulge_start,&save_sed_bulge_nbyte,
-                    &save_sed_disk_start,&save_sed_disk_nbyte,&nbyte,cmp,i,lam,sed]() {
+                    &save_sed_disk_start,&save_sed_disk_nbyte,cmp,i,lam,sed]() {
+
+                    auto sp = seds_data.tellp();
 
                     seds_data.write(
                         reinterpret_cast<const char*>(lam.data.data()),
@@ -1585,17 +1586,15 @@ if (!no_flux) {
                         sed.size()*sizeof(decltype(sed[0]))
                     );
 
-                    uint_t nval = 2*sed.size()*sizeof(decltype(sed[0]));
+                    uint_t nval = seds_data.tellp()-sp;
 
                     if (cmp == component::bulge) {
-                        save_sed_bulge_start[i] = nbyte;
+                        save_sed_bulge_start[i] = sp;
                         save_sed_bulge_nbyte[i] = nval;
                     } else {
-                        save_sed_disk_start[i] = nbyte;
+                        save_sed_disk_start[i] = sp;
                         save_sed_disk_nbyte[i] = nval;
                     }
-
-                    nbyte += nval;
 
                     ++nwritten;
                 });
