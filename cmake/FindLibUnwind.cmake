@@ -7,7 +7,7 @@
 FIND_PATH(LIBUNWIND_INCLUDE_DIR libunwind.h)
 if(NOT LIBUNWIND_INCLUDE_DIR)
   message(STATUS "failed to find libunwind.h")
-elif(NOT EXISTS "${LIBUNWIND_INCLUDE_DIR}/unwind.h")
+elseif(NOT EXISTS "${LIBUNWIND_INCLUDE_DIR}/unwind.h")
   message(STATUS "libunwind.h was found, but unwind.h was not found in that directory.")
   SET(LIBUNWIND_INCLUDE_DIR "")
 endif()
