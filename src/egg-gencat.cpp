@@ -1703,7 +1703,7 @@ void print_help() {
         }
     };
 
-    print("egg-gencat v1.0.3");
+    print("egg-gencat v1.0.4");
     print("usage: egg-gencat [options]\n");
 
     print("List of generic options:");
