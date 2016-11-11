@@ -1133,6 +1133,10 @@ int phypp_main(int argc, char* argv[]) {
             angrot_vernal(out.ra, out.dec, ang, out.ra, out.dec);
             out.ra += cra - 90.0;
             normalize_coordinates(out.ra, out.dec);
+        } else {
+            out.ra = replicate(dnan, ngal);
+            out.dec = replicate(dnan, ngal);
+            out.clustered = replicate(false, ngal);
         }
     }
 
@@ -1321,7 +1325,7 @@ int phypp_main(int argc, char* argv[]) {
     // Assign optical SED
     // ------------------
 
-if (!no_flux) {
+if (!no_stellar) {
     if (verbose) {
         note("assigning optical SEDs...");
     }
@@ -1333,6 +1337,9 @@ if (!no_flux) {
     if (!get_sed_uvj(out.rfuv_disk,  out.rfvj_disk,  out.opt_sed_disk, verbose)) {
         return 1;
     }
+} else {
+    out.opt_sed_bulge = replicate(npos, ngal);
+    out.opt_sed_disk = replicate(npos, ngal);
 }
 
     // Generate IR properties
