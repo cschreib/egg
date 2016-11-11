@@ -31,8 +31,7 @@ int phypp_main(int argc, char* argv[]) {
     double zmin = 0.05;
     double zmax = 10.5;
     // Define the redshift binning
-    double min_dz = dnan;
-    double bin_dz = dnan;
+    double bin_dz = 0.05;
 
     // Clustering parameters
     double clust_r0 = 0.05;          // clustering outer truncation radius in degree
@@ -117,7 +116,7 @@ int phypp_main(int argc, char* argv[]) {
     // Read command line arguments
     // ---------------------------
     read_args(argc, argv, arg_list(
-        ra0, dec0, area, mmin, maglim, zmin, zmax, name(bin_dz, "dz"), min_dz,
+        ra0, dec0, area, mmin, maglim, zmin, zmax, name(bin_dz, "dz"),
         name(bin_dm, "dm"), ms_disp,
         no_pos, no_clust, no_flux, no_stellar, no_dust, no_passive_lir, no_random,
         save_sed, name(mass_func_file, "mass_func"),
@@ -211,10 +210,6 @@ int phypp_main(int argc, char* argv[]) {
     if (zmin <= 0.0) {
         error("minimum redshift must be > 0 (zmin=...)");
         return 1;
-    }
-
-    if (!is_finite(bin_dz)) {
-        bin_dz = (zmin >= 0.1 ? 0.1 : zmin);
     }
 
     if (no_dust && no_stellar) {
@@ -363,7 +358,7 @@ int phypp_main(int argc, char* argv[]) {
 
     // Manual tuning of the M/L ratio as a function of z
     auto get_m2l_cor = vectorize_lambda([](double z) {
-       return interpolate({0.15,0.15,0.0,0.0,-0.6}, {0.0,0.45,1.3,6.0,8.0}, z); 
+       return interpolate({0.15,0.15,0.0,0.0,-0.6}, {0.0,0.45,1.3,6.0,8.0}, z);
     });
 
     // Output catalog format
@@ -423,7 +418,7 @@ int phypp_main(int argc, char* argv[]) {
     // Either generate everything from scratch, or provide
     // all these data in input, i.e., from an existing catalog.
 
-    // First define the functions to generate UVJ colors to have a prior on colors 
+    // First define the functions to generate UVJ colors to have a prior on colors
     // This is used for computing the stellar mass limit for a given magnitude cut.
     // It is also used later to actually generate the colors of the simulated galaxies.
     auto gen_blue_uvj = [&seed](const vec1f& m, const vec1f& z, vec1f& uv, vec1f& vj, bool norand) {
@@ -606,7 +601,7 @@ int phypp_main(int argc, char* argv[]) {
 
         // Build the redshift bins with logarithmic bins
         // To prevent too narrow bins with very few galaxies, we impose a minimum
-        // redshift width 'min_dz' (only used for the clustering slices)
+        // redshift width (this feature is only used when making the clustering slices)
         auto make_zbins = [](double zstart, double zend, double dz, double mdz) {
             vec1d tzb;
             double z1 = zstart;
@@ -707,7 +702,7 @@ int phypp_main(int argc, char* argv[]) {
             // Use the relations between mass and UVJ colors to have an estimate of the typical
             // M/L ratio (hence flux) of a galaxy of a given mass at any redshift, and use that
             // to estimate the typical minimum mass that is observed for a given flux limit.
-            // We add a safety margin to this estimate to take into account the scatter in the 
+            // We add a safety margin to this estimate to take into account the scatter in the
             // M/L ratios. Note that here we want to be complete at the requested magnitude limit,
             // which means we should go down in mass such that the brightest galaxies at that mass
             // are not seen.
@@ -1763,7 +1758,6 @@ void print_help() {
         "magnitude cut is applied (default: none)");
     argdoc("zmin", "[double]", "minimum redshift generated (default: 0.05)");
     argdoc("zmax", "[double]", "maximum redshift generated (default: 10.5)");
-    argdoc("min_dz", "[double]", "minimum size of a redshift bin (default: none)");
     argdoc("dz", "[double]", "size of a redshift bin, as a fraction of (1+z) "
         "(default: zmin)");
     argdoc("dm", "[double, dex]", "size of a mass bin (default: 0.05)");
