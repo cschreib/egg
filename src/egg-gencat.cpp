@@ -32,6 +32,7 @@ int phypp_main(int argc, char* argv[]) {
     double zmax = 10.5;
     // Define the redshift binning
     double bin_dz = 0.05;
+    double max_dz = 0.5;
 
     // Clustering parameters
     double clust_r0 = 0.05;          // clustering outer truncation radius in degree
@@ -116,7 +117,7 @@ int phypp_main(int argc, char* argv[]) {
     // Read command line arguments
     // ---------------------------
     read_args(argc, argv, arg_list(
-        ra0, dec0, area, mmin, maglim, zmin, zmax, name(bin_dz, "dz"),
+        ra0, dec0, area, mmin, maglim, zmin, zmax, name(bin_dz, "dz"), max_dz,
         name(bin_dm, "dm"), ms_disp,
         no_pos, no_clust, no_flux, no_stellar, no_dust, no_passive_lir, no_random,
         save_sed, name(mass_func_file, "mass_func"),
@@ -600,31 +601,46 @@ int phypp_main(int argc, char* argv[]) {
         }
 
         // Build the redshift bins with logarithmic bins
-        // To prevent too narrow bins with very few galaxies, we impose a minimum
+        // To prevent too narrow bins with very few galaxies, we can impose a minimum
         // redshift width (this feature is only used when making the clustering slices)
-        auto make_zbins = [](double zstart, double zend, double dz, double mdz) {
+        // or, conversely, a maximum redshift width to avoid generating too large bins.
+        auto make_zbins = [](double zstart, double zend, double dz, double midz, double madz) {
             vec1d tzb;
+
+            phypp_check(!is_nan(midz) || !is_nan(midz) || midz < madz,
+                "min_dz must be smaller than max_dz (got ", midz, " and ", madz, ")");
+
+            // Generate redshifts incrementally using z(i+1) = z(i)*(1+dz) until we reach zend
             double z1 = zstart;
             while (z1 < zend) {
                 tzb.push_back(z1);
                 z1 *= 1.0 + dz;
-                if (is_finite(mdz) && z1 - tzb.back() < mdz) {
-                    z1 = tzb.back() + mdz;
+                if (is_finite(midz) && z1 - tzb.back() < midz) {
+                    z1 = tzb.back() + midz;
+                } else if (is_finite(madz) && z1 - tzb.back() > madz) {
+                    z1 = tzb.back() + madz;
                 }
             }
 
-            if (tzb.size() == 1 ||
-                ((zend - tzb.back())/(1.0 + zend) > 0.5*dz &&
-                (!is_finite(mdz) || zend - tzb.back() > mdz))) {
-                tzb.push_back(zend);
-            } else {
+            // Now determine wether we need an extra bin for zend, or if we can just enlarge
+            // the last bin to include it.
+            double min_end_dz = 0.5*zend*dz;
+            if (is_finite(midz)) {
+                min_end_dz = min(min_end_dz, midz);
+            }
+
+            if (tzb.size() > 1 && zend - tzb.back() < min_end_dz) {
+                // Make the last bin a bit bigger to include zend
                 tzb.back() = zend;
+            } else {
+                // Add zend to make the last bin
+                tzb.push_back(zend);
             }
 
             return make_bins(tzb);
         };
 
-        vec2d zb = make_zbins(zmin, zmax, bin_dz, dnan);
+        vec2d zb = make_zbins(zmin, zmax, bin_dz, dnan, max_dz);
         uint_t nz = zb.dims[1];
 
         if (verbose) {
@@ -978,7 +994,7 @@ int phypp_main(int argc, char* argv[]) {
                 out.clustered.resize(ngal);
 
                 // Clustering redshift slices (fixed to preserve clustering amplitude)
-                vec2f czb = make_zbins(0.0, std::max(10.0, zmax), 0.1, 0.1);
+                vec2f czb = make_zbins(0.0, std::max(10.0, zmax), 0.1, 0.1, 0.5);
                 uint_t ncz = czb.dims[1];
 
                 auto pg = progress_start(ncz);

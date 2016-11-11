@@ -1,6 +1,9 @@
 v1.0.5
 ======
 
+New/updated features:
+ - Added the 'max_dz' option (default is 0.5) to avoid generating too broad redshift slices.
+
 Bug fixes:
  - Fixed redshift bins getting too large when zmin is itself relatively large.
  - Stellar SEDs are no longer attributed to galaxies when the 'no_stellar' option is set.
