@@ -33,6 +33,7 @@ int phypp_main(int argc, char* argv[]) {
     // Define the redshift binning
     double bin_dz = 0.05;
     double max_dz = 0.5;
+    double min_dz = 0.001;
 
     // Clustering parameters
     double clust_r0 = 0.05;          // clustering outer truncation radius in degree
@@ -117,7 +118,7 @@ int phypp_main(int argc, char* argv[]) {
     // Read command line arguments
     // ---------------------------
     read_args(argc, argv, arg_list(
-        ra0, dec0, area, mmin, maglim, zmin, zmax, name(bin_dz, "dz"), max_dz,
+        ra0, dec0, area, mmin, maglim, zmin, zmax, name(bin_dz, "dz"), min_dz, max_dz,
         name(bin_dm, "dm"), ms_disp,
         no_pos, no_clust, no_flux, no_stellar, no_dust, no_passive_lir, no_random,
         save_sed, name(mass_func_file, "mass_func"),
@@ -210,6 +211,11 @@ int phypp_main(int argc, char* argv[]) {
 
     if (zmin <= 0.0) {
         error("minimum redshift must be > 0 (zmin=...)");
+        return 1;
+    }
+
+    if (min_dz > max_dz) {
+        error("min_dz must be larger than max_dz (got ", min_dz, " and ", max_dz, ")");
         return 1;
     }
 
@@ -640,7 +646,7 @@ int phypp_main(int argc, char* argv[]) {
             return make_bins(tzb);
         };
 
-        vec2d zb = make_zbins(zmin, zmax, bin_dz, dnan, max_dz);
+        vec2d zb = make_zbins(zmin, zmax, bin_dz, min_dz, max_dz);
         uint_t nz = zb.dims[1];
 
         if (verbose) {
@@ -1781,8 +1787,10 @@ void print_help() {
         "magnitude cut is applied (default: none)");
     argdoc("zmin", "[double]", "minimum redshift generated (default: 0.05)");
     argdoc("zmax", "[double]", "maximum redshift generated (default: 10.5)");
+    argdoc("min_dz", "[double]", "minimum size of a redshift bin (default: 0.001)");
+    argdoc("max_dz", "[double]", "maximum size of a redshift bin (default: 0.5)");
     argdoc("dz", "[double]", "size of a redshift bin, as a fraction of (1+z) "
-        "(default: zmin)");
+        "(default: 0.05)");
     argdoc("dm", "[double, dex]", "size of a mass bin (default: 0.05)");
     argdoc("ms_disp", "[double, dex]", "scatter of the main sequence (default: 0.3)");
     print("");
