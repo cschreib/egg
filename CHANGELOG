@@ -1,0 +1,84 @@
+v1.0.5
+======
+
+Bug fixes:
+ - Fixed redshift bins getting too large when zmin is itself relatively large.
+ - Stellar SEDs are no longer attributed to galaxies when the 'no_stellar' option is set.
+ - Fixed columns being empty in the output FITS catalog, as some languages/libraries do not
+   like this.
+
+
+v1.0.4
+======
+
+New/updated features:
+ - Added the rest-frame filters U, B and V (useful to compute UVJ colors).
+ - 'egg-getsed' can now produce the full (disk+bulge) SED of a galaxy rather than only producing
+   either the disk or the bulge SED. Simply omit the 'component' option to do that.
+ - Changed the algorithm to determine the lowest mass generated as a function of redshift when the
+   'maglim' option is used. This new algorithm takes into account the typical colors (and M/L) of
+   galaxies as a function of mass and redshift, so that 'egg-gencat' generates fewer galaxies below
+   the requested magnitude limit, while remaining complete above that limit.
+
+Changes in EGG recipes:
+ - The z=4 stellar mass function is now given a shallower faint end slope, and this slope is made
+   also shallower at higher redshifts, with a cap at -2.1 to prevent exploding the counts.
+ - The mass-to-light ratio of z>6 galaxies is adjusted to match the observations of Song+16.
+ - Bluer templates are added to the stellar library to cover a wider region of the UVJ plane.
+   This region is populated at high redshift and low masses.
+
+Bug fixes:
+ - Fixed linking error with libdwarf and libelf.
+ - Fixed typo in libelf CMake script.
+ - Fixed phy++ CMake script to account for new header structure.
+ - Fixed typo in documentation.
+
+
+v1.0.3
+======
+
+Changes in EGG recipes:
+ - Tweaked the stellar mass functions at z>4 to match the observations of Grazian+14.
+   This involves having a steeper low mass slope, and a re-calibrated evolution of the
+   total stellar mass density at z>6.
+ - Stopped the evolution of the UVJ colors beyond z=3.3 to prevent galaxies from becoming
+   too blue.
+
+Bug fixes:
+ - Fixed crash when zmin is given a too high value.
+ - Fixed errors when libunwind is not installed on the system.
+
+Install script:
+ - Fixed error in the the name of the EGG temporary source directory.
+ - Removed usage of 'grep -Po' for MacOS compatibility. Using 'sed' instead.
+
+
+v1.0.2
+======
+
+Changes in EGG recipes:
+ - Added a manual correction to the mass-to-light ratios of z<1.3 galaxies.
+   These galaxies are given a higher M/L to account for aging populations that is not accounted
+   for by the UVJ colors alone.
+ - Re-calibrated the half light radii of bulges to improve galaxies at z<0.5.
+
+Bug fixes:
+ - Fixed crash when generating too narrow redshift slices.
+
+Install script:
+ - Now downloading and building all required dependencies (cfistio and wcslib).
+ - The libraries downloaded by the script are no longer installed on the system, but instead
+   are build and isolated in the temporary directory. Only EGG is installed.
+
+
+v1.0.1
+======
+
+Bug fixes:
+ - Fixed errors in the CMake scripts and removed dependencies on linfit and LAPACK.
+
+
+v1.0.0
+======
+
+Initial release.
