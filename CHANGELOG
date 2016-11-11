@@ -6,6 +6,7 @@ New/updated features:
 
 Bug fixes:
  - Fixed redshift bins getting too large when zmin is itself relatively large.
+ - Fixed the 'min_dz' option doing nothing.
  - Stellar SEDs are no longer attributed to galaxies when the 'no_stellar' option is set.
  - Fixed columns being empty in the output FITS catalog, as some languages/libraries do not
    like this.
