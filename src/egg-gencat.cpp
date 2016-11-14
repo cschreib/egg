@@ -1754,7 +1754,7 @@ void print_help() {
     argdoc("opt_lib", "[string]", "FITS file containing the optical SED library (default: "
         "opt_lib_fast.fits)");
     argdoc("filter_db", "[string]", "location of the filter database file (default: "+
-        data_dir+"fits/filter-db/db.dat)");
+        file::directorize(filters_dir)+"db.dat)");
     print("");
 
     print("List of component related options:");
