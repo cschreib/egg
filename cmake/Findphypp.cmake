@@ -50,6 +50,9 @@ if(NOT PHYPP_FOUND)
         if(NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 3.5))
             add_definitions(-Wno-old-style-cast)
         endif()
+        if(NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 3.8))
+            add_definitions(-Wno-double-promote)
+        endif()
 
         add_definitions(-std=c++11)
         add_definitions(-ftemplate-backtrace-limit=0)
@@ -132,6 +135,10 @@ if(NOT PHYPP_FOUND)
     else()
         set(PHYPP_INCLUDE_DIRS ${PHYPP_INCLUDE_DIRS} ${WCSLIB_INCLUDE_DIRS})
         set(PHYPP_LIBRARIES ${PHYPP_LIBRARIES} ${WCSLIB_LIBRARIES})
+
+        if (WCSLIB_VERSION_STRING VERSION_LESS 5.0)
+            add_definitions(-DWCSLIB_NO_DIS)
+        endif()
     endif()
 
     # handle conditional FFTW support
