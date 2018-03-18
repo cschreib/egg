@@ -11,7 +11,7 @@ find_package(phypp)
 
 set(EGG_SHARE_DIR ${CMAKE_INSTALL_PREFIX}/share/egg)
 install(FILES
-    share/ir_lib_ce01.fits share/ir_lib_cs15.fits
+    share/ir_lib_ce01.fits share/ir_lib_cs17.fits
     share/mass_func_candels.fits share/opt_lib_fast.fits
     DESTINATION ${EGG_SHARE_DIR} COMPONENT data)
 install(DIRECTORY share/filter-db
