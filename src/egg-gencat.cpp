@@ -74,7 +74,7 @@ int phypp_main(int argc, char* argv[]) {
     std::string mass_func_file = egg_share_dir+"mass_func_candels.fits";
 
     // SED libraries
-    std::string ir_lib_file = egg_share_dir+"ir_lib_cs15.fits";
+    std::string ir_lib_file = egg_share_dir+"ir_lib_cs17.fits";
     std::string opt_lib_file = egg_share_dir+"opt_lib_fast.fits";
 
     // Filter library
@@ -295,18 +295,19 @@ int phypp_main(int argc, char* argv[]) {
 
     struct {
         vec2d lam, dust, pah;
-        vec1d tdust, lir_dust, lir_pah;
-    } ir_lib_cs15;
+        vec1d tdust, lir_dust, lir_pah, l8_dust, l8_pah;
+    } ir_lib_cs17;
 
     uint_t nirsed;
-    if (file::get_basename(ir_lib_file) == "ir_lib_cs15.fits") {
+    if (file::get_basename(ir_lib_file) == "ir_lib_cs17.fits") {
         // My library, calibrated in unit Mdust
         fits::read_table(ir_lib_file, ftable(
-            ir_lib_cs15.lam, ir_lib_cs15.dust, ir_lib_cs15.pah,
-            ir_lib_cs15.tdust, ir_lib_cs15.lir_dust, ir_lib_cs15.lir_pah
+            ir_lib_cs17.lam, ir_lib_cs17.dust, ir_lib_cs17.pah,
+            ir_lib_cs17.tdust, ir_lib_cs17.lir_dust, ir_lib_cs17.lir_pah,
+            ir_lib_cs17.l8_dust, ir_lib_cs17.l8_pah
         ));
 
-        nirsed = ir_lib_cs15.lam.dims[0];
+        nirsed = ir_lib_cs17.lam.dims[0];
     } else {
         // Generic library
         auto cols = fits::read_table_columns(ir_lib_file);
@@ -1376,7 +1377,8 @@ if (!no_stellar) {
     vec1f oir8 = out.ir8;
     vec1f otdust = out.tdust;
 
-    out.tdust = 4.65*(out.z-2.0) + 31.0;
+    vec1f tdust_ms = 32.9 + 4.60*(out.z - 2.0) - 0.77;
+    out.tdust = tdust_ms;
 
     if (magdis_tdust) {
         vec1u idz = where(out.z > 1);
@@ -1384,20 +1386,20 @@ if (!no_stellar) {
     }
 
     // Starbursts are warmer
-    out.tdust += 6.6*out.rsb;
+    out.tdust += 10.1*out.rsb;
     // Massive galaxies are colder (= downfall of SFE)
-    out.tdust -= 1.5*min(0.0, out.z-2.0)*clamp(out.m - 10.7, 0.0, 1.0);
+    out.tdust -= 1.5*max(0.0, 2.0 - out.z)*clamp(out.m - 10.7, 0.0, 1.0);
 
-    out.ir8 = (1.95*min(0.0, out.z - 2.0) + 7.73)
-        // Starburst have larger IR8
-        *e10(0.43*max(0.0, out.rsb))
-        // Low-mass galaxies have larger IR8
-        *e10(-1.8*clamp(out.m - 10.0, -1, 0.0));
+    out.ir8 = (4.08 + 3.29*clamp(out.z-1.0, 0.0, 1.0))*0.81;
+    // Starburst have larger IR8
+    out.ir8 *= e10(0.66*max(0.0, out.rsb));
+    // Low-mass galaxies have larger IR8
+    out.ir8 *= e10(-1.0*clamp(out.m - 10.0, -1, 0.0));
 
     if (!no_random) {
         // Add some random scatter
-        out.tdust += 3.0*randomn(seed, ngal);
-        out.ir8 *= e10(0.1*randomn(seed, ngal));
+        out.tdust += 0.12*tdust_ms*randomn(seed, ngal);
+        out.ir8 *= e10(0.18*randomn(seed, ngal));
     }
 
     out.lir = out.sfrir/1.72e-10;
@@ -1409,8 +1411,8 @@ if (!no_stellar) {
         out.irx[id] = out.sfrir[id]/out.sfruv[id];
         double orsb = out.rsb[id];
         out.rsb[id] = log10(out.sfr[id]) - sfrms[id];
-        out.tdust[id] += 6.6*(out.rsb[id] - orsb);
-        out.ir8[id] *= e10(0.43*(max(0.0, out.rsb[id]) - max(0.0, orsb)));
+        out.tdust[id] += 6.42*(out.rsb[id] - orsb);
+        out.ir8[id] *= e10(0.40*(max(0.0, out.rsb[id]) - max(0.0, orsb)));
     };
 
     // Keep the values provided by the user in the input catalog (if any)
@@ -1456,8 +1458,8 @@ if (!no_stellar) {
     }
 
     // Make sure the values are valid
-    out.ir8 = clamp(out.ir8, 0.48, 22.8); // range allowed by IR library
-    out.fpah = 0.267/(out.ir8 - 0.217) - 0.0118;
+    out.ir8 = clamp(out.ir8, 0.48, 27.5); // range allowed by IR library
+    out.fpah = clamp(1.0/(1.0 - (331 - 691*out.ir8)/(193 - 6.98*out.ir8)), 0.0, 1.0);
     out.lir[where(!is_finite(out.lir))] = 0.0;
 
 
@@ -1488,9 +1490,9 @@ if (!no_stellar) {
 
         // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
         fir_sed += clamp(out.rsb/ms_disp, -2.0, 2.0);
-    } else if (file::get_basename(ir_lib_file) == "ir_lib_cs15.fits") {
+    } else if (file::get_basename(ir_lib_file) == "ir_lib_cs17.fits") {
         // My own library, using calibration from stacks and detections
-        fir_sed = interpolate(findgen(nirsed), ir_lib_cs15.tdust, out.tdust);
+        fir_sed = interpolate(findgen(nirsed), ir_lib_cs17.tdust, out.tdust);
     } else {
         error("no calibration code available for the IR library '", ir_lib_file, "'");
         return 1;
@@ -1513,25 +1515,33 @@ if (!no_flux) {
         note("computing fluxes", (rffilters.empty() ? "" : " and absolute magnitudes"), "...");
     }
 
-    if (file::get_basename(ir_lib_file) == "ir_lib_cs15.fits") {
+    if (file::get_basename(ir_lib_file) == "ir_lib_cs17.fits") {
         out.mdust.resize(ngal);
     }
 
     auto get_ir_sed = [&](uint_t i, vec1f& irlam, vec1f& irsed) {
-        if (file::get_basename(ir_lib_file) == "ir_lib_cs15.fits") {
-            // My library
-            irlam = ir_lib_cs15.lam(out.ir_sed[i],_);
-            irsed = ir_lib_cs15.dust(out.ir_sed[i],_)*(1.0 - out.fpah[i])
-                + ir_lib_cs15.pah(out.ir_sed[i],_)*out.fpah[i];
+        uint_t s = out.ir_sed[i];
 
-            // SED is in unit Mdust
-            out.mdust[i] = out.lir[i]/(ir_lib_cs15.lir_dust[out.ir_sed[i]]*(1.0 - out.fpah[i])
-                + ir_lib_cs15.lir_pah[out.ir_sed[i]]*out.fpah[i]);
+        if (file::get_basename(ir_lib_file) == "ir_lib_cs17.fits") {
+            // My library
+
+            // Get exact fPAH
+            out.fpah[i] = clamp(1.0/(1.0 - (ir_lib_cs17.lir_pah[s] - ir_lib_cs17.l8_pah[s]*out.ir8[i])/
+                (ir_lib_cs17.lir_dust[s] - ir_lib_cs17.l8_dust[s]*out.ir8[i])), 0.0, 1.0);
+
+            // Build combined SED
+            irlam = ir_lib_cs17.lam(s,_);
+            irsed = ir_lib_cs17.dust(s,_)*(1.0 - out.fpah[i])
+                + ir_lib_cs17.pah(s,_)*out.fpah[i];
+
+            // SED is in unit Mdust, normalize it to our dust mass
+            out.mdust[i] = out.lir[i]/(ir_lib_cs17.lir_dust[s]*(1.0 - out.fpah[i])
+                + ir_lib_cs17.lir_pah[s]*out.fpah[i]);
             irsed *= out.mdust[i];
         } else {
             // Generic library, SEDs in units of LIR
-            irlam = ir_lib.lam(out.ir_sed[i],_);
-            irsed = out.lir[i]*ir_lib.sed(out.ir_sed[i],_);
+            irlam = ir_lib.lam(s,_);
+            irsed = out.lir[i]*ir_lib.sed(s,_);
         }
     };
 
