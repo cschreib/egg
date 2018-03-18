@@ -20,7 +20,7 @@ int phypp_main(int argc, char* argv[]) {
             cmp_str = component+"-";
         }
 
-        out = file::remove_extension(seds)+"-"+cmp_str+strn(id)+(ascii ? ".cat" : ".fits");
+        out = file::remove_extension(seds)+"-"+cmp_str+to_string(id)+(ascii ? ".cat" : ".fits");
     } else {
         file::mkdir(file::get_directory(out));
     }
@@ -78,7 +78,7 @@ int phypp_main(int argc, char* argv[]) {
 
         std::ifstream file(seds);
 
-        // Read bulge        
+        // Read bulge
         uint_t start = tstart_bulge[id];
         uint_t nbyte = tnbyte_bulge[id]/2;
         uint_t npt = nbyte/sizeof(float);
@@ -103,7 +103,8 @@ int phypp_main(int argc, char* argv[]) {
     }
 
     if (ascii) {
-        ascii::write_table_hdr(out, 18, ftable(lambda, strna_sci(flux)));
+        ascii::write_table_hdr(out, 18, {"lambda[um]", "flux[uJy]"},
+            lambda, format::scientific(flux));
     } else {
         fits::write_table(out, ftable(lambda, flux));
     }
@@ -128,7 +129,7 @@ void print_help() {
         }
     };
 
-    print("egg-getsed v1.0rc1");
+    print("egg-getsed v1.0");
     print("usage: egg-getsed [options]\n");
 
     print("List of options:");

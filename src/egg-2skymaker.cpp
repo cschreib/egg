@@ -176,7 +176,7 @@ int phypp_main(int argc, char* argv[]) {
 
     if (count(sky_param == "WAVELENGTH") == 0) {
         sky_param.push_back("WAVELENGTH");
-        sky_value.push_back(strn(cat.lambda[b]));
+        sky_value.push_back(to_string(cat.lambda[b]));
 
     }
 
@@ -312,7 +312,7 @@ int phypp_main(int argc, char* argv[]) {
         tpar.push_back("IMAGE_NAME");
         tval.push_back(img_dir+img_name+"-sci.fits");
         tpar.push_back("IMAGE_SIZE");
-        tval.push_back(strn(sx)+","+strn(sy));
+        tval.push_back(to_string(sx)+","+to_string(sy));
         tpar.push_back("IMAGE_HEADER");
         tval.push_back(hdr_file);
 
@@ -404,8 +404,8 @@ int phypp_main(int argc, char* argv[]) {
             tx[idi[idis]] = ttx[idis]; ty[idi[idis]] = tty[idis];
 
             // Write the catalog for this section
-            std::string six = align_right(strn(ix+1), strn(nsx).size(), '0');
-            std::string siy = align_right(strn(iy+1), strn(nsy).size(), '0');
+            std::string six = align_right(to_string(ix+1), to_string(nsx).size(), '0');
+            std::string siy = align_right(to_string(iy+1), to_string(nsy).size(), '0');
 
             auto spl = file::split_extension(out_file);
             write_catalog(spl.first+"-"+six+"-"+siy+spl.second, idi, nx, ny);

@@ -181,8 +181,8 @@ int phypp_main(int argc, char* argv[]) {
             });
 
             // Print
-            vec1s srlam = strna(rlam)+" um, ";
-            vec1s swidth = strna(width);
+            vec1s srlam = to_string_vector(rlam)+" um, ";
+            vec1s swidth = to_string_vector(width);
             vec1s item = " - "+align_left(fils, max(length(fils)))+
                 "  ref-lam = "+align_left(srlam, max(length(srlam)))+
                 "FWHM = "+swidth+" um";
@@ -1643,7 +1643,7 @@ if (!no_flux) {
 
     if (save_sed) {
         if (verbose) {
-            note("writing "+strn(nsed)+" SEDs to disk...");
+            note("writing ", nsed, " SEDs to disk...");
 
             auto pg = progress_start(nsed);
             do {
