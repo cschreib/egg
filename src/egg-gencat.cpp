@@ -536,7 +536,7 @@ int phypp_main(int argc, char* argv[]) {
         }
 
         // Load data from an existing catalog
-        if (end_with(input_cat_file, ".fits")) {
+        if (ends_with(input_cat_file, ".fits")) {
             fits::input_table tbl(input_cat_file);
 
             // Read main parameters
