@@ -158,6 +158,16 @@ int phypp_main(int argc, char* argv[]) {
                 vec1d lam, res;
                 fits::read_table(fil.second, ftable(lam, res));
 
+                if (lam.size() != res.size()) {
+                    warning("mismatch in wavelength and response for filter ", fil.first);
+                    continue;
+                }
+
+                if (max(res) <= 0) {
+                    warning("zero transmission for filter ", fil.first);
+                    continue;
+                }
+
                 // Compute reference wavelength
                 double trlam = integrate(lam, lam*res);
 
