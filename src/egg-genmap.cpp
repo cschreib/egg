@@ -87,7 +87,7 @@ int phypp_main(int argc, char* argv[]) {
     } cat;
 
     uint_t idb;
-    if (end_with(cat_file, ".fits")) {
+    if (ends_with(cat_file, ".fits")) {
         fits::input_table table(cat_file);
         table.read_columns(ftable(cat.ra, cat.dec));
         table.read_column(fits::dim_promote, "flux", cat.flux);

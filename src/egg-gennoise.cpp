@@ -46,7 +46,7 @@ int phypp_main(int argc, char* argv[]) {
     }
 
     read_args(argc, argv, arg_list(
-        name(tseed, "seed"), out, name(psf_file, "psf"), name(astrometry, "astro"), aspix, rms, 
+        name(tseed, "seed"), out, name(psf_file, "psf"), name(astrometry, "astro"), aspix, rms,
         beam_smoothed, smooth_fwhm, list_psfs, verbose, make_err, make_cov, clip_borders, save_dist,
         name(cat_file, "cat"), name(tdouble, "double")
     ));
@@ -82,7 +82,7 @@ int phypp_main(int argc, char* argv[]) {
     file::mkdir(file::get_directory(out));
 
     std::string out_base = file::remove_extension(out);
-    if (end_with(out_base, "-noise")) {
+    if (ends_with(out_base, "-noise")) {
         out_base = erase_end(out_base, "-noise");
     }
 
@@ -92,7 +92,7 @@ int phypp_main(int argc, char* argv[]) {
         vec1d ra, dec;
     } cat;
 
-    if (end_with(cat_file, ".fits")) {
+    if (ends_with(cat_file, ".fits")) {
         fits::read_table(cat_file, ftable(cat.ra, cat.dec));
     } else {
         ascii::read_table(cat_file, ascii::find_skip(cat_file), cat.ra, cat.dec);
