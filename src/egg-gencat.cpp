@@ -360,11 +360,12 @@ int phypp_main(int argc, char* argv[]) {
     struct {
         vec3f lam, sed;
         vec2b use;
+        vec2f av;
         vec2f bvj, buv;
     } opt_lib;
 
     fits::read_table(opt_lib_file, ftable(
-        opt_lib.lam, opt_lib.sed, opt_lib.use, opt_lib.bvj, opt_lib.buv
+        opt_lib.lam, opt_lib.sed, opt_lib.use, opt_lib.av, opt_lib.bvj, opt_lib.buv
     ));
 
     // Make sure that it contains at least one valid SED
@@ -395,6 +396,7 @@ int phypp_main(int argc, char* argv[]) {
         vec1f disk_angle,  disk_radius,  disk_ratio;
         vec1f bulge_angle, bulge_radius, bulge_ratio;
         vec1f bt, m_disk, m_bulge;
+        vec1f av_disk, av_bulge;
 
         vec1f tdust, ir8, fpah, mdust;
 
@@ -489,11 +491,13 @@ int phypp_main(int argc, char* argv[]) {
         vj += 0.2*max((0.5 - z)/0.5, 0.0);
     };
 
-    auto get_sed_uvj = [&opt_lib](const vec1f& uv, const vec1f& vj, vec1u& sed, bool doprint) {
+    auto get_sed_uvj = [&opt_lib](const vec1f& uv, const vec1f& vj, vec1u& sed, vec1f& av, bool doprint) {
         uint_t snb = opt_lib.buv.dims[1];
 
         sed.resize(uv.size());
+        av.resize(uv.size());
         sed[_] = npos;
+        av[_] = fnan;
 
         auto pg = progress_start(snb*snb);
         for (uint_t u  : range(snb)) {
@@ -515,6 +519,7 @@ int phypp_main(int argc, char* argv[]) {
                     // Assign the SED to these galaxies
                     uint_t ised = flat_id(opt_lib.use, lu, lv);
                     sed[idl] = ised;
+                    av[idl] = opt_lib.av[ised];
                 }
 
                 if (doprint) progress(pg);
@@ -756,7 +761,8 @@ int phypp_main(int argc, char* argv[]) {
                 gen_blue_uvj(tmx, tzx, tuvx, tvjx, true);
                 // Then find the corresponding SED in the library
                 vec1u tsx;
-                get_sed_uvj(tuvx, tvjx, tsx, false);
+                vec1f tav;
+                get_sed_uvj(tuvx, tvjx, tsx, tav, false);
                 // And estimate the flux in the selection band
                 double mlcor = get_m2l_cor(tz);
                 vec1d tflx(tmx.dims);
@@ -1363,16 +1369,18 @@ if (!no_stellar) {
         note("assigning optical SEDs...");
     }
 
-    if (!get_sed_uvj(out.rfuv_bulge, out.rfvj_bulge, out.opt_sed_bulge, verbose)) {
+    if (!get_sed_uvj(out.rfuv_bulge, out.rfvj_bulge, out.opt_sed_bulge, out.av_bulge, verbose)) {
         return 1;
     }
 
-    if (!get_sed_uvj(out.rfuv_disk,  out.rfvj_disk,  out.opt_sed_disk, verbose)) {
+    if (!get_sed_uvj(out.rfuv_disk,  out.rfvj_disk,  out.opt_sed_disk, out.av_disk, verbose)) {
         return 1;
     }
 } else {
     out.opt_sed_bulge = replicate(npos, ngal);
     out.opt_sed_disk = replicate(npos, ngal);
+    out.av_bulge = replicate(fnan, ngal);
+    out.av_disk = replicate(fnan, ngal);
 }
 
     // Generate IR properties
@@ -1705,7 +1713,7 @@ if (!no_flux) {
         out.sfr, out.rsb, out.m2lcor,
         out.disk_angle, out.disk_radius, out.disk_ratio,
         out.bulge_angle, out.bulge_radius, out.bulge_ratio,
-        out.bt, out.m_disk, out.m_bulge, out.passive,
+        out.bt, out.m_disk, out.m_bulge, out.av_disk, out.av_bulge, out.passive,
         out.rfuv_bulge, out.rfuv_disk, out.rfvj_bulge, out.rfvj_disk,
         out.sfrir, out.sfruv, out.irx, out.lir, out.ir_sed,
         out.opt_sed_bulge, out.opt_sed_disk,
