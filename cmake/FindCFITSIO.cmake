@@ -51,6 +51,11 @@ if (NOT CFITSIO_FOUND)
     )
 
   ##_____________________________________________________________________________
+  ## Check for CURL dependency
+
+  find_package(CURL)
+
+  ##_____________________________________________________________________________
   ## Actions taken when all components have been found
 
   if (CFITSIO_INCLUDES AND CFITSIO_LIBRARIES)
@@ -67,9 +72,16 @@ if (NOT CFITSIO_FOUND)
     endif (NOT CFITSIO_FIND_QUIETLY)
   endif (CFITSIO_INCLUDES AND CFITSIO_LIBRARIES)
 
+  if (CURL_FOUND)
+    list(APPEND CFITSIO_LIBRARIES ${CURL_LIBRARIES})
+  endif (CURL_FOUND)
+
   if (CFITSIO_FOUND)
     if (NOT CFITSIO_FIND_QUIETLY)
       message (STATUS "Found components for CFITSIO")
+      if (CURL_FOUND)
+        message (STATUS "HTTPS support (CURL)")
+      endif (CURL_FOUND)
       message (STATUS "CFITSIO_INCLUDES = ${CFITSIO_INCLUDES}")
       message (STATUS "CFITSIO_LIBRARIES = ${CFITSIO_LIBRARIES}")
     endif (NOT CFITSIO_FIND_QUIETLY)
