@@ -1,3 +1,35 @@
+v1.0.8
+======
+
+Bug fixes:
+ - Fixed a compilation error with recent versions of CFITSIO (CURL dependency).
+
+
+v1.0.7
+======
+
+New/updated features:
+ - Added Av as an output of the simulation.
+
+Bug fixes:
+ - Added sanity checks for input filters.
+
+
+v1.0.6
+======
+
+New/updated features:
+ - Added JWST and ALMA filters.
+
+Changes in EGG recipes:
+ - The mass functions can now reach z=15, however this is a wild extrapolation!
+ - The recipes for Tdust and IR8 have been updated to the relations published in Schreiber et al. (2018).
+
+Bug fixes:
+ - Fixed documentation for 'filter_db' parameter.
+ - Fixed issues with WCSLib and distortion in FITS headers.
+
+
 v1.0.5
 ======
 
