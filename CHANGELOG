@@ -1,3 +1,10 @@
+v1.0.9
+======
+
+Bug fixes:
+ - Fixed output SEDs produced by egg-getsed containing duplicate values when the component='...' option was not used. This fix should also improve performances of egg-gencat.
+
+
 v1.0.8
 ======
 
