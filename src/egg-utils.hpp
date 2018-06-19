@@ -39,7 +39,7 @@ void merge_add(const vec<1,TX1>& x1, const vec<1,TX2>& x2,
                 }
 
                 ++i1;
-            } else {
+            } else if (x1.safe[i1] > x2.safe[i2]) {
                 x.push_back(x2.safe[i2]);
 
                 if (i1 == 0) {
@@ -50,6 +50,12 @@ void merge_add(const vec<1,TX1>& x1, const vec<1,TX2>& x2,
                     ));
                 }
 
+                ++i2;
+            } else {
+                x.push_back(x1.safe[i1]);
+                y.push_back(y1.safe[i1] + y2.safe[i2]);
+
+                ++i1;
                 ++i2;
             }
         }
