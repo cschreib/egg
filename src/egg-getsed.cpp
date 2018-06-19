@@ -129,7 +129,7 @@ void print_help() {
         }
     };
 
-    print("egg-getsed v1.0");
+    print("egg-getsed v1.0.9");
     print("usage: egg-getsed [options]\n");
 
     print("List of options:");
