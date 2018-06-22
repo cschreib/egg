@@ -60,6 +60,11 @@ int phypp_main(int argc, char* argv[]) {
     bool no_dust = false;        // do not generate fluxes from dust origin
     bool no_random = false;      // disable all randomization of parameters
                                  // (just passive, M*, z, and position + pos angle)
+
+    // Approximations
+    bool naive_igm = false;      // use a fixed IGM absorption for all galaxies (faster)
+
+
     // Debug - testing
     bool no_passive_lir = false; // do not generate dust for passive galaxies
     bool magdis_tdust = false;   // use Magdis+12 Tdust evolution (lower)
@@ -75,7 +80,7 @@ int phypp_main(int argc, char* argv[]) {
 
     // SED libraries
     std::string ir_lib_file = egg_share_dir+"ir_lib_cs17.fits";
-    std::string opt_lib_file = egg_share_dir+"opt_lib_fast.fits";
+    std::string opt_lib_file;
 
     // Filter library
     std::string filter_db_file = filters_dir+"db.dat";
@@ -127,7 +132,7 @@ int phypp_main(int argc, char* argv[]) {
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
         name(input_cat_file, "input_cat"), selection_band, bands, rfbands, help, list_bands,
         clust_r0, clust_r1, clust_lambda, clust_eta, clust_fclust_mlim, clust_fclust_lom,
-        clust_fclust_him, clust_urnd_mlim, magdis_tdust
+        clust_fclust_him, clust_urnd_mlim, magdis_tdust, naive_igm
     ));
 
     if (help) {
@@ -246,6 +251,14 @@ int phypp_main(int argc, char* argv[]) {
 
         if (verbose) {
             note("will save spectra in '", seds_file, "'");
+        }
+    }
+
+    if (opt_lib_file.empty()) {
+        if (naive_igm) {
+            opt_lib_file = egg_share_dir+"opt_lib_fast.fits";
+        } else {
+            opt_lib_file = egg_share_dir+"opt_lib_fast_noigm.fits";
         }
     }
 
@@ -1582,6 +1595,47 @@ if (!no_flux) {
         bulge, disk
     };
 
+    auto apply_igm = [&](double z, const vec1f& lam, vec1f& sed) {
+        // http://adsabs.harvard.edu/abs/1995ApJ...441...18M
+        // TODO: check this implementation someday, I suspect this is wrong or
+        // very approximate (taken directly from FAST)
+
+        double da; {
+            double l0 = 1050.0*(1.0 + z);
+            double l1 = 1170.0*(1.0 + z);
+            uint_t nstep = 100;
+            vec1d tl = rgen(l0, l1, nstep);
+            vec1d ptau = exp(-3.6e-3*pow(tl/1216.0, 3.46));
+            da = total(ptau)*(l1-l0)/nstep/(120.0*(1.0 + z));
+        }
+
+        double db; {
+            double l0 = 920.0*(1.0 + z);
+            double l1 = 1015.0*(1.0 + z);
+            uint_t nstep = 100;
+            vec1d tl = rgen(l0, l1, nstep);
+            vec1d ptau = exp(-1.7e-3*pow(tl/1026.0, 3.46) - 1.2e-3*pow(tl/972.5, 3.46) -
+                9.3e-4*pow(tl/950.0, 3.46));
+            db = total(ptau)*(l1-l0)/nstep/(95.0*(1.0 + z));
+        }
+
+        uint_t l0 = lower_bound(lam, 0.0921);
+        uint_t l1 = lower_bound(lam, 0.1026);
+        uint_t l2 = lower_bound(lam, 0.1216);
+
+        for (uint_t l : range(l0)) {
+            sed.safe[l] = 0;
+        }
+        for (uint_t l : range(l0, l1)) {
+            sed.safe[l] *= db;
+        }
+        for (uint_t l : range(l1, l2)) {
+            sed.safe[l] *= da;
+        }
+
+        return lam;
+    };
+
     auto get_flux = [&](const vec1f& m, const vec1u& optsed, vec2f& flux, vec2f& rfmag,
         bool no_ir, component cmp) {
 
@@ -1604,6 +1658,11 @@ if (!no_flux) {
 
                 // Combine IR SED with optical SED
                 merge_add(orlam, irlam, orsed, irsed, rlam, rsed);
+            }
+
+            // Apply IGM absorption
+            if (!naive_igm && !no_stellar) {
+                apply_igm(out.z[i], rlam, rsed);
             }
 
             // Obtain rest-frame magnitudes
@@ -1755,7 +1814,7 @@ void print_help() {
         }
     };
 
-    print("egg-gencat v1.0.9");
+    print("egg-gencat v1.1.0");
     print("usage: egg-gencat [options]\n");
 
     print("List of generic options:");
@@ -1795,6 +1854,11 @@ void print_help() {
     argdoc("no_flux", "[flag]", "do not generate fluxes");
     argdoc("no_random", "[flag]", "disable most randomization in the simulation, and use "
         "fully deterministic recipes");
+    print("");
+
+    print("List of approximations:");
+    argdoc("naive_igm", "[flag]", "use a fixed IGM absorption for all galaxies instead of using "
+        "a redshift-dependent prescription.");
     print("");
 
     print("List of sky position related options:");

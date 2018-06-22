@@ -1,3 +1,10 @@
+v1.1.0
+======
+
+New/updated feature:
+ - Improved the treatment of IGM absorption. Now the absorption is computed on a per-galaxy basis, based on the redshift. Before that, the IGM absorption was quite poorly implemented, as a single value of the absorption for the entire catalog with no redshift dependence. The old behavior of the code can be recovered by setting the "naive_igm" flag on the command line.
+
+
 v1.0.9
 ======
 
