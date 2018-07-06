@@ -461,7 +461,7 @@ int phypp_main(int argc, char* argv[]) {
         vec1f a = min(a0 + as*min(z, 3.3), 2.0);
 
         if (!norand) {
-            vec1d rnd_amp = 0.3*clamp(z-1.0, 0, 1)*clamp(1.0 - abs(m - 10.3), 0, 1) + 0.1 + 0.05*clamp(z-1.0, 0, 1);
+            vec1d rnd_amp = 0.1 + 0.3*clamp(z-1.0, 0, 1)*(0.17 + clamp(1.0 - abs(m - 10.3), 0, 1));
             a += rnd_amp*randomn(seed, m.size());
         }
 
