@@ -140,7 +140,7 @@ cd $TMP_DIR
 # Get latest version name
 if [ "$EGG_VERSION" = "latest" ]; then
     EGG_VERSION=$(curl -s https://api.github.com/repos/cschreib/egg/releases/latest | grep tag_name \
-        | sed 's/"tag_name": "//g' | sed 's/",//g')
+        | sed 's/"tag_name": "//g' | sed 's/",//g' | tr -d '[:space:]')
 fi
 
 # Download and extract it
