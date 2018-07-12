@@ -42,7 +42,7 @@ INSTALL_ROOT_DIR=""
 CFITSIO_VERSION="_latest"
 WCSLIB_VERSION=""
 PHYPP_VERSION="master"
-EGG_VERSION="v1.0.3"
+EGG_VERSION="latest"
 
 
 # -----------------------------------------
@@ -136,6 +136,12 @@ cd $TMP_DIR
 # -----------------------------------------
 # EGG
 # -----------------------------------------
+
+# Get latest version name
+if [ "$EGG_VERSION" = "latest" ]; then
+    EGG_VERSION=$(curl -s https://api.github.com/repos/cschreib/egg/releases/latest | grep tag_name \
+        | sed 's/"tag_name": "//g' | sed 's/",//g')
+fi
 
 # Download and extract it
 wget https://github.com/cschreib/egg/archive/$EGG_VERSION.tar.gz \
