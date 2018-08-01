@@ -600,9 +600,7 @@ int phypp_main(int argc, char* argv[]) {
                 }
             }
         } else {
-            ascii::read_table(input_cat_file, ascii::find_skip(input_cat_file),
-                out.id, out.ra, out.dec, out.z, out.m, out.passive
-            );
+            ascii::read_table(input_cat_file, out.id, out.ra, out.dec, out.z, out.m, out.passive);
         }
 
         // Verify input

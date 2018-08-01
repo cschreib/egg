@@ -103,8 +103,9 @@ int phypp_main(int argc, char* argv[]) {
     }
 
     if (ascii) {
-        ascii::write_table_hdr(out, 18, {"lambda[um]", "flux[uJy]"},
-            lambda, format::scientific(flux));
+        ascii::output_format opts;
+        opts.header = {"lambda[um]", "flux[uJy]"};
+        ascii::write_table(out, opts, lambda, format::scientific(flux));
     } else {
         fits::write_table(out, ftable(lambda, flux));
     }

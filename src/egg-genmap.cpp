@@ -116,8 +116,7 @@ int phypp_main(int argc, char* argv[]) {
             idb = ids[0];
         }
     } else {
-        ascii::read_table(cat_file, ascii::find_skip(cat_file),
-            cat.ra, cat.dec, ascii::columns(1,cat.flux));
+        ascii::read_table(cat_file, cat.ra, cat.dec, ascii::columns(1,cat.flux));
 
         idb = 0;
     }

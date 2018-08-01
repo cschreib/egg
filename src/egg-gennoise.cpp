@@ -95,7 +95,7 @@ int phypp_main(int argc, char* argv[]) {
     if (ends_with(cat_file, ".fits")) {
         fits::read_table(cat_file, ftable(cat.ra, cat.dec));
     } else {
-        ascii::read_table(cat_file, ascii::find_skip(cat_file), cat.ra, cat.dec);
+        ascii::read_table(cat_file, cat.ra, cat.dec);
     }
 
     // Read the PSF
