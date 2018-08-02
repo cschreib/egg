@@ -1630,8 +1630,6 @@ if (!no_flux) {
         for (uint_t l : range(l1, l2)) {
             sed.safe[l] *= da;
         }
-
-        return lam;
     };
 
     auto get_flux = [&](const vec1f& m, const vec1u& optsed, vec2f& flux, vec2f& rfmag,
