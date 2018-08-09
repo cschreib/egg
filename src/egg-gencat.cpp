@@ -1604,7 +1604,7 @@ if (!no_flux) {
             uint_t nstep = 100;
             vec1d tl = rgen(l0, l1, nstep);
             vec1d ptau = exp(-3.6e-3*pow(tl/1216.0, 3.46));
-            da = total(ptau)*(l1-l0)/nstep/(120.0*(1.0 + z));
+            da = mean(ptau);
         }
 
         double db; {
@@ -1614,7 +1614,7 @@ if (!no_flux) {
             vec1d tl = rgen(l0, l1, nstep);
             vec1d ptau = exp(-1.7e-3*pow(tl/1026.0, 3.46) - 1.2e-3*pow(tl/972.5, 3.46) -
                 9.3e-4*pow(tl/950.0, 3.46));
-            db = total(ptau)*(l1-l0)/nstep/(95.0*(1.0 + z));
+            db = mean(ptau);
         }
 
         uint_t l0 = lower_bound(lam, 0.0912);
