@@ -94,10 +94,10 @@ int phypp_main(int argc, char* argv[]) {
 
     prepend(p_mstar1,   vec1f{10.72});
     prepend(p_mstar2,   vec1f{10.72});
-    prepend(p_phistar1, vec1f{3.25e-3});
-    prepend(p_phistar2, vec1f{0.08e-3});
-    prepend(p_index1,   vec1f{-0.45});
-    prepend(p_index2,   vec1f{-1.45});
+    prepend(p_phistar1, vec1f{0.08e-3});
+    prepend(p_phistar2, vec1f{3.25e-3});
+    prepend(p_index1,   vec1f{-1.45});
+    prepend(p_index2,   vec1f{-0.45});
 
     // Note: z > 4.0 is obtained by keeping the shape of the last redshift bin and
     //       decreasing phistar, following the total stellar mass density of
