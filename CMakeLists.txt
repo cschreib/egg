@@ -7,7 +7,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
-find_package(phypp)
+find_package(vif)
 
 set(EGG_SHARE_DIR ${CMAKE_INSTALL_PREFIX}/share/egg)
 install(FILES
@@ -24,37 +24,37 @@ install(DIRECTORY share/psfs
 add_definitions(-DEGG_SHARE_DIR="${EGG_SHARE_DIR}")
 add_definitions(-DFILTER_DB_DIR="${EGG_SHARE_DIR}/filter-db")
 
-include_directories(${PHYPP_INCLUDE_DIRS})
+include_directories(${VIF_INCLUDE_DIRS})
 
-message(STATUS ${PHYPP_INCLUDE_DIRS})
+message(STATUS ${VIF_INCLUDE_DIRS})
 
 add_executable(egg-gencat src/egg-gencat.cpp)
-target_link_libraries(egg-gencat ${PHYPP_LIBRARIES})
+target_link_libraries(egg-gencat ${VIF_LIBRARIES})
 install(TARGETS egg-gencat DESTINATION bin)
 
 if (NOT NO_GENMAP)
     add_executable(egg-genmap src/egg-genmap.cpp)
-    target_link_libraries(egg-genmap ${PHYPP_LIBRARIES})
+    target_link_libraries(egg-genmap ${VIF_LIBRARIES})
     install(TARGETS egg-genmap DESTINATION bin)
 
     add_executable(egg-gennoise src/egg-gennoise.cpp)
-    target_link_libraries(egg-gennoise ${PHYPP_LIBRARIES})
+    target_link_libraries(egg-gennoise ${VIF_LIBRARIES})
     install(TARGETS egg-gennoise DESTINATION bin)
 endif()
 
 add_executable(egg-buildmf src/egg-buildmf.cpp)
-target_link_libraries(egg-buildmf ${PHYPP_LIBRARIES})
+target_link_libraries(egg-buildmf ${VIF_LIBRARIES})
 install(TARGETS egg-buildmf DESTINATION bin)
 
 add_executable(egg-2skymaker src/egg-2skymaker.cpp)
-target_link_libraries(egg-2skymaker ${PHYPP_LIBRARIES})
+target_link_libraries(egg-2skymaker ${VIF_LIBRARIES})
 install(TARGETS egg-2skymaker DESTINATION bin)
 
 add_executable(egg-postskymaker src/egg-postskymaker.cpp)
-target_link_libraries(egg-postskymaker ${PHYPP_LIBRARIES})
+target_link_libraries(egg-postskymaker ${VIF_LIBRARIES})
 install(TARGETS egg-postskymaker DESTINATION bin)
 
 
 add_executable(egg-getsed src/egg-getsed.cpp)
-target_link_libraries(egg-getsed ${PHYPP_LIBRARIES})
+target_link_libraries(egg-getsed ${VIF_LIBRARIES})
 install(TARGETS egg-getsed DESTINATION bin)

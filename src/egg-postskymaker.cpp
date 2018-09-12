@@ -1,4 +1,6 @@
-#include <phypp.hpp>
+#include <vif.hpp>
+
+using namespace vif;
 
 void print_help();
 
@@ -55,7 +57,7 @@ bool sky_get_param(const sky_conf& conf, const std::string& param, T& value) {
     }
 }
 
-int phypp_main(int argc, char* argv[]) {
+int vif_main(int argc, char* argv[]) {
     if (argc < 2) {
         print_help();
         return 1;

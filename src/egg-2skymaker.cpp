@@ -1,4 +1,7 @@
-#include <phypp.hpp>
+#include <vif.hpp>
+
+using namespace vif;
+using namespace vif::astro;
 
 const std::string egg_share_dir = file::directorize(EGG_SHARE_DIR);
 
@@ -7,7 +10,7 @@ void print_help();
 // SkyMaker pixel type (see PIXTYPE in skymaker/src/fits/fitscat.h)
 using SkyPixType = float;
 
-int phypp_main(int argc, char* argv[]) {
+int vif_main(int argc, char* argv[]) {
     if (argc < 2) {
         print_help();
         return 1;
@@ -270,7 +273,7 @@ int phypp_main(int argc, char* argv[]) {
             note("selecting ", ids.size(), "/", cat.id.size(), " galaxies");
         }
     } else {
-        ids = uindgen(x.size());
+        ids = indgen(x.size());
         vec1u idbad = where(!is_finite(mag));
         mag[idbad] = 99;
     }

@@ -1,9 +1,11 @@
-#include <phypp.hpp>
+#include <vif.hpp>
 #include "egg-utils.hpp"
+
+using namespace vif;
 
 void print_help();
 
-int phypp_main(int argc, char* argv[]) {
+int vif_main(int argc, char* argv[]) {
     uint_t id = npos;
     std::string component, seds, out;
     bool ascii = false;

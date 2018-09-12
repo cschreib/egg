@@ -66,9 +66,9 @@ Unfortunately, there are various ways an ASCII table can be defined, and buildin
 
 \subsubsection{Column-oriented FITS tables}
 
-For historical reasons tied to IDL, \egg and \phypp (the underlying C++ library) exclusively support column-oriented FITS tables. Although this is a perfectly valid way of doing things (according to the FITS standard), this is not the standard way FITS tables are used in general. It has, however, a number of advantages that I will not describe here (take a look at the \phypp documentation if you are interested). Instead, this section will tell you how you can read and write such kind of FITS tables.
+For historical reasons tied to IDL, \egg and \vif (the underlying C++ library) prefer to use column-oriented FITS tables. Although this is a perfectly valid way of doing things (according to the FITS standard), this is not the standard way FITS tables are used in general. It has, however, a number of advantages that I will not describe here (take a look at the \vif documentation if you are interested). Although EGG can deal with both row and column-oriented tables for inputs, it will always write outputs using the column-oriented format. This section will tell you how you can read and write such kind of FITS tables.
 
-{\bf In C++.} Using the \phypp library, reading and writing these tables is natural:
+{\bf In C++.} Using the \vif library, reading and writing these tables is natural:
 \begin{cppcode}
 // First declare the columns you want to read (here: 1D columns of doubles)
 vec1d m, z, ra, dec;
@@ -82,7 +82,7 @@ m += 1+z; // some silly stuff
 // Writing is as simple
 fits::write_table("new_file.fits", ftable(m, z, ra, dec));
 \end{cppcode}
-Only the columns you need are actually read from the file, and the type of the variables you declare in C++ has to match the type of the columns that are found inside the FITS table (conversions will be performed automatically only if they imply no potential loss of data). Diagnostics will be given if this is not the case. See the \phypp documentation for more detail.
+Only the columns you need are actually read from the file, and the type of the variables you declare in C++ has to match the type of the columns that are found inside the FITS table (conversions will be performed automatically only if they imply no potential loss of data). Diagnostics will be given if this is not the case. See the \vif documentation for more detail.
 
 {\bf In IDL.} Column-oriented FITS tables can be read using \bashinline{mrdfits}, and written using \bashinline{mwrfits}:
 \begin{idlcode}
@@ -97,7 +97,7 @@ mwrfits, tbl, 'new_file.fits', /create
 \end{idlcode}
 Be careful not to forget the \idlinline{/create} keyword, else if the file already exists the function will add a new extension to the table to write the data, and this is not what you want.
 
-{\bf In Python.} Column-oriented FITS tables are not well supported by the standard FITS I/O module from \bashinline{astropy} (you \emph{can} use \pythoninline{astropy.io.fits}, but it will be a bit cumbersome). To cope with this situation, I have written a small module that implements this in a user-friendly way; you can download it \href{https://github.com/cschreib/phypp/blob/master/python/pycolfits.py}{[here]}. Usage is as simple as above:
+{\bf In Python.} Column-oriented FITS tables are not well supported by the standard FITS I/O module from \bashinline{astropy} (you \emph{can} use \pythoninline{astropy.io.fits}, but it will be a bit cumbersome). To cope with this situation, I have written a small module that implements this in a user-friendly way; you can download it \href{https://github.com/cschreib/vif/blob/master/python/pycolfits.py}{[here]}. Usage is as simple as above:
 \begin{pythoncode}
 import pycolfits
 

@@ -1,10 +1,13 @@
-#include <phypp.hpp>
+#include <vif.hpp>
+
+using namespace vif;
+using namespace vif::astro;
 
 const std::string egg_share_dir = file::directorize(EGG_SHARE_DIR);
 
 void print_help();
 
-int phypp_main(int argc, char* argv[]) {
+int vif_main(int argc, char* argv[]) {
     // Random seed to use to generate the noise
     uint_t tseed = 42;
     // Name of the FITS table containing the mock catalog
@@ -189,8 +192,8 @@ int phypp_main(int argc, char* argv[]) {
         auto hull = build_convex_hull(sx, sy);
 
         // Compute distance of each pixel to the hull
-        vec2d x = replicate(uindgen(noise.dims[1]), noise.dims[0]);
-        vec2d y = transpose(replicate(uindgen(noise.dims[0]), noise.dims[1]));
+        vec2d x = replicate(indgen(noise.dims[1]), noise.dims[0]);
+        vec2d y = transpose(replicate(indgen(noise.dims[0]), noise.dims[1]));
         vec2d dist = convex_hull_distance(x, y, hull);
 
         if (save_dist) {
@@ -200,7 +203,7 @@ int phypp_main(int argc, char* argv[]) {
         // Only use pixels that are more than 3 FWHM away from the border of the catalog
         idin = where(dist > 1.5*fwhm);
     } else {
-        idin = uindgen(noise.size());
+        idin = indgen(noise.size());
     }
 
     if (beam_smoothed) {

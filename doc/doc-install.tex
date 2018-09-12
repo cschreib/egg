@@ -3,7 +3,7 @@
 \egg is written in C++ and has a few dependencies. I have tried to keep the number of these dependencies as low as possible, and in fact for the moment there are four:
 
 \begin{itemize}
-\item \phypp, a library for numerical analysis that I have developed during my PhD,
+\item \vif, a library for numerical analysis that I have developed during my PhD,
 \item cfitsio, for handling FITS files,
 \item WCSlib, for handling sky-to-pixel conversions,
 \item and CMake, for managing the building process (dependencies, and platform specific stuff).
@@ -11,7 +11,7 @@
 
 \subsection{Install dependencies}
 
-If your operating system comes with a package manager, this should be very easy. Apart from \phypp that we will address in the next section, these dependencies are standard libraries and tools that should be available in all the package managers.
+If your operating system comes with a package manager, this should be very easy. Apart from \vif that we will address in the next section, these dependencies are standard libraries and tools that should be available in all the package managers.
 
 \begin{itemize}
 \item Mac users:
@@ -37,13 +37,13 @@ If you don't have a package manager, then you have to compile these tools and li
 \item CMake: \url{http://www.cmake.org/download/} (they also offer binaries, check this out first)
 \end{itemize}
 
-\subsection{Install \phypp and \egg: the short way}
+\subsection{Install \vif and \egg: the short way}
 
-Once the dependencies are properly installed, you can download, build and install the \phypp library and \egg. Thanks to CMake, the installing process is the same on all computers, and is rather straightforward. The next section describes each steps in detail, in case you are not familiar with CMake, and is the recommended way to go.
+Once the dependencies are properly installed, you can download, build and install the \vif library and \egg. Thanks to CMake, the installing process is the same on all computers, and is rather straightforward. The next section describes each steps in detail, in case you are not familiar with CMake, and is the recommended way to go.
 
 However, if you don't have the patience to spend a few minutes on this, or if you are completely lost, you can use the \bashinline{install.sh} script provided in the \bashinline{doc/script/} directory. The script does exactly what is written in the next section, and only requires you to specify three parameters (``Configurable options'', at the beginning of the script):
 \begin{itemize}
-\item \bashinline{INSTALL_ROOT_DIR}: This is the directory in which \phypp and \egg will be installed. If you leave it blank, the script will use the default value adequate for your system (e.g., \bashinline{/usr/local}). This directory is a ``root'' directory, in the sense that C++ headers will be installed in \bashinline{$INSTALL_ROOT_DIR/include}, while executables will be installed in \bashinline{$INSTALL_ROOT_DIR/bin}, etc.
+\item \bashinline{INSTALL_ROOT_DIR}: This is the directory in which \vif and \egg will be installed. If you leave it blank, the script will use the default value adequate for your system (e.g., \bashinline{/usr/local}). This directory is a ``root'' directory, in the sense that C++ headers will be installed in \bashinline{$INSTALL_ROOT_DIR/include}, while executables will be installed in \bashinline{$INSTALL_ROOT_DIR/bin}, etc.
 \item \bashinline{CFITSIO_ROOT_DIR} and \bashinline{WCSLIB_ROOT_DIR}: These directories tell the script where to find the cfitsio and WCSlib libraries. As above, this is a ``root'' directory: it must contain the header files in the \bashinline{include} subdirectory, and the library files in \bashinline{lib}. Leave it blank if you have installed these libraries through your package manager, or if you installed them manually in the default system folders.
 \end{itemize}
 
@@ -56,20 +56,20 @@ chmod +x install.sh
 
 In the end, the script will inform you that \egg was successfully installed. If not, please fall back to the manual installation described in the next section.
 
-\subsection{Install \phypp and \egg: the long way}
+\subsection{Install \vif and \egg: the long way}
 
 
 \begin{enumerate}
 \item Make yourself a temporary directory and open a terminal there.
 \item Download the following archives and extract them in this directory:
 \begin{itemize}
-\item \url{https://github.com/cschreib/phypp/archive/master.tar.gz}
+\item \url{https://github.com/cschreib/vif/archive/master.tar.gz}
 \item \url{https://github.com/cschreib/egg/archive/master.tar.gz}
 \end{itemize}
 
 This bash script will do that for you:
 \begin{minted}{bash}
-wget https://github.com/cschreib/phypp/archive/master.tar.gz
+wget https://github.com/cschreib/vif/archive/master.tar.gz
 tar -xvzf master.tar.gz && rm master.tar.gz
 wget https://github.com/cschreib/egg/archive/master.tar.gz
 tar -xvzf master.tar.gz && rm master.tar.gz
@@ -78,10 +78,10 @@ tar -xvzf master.tar.gz && rm master.tar.gz
 In the end, this should create two directories:
 \begin{minted}{bash}
 egg-master
-phypp-master
+vif-master
 \end{minted}
 
-\item Open a terminal and navigate to the \bashinline{phypp-master} directory. Then, if you are using cfitsio and WCSlib from your package manager, run the following commands:
+\item Open a terminal and navigate to the \bashinline{vif-master} directory. Then, if you are using cfitsio and WCSlib from your package manager, run the following commands:
 \begin{minted}{bash}
 mkdir build && cd build
 cmake ../
@@ -103,7 +103,7 @@ cmake ../ -DCMAKE_INSTALL_PREFIX=...
 
 Here, the ``...'' have to be replaced by the root directory in which you want to install the library. For example, if you want to install it in \bashinline{/opt/local/include}, just replace ``...'' by \bashinline{"/opt/local"} (yes, omit \bashinline{include}). This can of course be combined with the manual installation directories for WCSlib and cfitsio.
 
-If all goes well, this will configure the \phypp library and prepare it for installation. The script will most likely warn you about missing dependencies, but this is OK since none of these are needed for \egg. Just make sure that cfitsio and WCSlib are found correctly, then install the library with the following command:
+If all goes well, this will configure the \vif library and prepare it for installation. The script will most likely warn you about missing dependencies, but this is OK since none of these are needed for \egg. Just make sure that cfitsio and WCSlib are found correctly, then install the library with the following command:
 
 \begin{minted}{bash}
 sudo make install
@@ -115,21 +115,21 @@ sudo make install
 mkdir build && cd build
 cmake ../
 \end{minted}
-As for \phypp, the default behavior is to install \egg in the system directory (e.g., \bashinline{/usr/local/bin}). If you want to change this, use instead:
+As for \vif, the default behavior is to install \egg in the system directory (e.g., \bashinline{/usr/local/bin}). If you want to change this, use instead:
 \begin{minted}{bash}
 mkdir build && cd build
 cmake ../ -DCMAKE_INSTALL_PREFIX=...
 \end{minted}
 Again, the ``...'' have to be replaced by the directory in which you want to install the programs. For example, if you want to install it in \bashinline{/opt/local/bin}, just replace ``...'' by \bashinline{"/opt/local"} (yes, omit \bashinline{bin}).
 
-Note that if you have installed the \phypp library in a non-standard folder, for example in the \cppinline{/opt/local} directory (as above), you will have to manually specify this location to CMake and use instead:
+Note that if you have installed the \vif library in a non-standard folder, for example in the \cppinline{/opt/local} directory (as above), you will have to manually specify this location to CMake and use instead:
 \begin{minted}{bash}
 mkdir build && cd build
 cmake ../ -DPHYPP_ROOT_DIR="/opt/local"
 \end{minted}
-The same is true for WCSlib and cfitsio: if you had to specify their location manually when installing \phypp, you will have to repeat this here.
+The same is true for WCSlib and cfitsio: if you had to specify their location manually when installing \vif, you will have to repeat this here.
 
-CMake will generate an error if, somehow, there was an issue in the installation of the \phypp library. Else, it will configure \egg and make it ready to be built. Finally, run the last command:
+CMake will generate an error if, somehow, there was an issue in the installation of the \vif library. Else, it will configure \egg and make it ready to be built. Finally, run the last command:
 \begin{minted}{bash}
 sudo make install
 # or just 'make install' if you do not need root access

@@ -38,11 +38,17 @@ if(NOT WCSLIB_FOUND)
     HINTS ${WCSLIB_ROOT_DIR} PATH_SUFFIXES lib)
   find_library(M_LIBRARY m)
 
-  file(STRINGS "${WCSLIB_INCLUDE_DIR}/wcslib/wcsconfig.h" TLINE
-         REGEX "^#[\t ]*define[\t ]+WCSLIB_VERSION[\t ]+[0-9.]+$")
+  if(EXISTS ${WCSLIB_INCLUDE_DIR})
+    file(STRINGS "${WCSLIB_INCLUDE_DIR}/wcslib/wcsconfig.h" TLINE
+           REGEX "^#[\t ]*define[\t ]+WCSLIB_VERSION[\t ]+[0-9.]+$")
 
-  string(REGEX REPLACE "^^#[\t ]*define[\t ]+WCSLIB_VERSION[\t ]+([0-9.]+)$" "\\1"
-         WCSLIB_VERSION_STRING "${TLINE}")
+    string(REGEX REPLACE "^#[\t ]*define[\t ]+WCSLIB_VERSION[\t ]+([0-9.]+)$" "\\1"
+           WCSLIB_VERSION_STRING "${TLINE}")
+
+    if(NOT "${WCSLIB_VERSION_STRING}" STREQUAL "")
+      message(STATUS "Found WCSLIB version ${WCSLIB_VERSION_STRING}")
+    endif()
+  endif()
 
   mark_as_advanced(WCSLIB_INCLUDE_DIR WCSLIB_LIBRARY WCSLIB_VERSION_STRING M_LIBRARY)
 

@@ -1,4 +1,6 @@
-#include <phypp.hpp>
+#include <vif.hpp>
+
+using namespace vif;
 
 vec1d schechter2(vec1d m, double mstar1, double index1, double phistar1,
     double mstar2, double index2, double phistar2) {
@@ -7,7 +9,7 @@ vec1d schechter2(vec1d m, double mstar1, double index1, double phistar1,
     return log(10.0)*(exp(-tm1)*phistar1*pow(tm1, 1+index1) + exp(-tm2)*phistar2*pow(tm2, 1+index2));
 }
 
-int phypp_main(int argc, char* argv[]) {
+int vif_main(int argc, char* argv[]) {
     double mmin = 4.0, mmax = 13.0;
     double zmax = 15;
     double dm = 0.05;
@@ -106,8 +108,8 @@ int phypp_main(int argc, char* argv[]) {
     uint_t nhzb = ceil((zmax - max(zu))/0.2);
     double dhz = (zmax - max(zu))/nhzb;
 
-    append(zl, findgen(nhzb)*dhz + max(zu));
-    append(zu, findgen(nhzb)*dhz + max(zu) + dhz);
+    append(zl, indgen<float>(nhzb)*dhz + max(zu));
+    append(zu, indgen<float>(nhzb)*dhz + max(zu) + dhz);
 
     auto g15_rhostar = vectorize_lambda([](double z){
         return (z < 6 ? e10(-0.43*z) : e10(-0.43*6.0)*e10(-0.7*(z-6.0)));

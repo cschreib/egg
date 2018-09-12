@@ -1,5 +1,8 @@
-#include <phypp.hpp>
+#include <vif.hpp>
 #include "egg-utils.hpp"
+
+using namespace vif;
+using namespace vif::astro;
 
 const std::string egg_share_dir = file::directorize(EGG_SHARE_DIR);
 const std::string filters_dir_env = file::directorize(system_var("EGG_FILTERS_PATH", ""));
@@ -8,7 +11,7 @@ const std::string filters_dir = filters_dir_env.empty() ?
 
 void print_help();
 
-int phypp_main(int argc, char* argv[]) {
+int vif_main(int argc, char* argv[]) {
     // Initialization
     // --------------
 
@@ -186,7 +189,7 @@ int phypp_main(int argc, char* argv[]) {
             }
 
             // Sort the filter list by instrument & reference wavelength
-            vec1u ids = uindgen(fils.size());
+            vec1u ids = indgen(fils.size());
             inplace_sort(ids, [&](uint_t i1, uint_t i2) {
                 std::string inst1, inst2;
                 inst1 = split(fils[i1], "-")[0];
@@ -564,7 +567,7 @@ int phypp_main(int argc, char* argv[]) {
 
             // See if there is an 'ID' column, else create our own
             if (!tbl.read_column("id", out.id)) {
-                out.id = uindgen(out.ra.size());
+                out.id = indgen(out.ra.size());
             }
 
             // See if there is either 'passive' or 'passive_prob'
@@ -640,7 +643,7 @@ int phypp_main(int argc, char* argv[]) {
         auto make_zbins = [](double zstart, double zend, double dz, double midz, double madz) {
             vec1d tzb;
 
-            phypp_check(!is_nan(midz) || !is_nan(midz) || midz < madz,
+            vif_check(!is_nan(midz) || !is_nan(midz) || midz < madz,
                 "min_dz must be smaller than max_dz (got ", midz, " and ", madz, ")");
 
             // Generate redshifts incrementally using z(i+1) = z(i)*(1+dz) until we reach zend
@@ -916,7 +919,7 @@ int phypp_main(int argc, char* argv[]) {
         append(out.z, tz);
         append(out.passive, replicate(true, npassive));
 
-        out.id = uindgen(out.z.size());
+        out.id = indgen(out.z.size());
         out.d = lumdist(out.z, cosmo);
 
         // Generate masses
@@ -1126,7 +1129,7 @@ int phypp_main(int argc, char* argv[]) {
                         }
 
                         // Now we have too many positions, just pick the amount we need
-                        vec1u idg = shuffle(seed, uindgen(ra.size()))[_-(z_ngal-1)];
+                        vec1u idg = shuffle(seed, indgen(ra.size()))[_-(z_ngal-1)];
                         ra = ra[idg]; dec = dec[idg];
 
                         vec1b cls = replicate(true, z_ngal);
@@ -1515,13 +1518,13 @@ if (!no_stellar) {
     } else if (file::get_basename(ir_lib_file) == "ir_lib_m12.fits") {
         // The Magdis et al. 2012 library, using their reported redshift evolution
         vec1f tz = {0.0125, 0.1625, 0.4625, 0.8125, 1.15, 1.525, 2.0, 2.635};
-        fir_sed = interpolate(findgen(nirsed), tz, out.z);
+        fir_sed = interpolate(indgen<float>(nirsed), tz, out.z);
 
         // Temperature offset as function of RSB (not calibrated, but see Magnelli+13)
         fir_sed += clamp(out.rsb/ms_disp, -2.0, 2.0);
     } else if (file::get_basename(ir_lib_file) == "ir_lib_cs17.fits") {
         // My own library, using calibration from stacks and detections
-        fir_sed = interpolate(findgen(nirsed), ir_lib_cs17.tdust, out.tdust);
+        fir_sed = interpolate(indgen<float>(nirsed), ir_lib_cs17.tdust, out.tdust);
     } else {
         error("no calibration code available for the IR library '", ir_lib_file, "'");
         return 1;
