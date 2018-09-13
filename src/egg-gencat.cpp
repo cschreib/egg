@@ -1355,13 +1355,22 @@ int vif_main(int argc, char* argv[]) {
     out.rfuv_disk.resize(ngal);
     out.rfuv_bulge.resize(ngal);
 
-    // Disks are always blue
-    gen_blue_uvj(out.m, out.z, out.rfuv_disk, out.rfvj_disk, no_random);
+    // Disks are always blue for active galaxies and red for passive galaxies
+    {
+        vec1f tuv, tvj;
+        gen_blue_uvj(out.m[ida], out.z[ida], tuv, tvj, no_random);
+        out.rfuv_disk[ida] = tuv;
+        out.rfvj_disk[ida] = tvj;
 
-    // Bulges of bulge-dominated galaxies are always red
+        gen_red_uvj(out.m[idp], out.z[idp], tuv, tvj, no_random);
+        out.rfuv_disk[idp] = tuv;
+        out.rfvj_disk[idp] = tvj;
+    }
+
+    // Bulges of bulge-dominated galaxies or passive galaxies are always red
     // Other bulges have a 50% chance of being red
     {
-        vec1b red_bulge = out.bt > 0.6;
+        vec1b red_bulge = out.bt > 0.6 || out.passive;
         if (!no_random) {
             red_bulge = red_bulge || random_coin(seed, 0.5, ngal);
         }
