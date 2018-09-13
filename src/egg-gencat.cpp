@@ -469,7 +469,8 @@ int vif_main(int argc, char* argv[]) {
         vec1f a = min(a0 + as*min(z, 3.3), 2.0);
 
         if (!norand) {
-            vec1d rnd_amp = 0.1 + 0.3*clamp(z-1.0, 0, 1)*(0.17 + clamp(1.0 - abs(m - 10.3), 0, 1));
+            vec1d rnd_amp = 0.2 + (0.25 + 0.12*clamp((z-0.5)/2.0, 0, 1))*
+                max(1.0 - 2.0*abs(m - (10.3 + 0.4*erf(z - 1.5))), 0.0);
             a += rnd_amp*randomn(seed, m.size());
         }
 
@@ -480,8 +481,8 @@ int vif_main(int argc, char* argv[]) {
         uv = 0.45 + a*sin(theta);
 
         if (!norand) {
-            vj += 0.12*randomn(seed, m.size());
-            uv += 0.12*randomn(seed, m.size());
+            vj += 0.15*randomn(seed, m.size());
+            uv += 0.15*randomn(seed, m.size());
         }
 
         // Add an additional global color offset depending on redshift
