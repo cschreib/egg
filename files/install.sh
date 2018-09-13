@@ -41,7 +41,7 @@ INSTALL_ROOT_DIR=""
 
 CFITSIO_VERSION="_latest"
 WCSLIB_VERSION=""
-PHYPP_VERSION="master"
+VIF_VERSION="master"
 EGG_VERSION="latest"
 
 
@@ -115,18 +115,18 @@ cd $TMP_DIR
 # -----------------------------------------
 
 # Download and extract it
-wget https://github.com/cschreib/phypp/archive/$PHYPP_VERSION.tar.gz \
-    --no-check-certificate -O $PHYPP_VERSION.tar.gz
-tar -xvzf $PHYPP_VERSION.tar.gz && rm $PHYPP_VERSION.tar.gz
+wget https://github.com/cschreib/vif/archive/$VIF_VERSION.tar.gz \
+    --no-check-certificate -O $VIF_VERSION.tar.gz
+tar -xvzf $VIF_VERSION.tar.gz && rm $VIF_VERSION.tar.gz
 
 # Configure it
-mkdir -p phypp-$PHYPP_VERSION/build && cd phypp-$PHYPP_VERSION/build
+mkdir -p vif-$VIF_VERSION/build && cd vif-$VIF_VERSION/build
 # Make sure that the temporary path in the top search list to find CFITSIO and WCSLib
 CMAKE_INCLUDE_PATH="$TMP_DIR/include:$CMAKE_INCLUDE_PATH"
 CMAKE_LIBRARY_PATH="$TMP_DIR/lib:$CMAKE_LIBRARY_PATH"
 cmake ../ -DCMAKE_INSTALL_PREFIX=$TMP_DIR -DCFITSIO_ROOT_DIR=$TMP_DIR -DWCSLIB_ROOT_DIR=$TMP_DIR \
     -DNO_REFLECTION=1 -DNO_GSL=1 -DNO_LAPACK=1 -DNO_LIBUNWIND=1 -DNO_LIBDWARF=1 -DNO_PROFILER=1 \
-    -DPHYPPRC_DIR=$TMP_DIR
+    -DVIF_INPLACE_BUILD=1
 
 # Build it
 make install
@@ -155,7 +155,7 @@ if [ -n "$INSTALL_ROOT_DIR" ]; then
     DINSTALL_ROOT_DIR="-DCMAKE_INSTALL_PREFIX=$INSTALL_ROOT_DIR"
 fi
 cmake ../  $DINSTALL_ROOT_DIR \
-    -DCFITSIO_ROOT_DIR=$TMP_DIR -DWCSLIB_ROOT_DIR=$TMP_DIR -DPHYPP_ROOT_DIR=$TMP_DIR \
+    -DCFITSIO_ROOT_DIR=$TMP_DIR -DWCSLIB_ROOT_DIR=$TMP_DIR -DVIF_ROOT_DIR=$TMP_DIR \
     -DNO_REFLECTION=1 -DNO_GSL=1 -DNO_LAPACK=1 -DNO_LIBUNWIND=1 -DNO_LIBDWARF=1 -DNO_PROFILER=1
 
 # Extract install dir from CMake to check if we need sudo
