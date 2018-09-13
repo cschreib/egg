@@ -176,6 +176,11 @@ int vif_main(int argc, char* argv[]) {
                     continue;
                 }
 
+                if (res.empty()) {
+                    warning("filter ", fil.first, " is empty");
+                    continue;
+                }
+
                 // Compute reference wavelength
                 double trlam = integrate(lam, lam*res);
 
