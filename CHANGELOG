@@ -1,3 +1,14 @@
+v1.2.0
+======
+
+New/updated feature:
+ - The library of stellar SEDs was updated. The new version has several interesting improvements. First, each SED in the library is now garanteed to have its UVJ colors matching its position on the UVJ grid. Second, the SEDs were produced by fitting observed galaxies with a broader range of star formation histories, so they should display more diversity. Third, these fits were done excluding the broadbands containing [OIII] and Hbeta, therefore the contamination from emission lines is mitigated (this should enable adding emission lines to the EGG SEDs without biases).
+ - The recipes for assigning UVJ colors to bulges and disks were revised to improve agreement with observations. The scatter of blue colors along and across the UVJ sequence is increased, so blue components at a fixed mass have a larger variety of SEDs. Quiescent galaxies can no longer have blue colors for either their disks or bulges; this reproduces better the bimodality in the UVJ diagram.
+
+Bug fixes:
+ - The stellar mass function at 0<z<0.5 was incorrectly interpolated (z=0 and z>=0.5 were not affected).
+
+
 v1.1.0
 ======
 
