@@ -679,7 +679,7 @@ int vif_main(int argc, char* argv[]) {
                 tzb.push_back(zend);
             }
 
-            return make_bins(tzb);
+            return make_bins_from_edges(tzb);
         };
 
         vec2d zb = make_zbins(zmin, zmax, bin_dz, min_dz, max_dz);

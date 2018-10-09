@@ -145,7 +145,7 @@ int vif_main(int argc, char* argv[]) {
     out.zb.resize(2, zl.size());
     out.zb(0,_) = zl;
     out.zb(1,_) = zu;
-    out.mb = make_bins(rgen(mmin - dm, mmax + dm, ceil((mmax - mmin)/dm) + 2));
+    out.mb = make_bins_from_edges(rgen(mmin - dm, mmax + dm, ceil((mmax - mmin)/dm) + 2));
 
     uint_t nm = out.mb.dims[1];
     uint_t nz = out.zb.dims[1];
