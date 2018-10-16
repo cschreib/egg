@@ -276,6 +276,7 @@ int vif_main(int argc, char* argv[]) {
         ids = indgen(x.size());
         vec1u idbad = where(!is_finite(mag));
         mag[idbad] = 99;
+        bt[idbad] = 0.0;
     }
 
     double img_size = double(nx)*ny*sizeof(SkyPixType)/pow(1024.0, 3);
