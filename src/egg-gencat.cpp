@@ -64,8 +64,9 @@ int vif_main(int argc, char* argv[]) {
     bool no_random = false;      // disable all randomization of parameters
                                  // (just passive, M*, z, and position + pos angle)
 
-    // Approximations
-    bool naive_igm = false;      // use a fixed IGM absorption for all galaxies (faster)
+    // Absorption form intergalactic medium (IGM)
+    // Valid values: none, constant, madau95, inoue14
+    std::string igm = "inoue14";
 
 
     // Debug - testing
@@ -135,7 +136,7 @@ int vif_main(int argc, char* argv[]) {
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
         name(input_cat_file, "input_cat"), selection_band, bands, rfbands, help, list_bands,
         clust_r0, clust_r1, clust_lambda, clust_eta, clust_fclust_mlim, clust_fclust_lom,
-        clust_fclust_him, clust_urnd_mlim, magdis_tdust, naive_igm
+        clust_fclust_him, clust_urnd_mlim, magdis_tdust, igm
     ));
 
     if (help) {
@@ -263,7 +264,7 @@ int vif_main(int argc, char* argv[]) {
     }
 
     if (opt_lib_file.empty()) {
-        if (naive_igm) {
+        if (igm == "constant") {
             opt_lib_file = egg_share_dir+"opt_lib_fast.fits";
         } else {
             opt_lib_file = egg_share_dir+"opt_lib_fast_noigm.fits";
@@ -430,6 +431,7 @@ int vif_main(int argc, char* argv[]) {
         vec1u ir_sed;
         vec1u opt_sed_bulge;
         vec1u opt_sed_disk;
+        vec2f igm_abs;
 
         vec2f flux;
         vec2f flux_disk;
@@ -1611,42 +1613,117 @@ if (!no_flux) {
         bulge, disk
     };
 
-    auto apply_igm = [&](double z, const vec1f& lam, vec1f& sed) {
-        // http://adsabs.harvard.edu/abs/1995ApJ...441...18M
-        // TODO: check this implementation someday, I suspect this is wrong or
-        // very approximate (taken directly from FAST)
+    out.igm_abs.resize(ngal, 3);
 
-        double da; {
-            double l0 = 1050.0*(1.0 + z);
-            double l1 = 1170.0*(1.0 + z);
-            uint_t nstep = 100;
-            vec1d tl = rgen(l0, l1, nstep);
-            vec1d ptau = exp(-3.6e-3*pow(tl/1216.0, 3.46));
-            da = mean(ptau);
+    auto apply_igm = [&](uint_t i, const vec1f& lam, vec1f& sed) {
+        double z = out.z[i];
+
+        if (igm == "madau95") {
+            // Madau+95 IGM (implementation from FAST)
+            // http://adsabs.harvard.edu/abs/1995ApJ...441...18M
+
+            {
+                double l0 = 1050.0*(1.0 + z);
+                double l1 = 1170.0*(1.0 + z);
+                uint_t nstep = 100;
+                vec1d tl = rgen(l0, l1, nstep);
+                vec1d ptau = exp(-3.6e-3*pow(tl/1216.0, 3.46));
+                out.igm_abs(i,2) = mean(ptau);
+            }
+
+            {
+                double l0 = 920.0*(1.0 + z);
+                double l1 = 1015.0*(1.0 + z);
+                uint_t nstep = 100;
+                vec1d tl = rgen(l0, l1, nstep);
+                vec1d ptau = exp(-1.7e-3*pow(tl/1026.0, 3.46) - 1.2e-3*pow(tl/972.5, 3.46) -
+                    9.3e-4*pow(tl/950.0, 3.46));
+                out.igm_abs(i,1) = mean(ptau);
+            }
+
+            // No transmission below 912A
+            out.igm_abs(i,0) = 0.0;
+        } else if (igm == "inoue14") {
+            // Inoue+14 IGM prescriptioms.
+            // Probability distribution functions calibrated on Monte Carlo realizations
+            // kindly provided by Akio Inoue (see Inoue+08 for method)
+            // http://adsabs.harvard.edu/abs/2014MNRAS.442.1805I
+            // http://adsabs.harvard.edu/abs/2008MNRAS.387.1681I
+
+            static const vec2f igm_z1 = {
+                {0.00000,-0.119247,-0.836013,0.188466,5.58061,1.80948,2.23333,
+                 2.58904,3.05070,3.44932,3.64749,4.33884,4.80831},
+                {4.71243,4.51667,5.13483,5.51325,6.02321,6.11072,3.96055,
+                 6.16846,6.20577,4.11253,6.25897,6.30988,6.30475},
+                {4.29922,4.43374,5.81153,6.07670,6.19915,4.01990,6.22758,
+                 6.23932,4.18000,6.29191,6.30732,6.34660,4.29822}
+            };
+            static const vec2f igm_dz1 = {
+                {0.00000,0.103763,1.53267,0.831935,0.101257,1.30343,1.23153,
+                 1.18386,1.18305,1.21584,1.22993,1.25208,1.15790},
+                {1.65837,1.78514,1.81298,1.76652,1.33753,1.19458,2.24961,
+                 1.11023,1.07492,2.16499,1.03259,0.998597,1.00750},
+                {1.83693,1.92457,1.44038,1.07901,0.980853,2.13450,1.00173,
+                 0.996720,2.25818,0.979706,0.979425,0.962433,2.04183}
+            };
+            static const vec2f igm_z2 = {
+                {0.00000,0.00000,8.03488,4.25279,0.989755,6.97760,0.00000,
+                 0.00000,7.46371,5.79003,5.31787,4.35838,4.12159},
+                {3.13640,4.21302,4.01985,3.91207,3.85061,3.91916,6.14354,
+                 3.99942,4.05655,6.24326,4.14120,4.22585,4.28847},
+                {5.85101,5.60883,3.88240,3.87634,3.98672,-9.52333,4.10508,
+                 4.13700,6.26376,4.22116,4.24243,4.30912,9.86437}
+            };
+            static const vec2f igm_dz2 = {
+                {0.00000,0.00000,0.209441,0.0120493,1.27333,0.0810017,0.00000,
+                 0.00000,5.04822,3.71614,3.30993,2.40054,2.10543},
+                {5.31391,5.23251,3.21628,2.77969,2.37366,2.28242,1.14531,
+                 2.22511,2.19319,1.04437,2.15259,2.11453,2.11378},
+                {9.48358,6.52196,2.79285,2.47621,2.31278,-1.12091,2.28194,
+                 2.27401,0.988508,2.24063,2.23221,2.20610,0.233647}
+            };
+
+            static const vec1f quantiles = {
+                0.0, 0.001, 0.023, 0.05, 0.16, 0.35, 0.50, 0.65, 0.84, 0.95, 0.977, 0.999, 1.0
+            };
+
+            for (uint_t l : range(igm_z1.dims[0])) {
+                // Evaluate CDF at z
+                vec1d trans_quant(quantiles.size());
+                for (uint_t q : range(quantiles)) {
+                    if (igm_dz1.safe(l,q) == 0.0) continue;
+                    trans_quant.safe[q] = 0.5*(erf((igm_z1.safe(l,q) - z)/igm_dz1.safe(l,q)) + 1.0);
+
+                    if (igm_dz2.safe(l,q) == 0.0) continue;
+                    trans_quant.safe[q] *= 0.5*(erf((igm_z2.safe(l,q) - z)/igm_dz2.safe(l,q)) + 1.0);
+                }
+
+                if (no_random) {
+                    // Use median transmission
+                    out.igm_abs(i,l) = trans_quant[quantiles.size()/2];
+                } else{
+                    // Randomize IGM
+                    out.igm_abs(i,l) = interpolate(trans_quant, quantiles, randomu(seed));
+                }
+            }
         }
 
-        double db; {
-            double l0 = 920.0*(1.0 + z);
-            double l1 = 1015.0*(1.0 + z);
-            uint_t nstep = 100;
-            vec1d tl = rgen(l0, l1, nstep);
-            vec1d ptau = exp(-1.7e-3*pow(tl/1026.0, 3.46) - 1.2e-3*pow(tl/972.5, 3.46) -
-                9.3e-4*pow(tl/950.0, 3.46));
-            db = mean(ptau);
-        }
-
+        uint_t lz = lower_bound(lam, 0.0600);
         uint_t l0 = lower_bound(lam, 0.0912);
         uint_t l1 = lower_bound(lam, 0.1026);
         uint_t l2 = lower_bound(lam, 0.1216);
 
-        for (uint_t l : range(l0)) {
-            sed.safe[l] = 0;
+        for (uint_t l : range(lz)) {
+            sed.safe[l] = 0.0;
+        }
+        for (uint_t l : range(lz, l0)) {
+            sed.safe[l] *= out.igm_abs(i,0);
         }
         for (uint_t l : range(l0, l1)) {
-            sed.safe[l] *= db;
+            sed.safe[l] *= out.igm_abs(i,1);
         }
         for (uint_t l : range(l1, l2)) {
-            sed.safe[l] *= da;
+            sed.safe[l] *= out.igm_abs(i,2);
         }
     };
 
@@ -1675,8 +1752,8 @@ if (!no_flux) {
             }
 
             // Apply IGM absorption
-            if (!naive_igm && !no_stellar) {
-                apply_igm(out.z[i], rlam, rsed);
+            if (igm != "none" && igm != "constant") {
+                apply_igm(i, rlam, rsed);
             }
 
             // Obtain rest-frame magnitudes
@@ -1790,7 +1867,7 @@ if (!no_flux) {
         out.rfuv_bulge, out.rfuv_disk, out.rfvj_bulge, out.rfvj_disk,
         out.sfrir, out.sfruv, out.irx, out.lir, out.ir_sed,
         out.opt_sed_bulge, out.opt_sed_disk,
-        out.tdust, out.ir8, out.fpah, out.mdust,
+        out.tdust, out.ir8, out.fpah, out.mdust, out.igm_abs,
         out.zb, out.cmd
     ));
 
@@ -1863,16 +1940,15 @@ void print_help() {
         "either (a) a FITS table containing: RA & DEC (degrees), Z, M (log Msun, Salpeter "
         "IMF), PASSIVE (0 or 1), and an optional ID column, or (b) an ASCII table "
         "containing the columns ID, RA, DEC, Z, M and PASSIVE, in that specific order.");
+    argdoc("igm", "[string]", "recipe to use for intergalactic medium (IGM) absorption. Possible "
+        "values are: 'none' (no IGM), 'constant' (z=1 mean IGM for all galaxies), 'madau95' (IGM "
+        "from Madau+95, as implemented in FAST), and 'inoue14' (randomized IGM). Default is "
+        "'inoue14'.");
     argdoc("no_pos", "[flag]", "do not generate galaxy positions on the sky");
     argdoc("no_clust", "[flag]", "do not generate clustering in galaxy positions");
     argdoc("no_flux", "[flag]", "do not generate fluxes");
     argdoc("no_random", "[flag]", "disable most randomization in the simulation, and use "
         "fully deterministic recipes");
-    print("");
-
-    print("List of approximations:");
-    argdoc("naive_igm", "[flag]", "use a fixed IGM absorption for all galaxies instead of using "
-        "a redshift-dependent prescription.");
     print("");
 
     print("List of sky position related options:");
