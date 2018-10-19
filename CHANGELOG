@@ -1,8 +1,17 @@
+v1.3.0
+======
+
+New/updated feature:
+ - A new IGM absorption method is added, using the Inoue+14 prescription and allowing for scatter in the IGM absorption at a given redshift due to varying lines of sight through the IGM. For this occasion, the "naive_igm" option has been removed: instead the user can now choose which IGM recipe they want to use using the "igm=..." option. See help for more info. The new Inoue+14 IGM with scatter is now the default in EGG. Other methods ("constant", equivalent to the previous "naive_igm=1", and "madau95", equivalent to the previous "naive_igm=0") do not have scatter implemented.
+ - It is now possible to generate galaxies without any IGM absorption using "igm=none".
+
+
 v1.2.1
 ======
 
 New/updated feature:
  - Updated to latest vif API, no consequence at all on the code and outputs.
+
 
 v1.2.0
 ======
