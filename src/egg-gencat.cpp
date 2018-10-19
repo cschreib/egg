@@ -263,6 +263,16 @@ int vif_main(int argc, char* argv[]) {
         }
     }
 
+    if (igm != "none" && igm != "constant" && igm != "madau95" && igm != "inoue14") {
+        error("unknown IGM prescription '", igm, "'");
+        error("possible values are: 'none', 'constant', 'madau95', or 'inoue14'");
+        return 1;
+    } else {
+        if (verbose) {
+            note("using IGM prescription '", igm, "'");
+        }
+    }
+
     if (opt_lib_file.empty()) {
         if (igm == "constant") {
             opt_lib_file = egg_share_dir+"opt_lib_fast.fits";
