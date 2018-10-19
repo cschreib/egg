@@ -67,6 +67,7 @@ int vif_main(int argc, char* argv[]) {
     // Absorption form intergalactic medium (IGM)
     // Valid values: none, constant, madau95, inoue14
     std::string igm = "inoue14";
+    std::string naive_igm; // [deprecated]
 
 
     // Debug - testing
@@ -136,7 +137,7 @@ int vif_main(int argc, char* argv[]) {
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
         name(input_cat_file, "input_cat"), selection_band, bands, rfbands, help, list_bands,
         clust_r0, clust_r1, clust_lambda, clust_eta, clust_fclust_mlim, clust_fclust_lom,
-        clust_fclust_him, clust_urnd_mlim, magdis_tdust, igm
+        clust_fclust_him, clust_urnd_mlim, magdis_tdust, igm, naive_igm
     ));
 
     if (help) {
@@ -260,6 +261,17 @@ int vif_main(int argc, char* argv[]) {
 
         if (verbose) {
             note("will save spectra in '", seds_file, "'");
+        }
+    }
+
+    if (!naive_igm.empty()) {
+        warning("the 'naive_igm' option is now deprecated");
+        warning("please use the 'igm=...' option instead");
+
+        if (naive_igm == "1") {
+            igm = "constant";
+        } else {
+            igm = "madau95";
         }
     }
 
