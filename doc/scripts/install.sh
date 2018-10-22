@@ -5,7 +5,7 @@
 #
 # The script sequence is:
 #
-# 1) Download the CFITSIO, WCSLib and phy++ libraries and build them
+# 1) Download the CFITSIO, WCSLib and vif libraries and build them
 # 2) Download EGG, build it, install it
 #
 # To use this script, just make it executable, and run it. Your current
@@ -31,7 +31,7 @@
 # system-wise or if you do not have root access on your computer. In any
 # case this has to be an absolute path.
 #
-# See the INSTALL file in the phy++ directory or the doc.pdf file
+# See the INSTALL file in the vif directory or the doc.pdf file
 # in the EGG directory if you get into trouble.
 
 # Example:
@@ -54,7 +54,7 @@ function abort {
     echo ""
     echo "Oops, there was an error in the installation process."
     echo "Make sure that all the dependencies are properly installed"
-    echo "and that your compiler is supported by phy++."
+    echo "and that your compiler is supported by 'vif'."
     echo ""
     cd $TMP_DIR
     exit 1
@@ -111,7 +111,7 @@ cd $TMP_DIR
 
 
 # -----------------------------------------
-# The phy++ library
+# The vif library
 # -----------------------------------------
 
 # Download and extract it
