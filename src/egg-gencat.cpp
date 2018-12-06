@@ -1279,7 +1279,7 @@ int vif_main(int argc, char* argv[]) {
     });
 
     // Bulge and disk have the same position angle, which is completely random
-    out.disk_angle = (randomu(seed, ngal) - 0.5)*90.0;
+    out.disk_angle = (randomu(seed, ngal) - 0.5)*180.0;
     out.bulge_angle = out.disk_angle;
 
     // Bulges: calibration from n>2.5 galaxies and M* > 10.5
