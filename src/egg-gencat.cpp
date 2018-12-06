@@ -1927,7 +1927,7 @@ void print_help() {
         }
     };
 
-    print("egg-gencat v1.3.0");
+    print("egg-gencat v1.3.1");
     print("usage: egg-gencat [options]\n");
 
     print("List of generic options:");

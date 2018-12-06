@@ -1,3 +1,10 @@
+v1.3.1
+======
+
+Bug fixes:
+ - Fixed position angle being limited to -45 to +45 degrees instead of -90 to +90 degrees.
+
+
 v1.3.0
 ======
 
