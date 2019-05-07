@@ -89,6 +89,9 @@ int vif_main(int argc, char* argv[]) {
 
     // Filter library
     std::string filter_db_file = filters_dir+"db.dat";
+    bool filter_flambda = false; // set to true to get equivalent of FAST FILTER_FORMAT=1
+    bool filter_photons = false; // set to true to get equivalent of FAST FILTER_FORMAT=1
+    bool trim_filters = false;
 
     // Output file
     std::string out_file = "";
@@ -137,7 +140,8 @@ int vif_main(int argc, char* argv[]) {
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
         name(input_cat_file, "input_cat"), selection_band, bands, rfbands, help, list_bands,
         clust_r0, clust_r1, clust_lambda, clust_eta, clust_fclust_mlim, clust_fclust_lom,
-        clust_fclust_him, clust_urnd_mlim, magdis_tdust, igm, naive_igm
+        clust_fclust_him, clust_urnd_mlim, magdis_tdust, igm, naive_igm, filter_photons,
+        filter_flambda, trim_filters
     ));
 
     if (help) {
@@ -316,6 +320,40 @@ int vif_main(int argc, char* argv[]) {
     vec<1,filter_t> rffilters;
     if (!get_filters(filter_db, rfbands, rffilters)) {
         return 1;
+    }
+
+    // Perform adjustments on the filter response curves, if asked
+    auto adjust_filter = vectorize_lambda([&](filter_t& fil) {
+        // Truncate
+        if (trim_filters) {
+            vec1u idg = where(fil.res/max(fil.res) > 1e-3);
+            vif_check(!idg.empty(), "filter has no usable data");
+            fil.lam = fil.lam[idg[0]-_-idg[-1]];
+            fil.res = fil.res[idg[0]-_-idg[-1]];
+        }
+
+        // Apply filter definition
+        if (filter_flambda) {
+            // Filter is defined such that it must integrate f_lambda and not f_nu
+            // f_lambda*r(lambda) ~ f_nu*[r(lambda)/lambda^2]
+            fil.res /= sqr(fil.lam);
+        }
+        if (filter_photons) {
+            // Filter is defined such that it integrates photons and not energy
+            // n(lambda)*r(lambda) ~ f(lambda)*[r(lambda)*lambda]
+            fil.res *= fil.lam;
+        }
+
+        // Re-normalize filter
+        fil.res /= integrate(fil.lam, fil.res);
+        fil.rlam = integrate(fil.lam, fil.lam*fil.res);
+
+        return fil;
+    });
+
+    if (trim_filters || filter_flambda || filter_photons) {
+        adjust_filter(filters);
+        adjust_filter(rffilters);
     }
 
     // Sort the bands by increasing wavelength
