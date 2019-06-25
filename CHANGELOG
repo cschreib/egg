@@ -1,3 +1,10 @@
+v1.4.0
+======
+
+New/updated feature:
+ - Added a limited set of optical emission lines (Ly-alpha, [OII], [OIII], Balmer series, [NII]) and far-infrared emission lines ([CII]157, [NII]205, CI, CO ladder). The line fluxes are tied to  the generated SFR, metallicity (through the FMR), LIR, or Mgas (through Mdust), with recipes calibrated on various observations, and the usual random scatter. Optical lines will be attenuated using a different attenuation than the continuum. The lines can be disabled by setting the flag 'no_nebular'.
+
+
 v1.3.1
 ======
 

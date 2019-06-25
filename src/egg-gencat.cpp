@@ -60,6 +60,7 @@ int vif_main(int argc, char* argv[]) {
     bool no_clust = false;       // do not generate clustering
     bool no_flux = false;        // do not generate fluxes
     bool no_stellar = false;     // do not generate fluxes from stellar origin
+    bool no_nebular = false;     // do not generate fluxes from nebular origin
     bool no_dust = false;        // do not generate fluxes from dust origin
     bool no_random = false;      // disable all randomization of parameters
                                  // (just passive, M*, z, and position + pos angle)
@@ -133,7 +134,7 @@ int vif_main(int argc, char* argv[]) {
     read_args(argc, argv, arg_list(
         ra0, dec0, area, mmin, maglim, zmin, zmax, name(bin_dz, "dz"), min_dz, max_dz,
         name(bin_dm, "dm"), ms_disp,
-        no_pos, no_clust, no_flux, no_stellar, no_dust, no_passive_lir, no_random,
+        no_pos, no_clust, no_flux, no_stellar, no_dust, no_passive_lir, no_random, no_nebular,
         save_sed, name(mass_func_file, "mass_func"),
         name(ir_lib_file, "ir_lib"), name(opt_lib_file, "opt_lib"),
         name(out_file, "out"), name(filter_db_file, "filter_db"),
@@ -504,6 +505,15 @@ int vif_main(int argc, char* argv[]) {
         vec2f rfmag_bulge;
         vec1s rfbands;
         vec1f rflambda;
+
+        vec1f vdisp;
+        vec1f avlines_disk;
+        vec1f avlines_bulge;
+        vec2f line_lum;
+        vec2f line_lum_disk;
+        vec2f line_lum_bulge;
+        vec1s lines;
+        vec1f line_lambda;
 
         vec2f zb;
 
@@ -1609,73 +1619,31 @@ if (!no_stellar) {
 
     out.ir_sed = clamp(round(fir_sed), 0, nirsed-1);
 
-if (!no_flux) {
+    if (file::get_basename(ir_lib_file) == "ir_lib_cs17.fits") {
+        // My library
 
-    // Compute fluxes
-    // --------------
+        // Get exact fPAH
+        out.fpah = clamp(1.0/(1.0 - (ir_lib_cs17.lir_pah[out.ir_sed] - ir_lib_cs17.l8_pah[out.ir_sed]*out.ir8)/
+            (ir_lib_cs17.lir_dust[out.ir_sed] - ir_lib_cs17.l8_dust[out.ir_sed]*out.ir8)), 0.0, 1.0);
 
-    out.flux_disk.resize(ngal, bands.size());
-    out.flux_bulge.resize(ngal, bands.size());
+        // SED is in unit Mdust, normalize it to our dust mass
+        out.mdust = out.lir/(ir_lib_cs17.lir_dust[out.ir_sed]*(1.0 - out.fpah)
+            + ir_lib_cs17.lir_pah[out.ir_sed]*out.fpah);
+    } else {
+        // Placeholders
+        out.fpah = replicate(0.04, ngal);
+        out.mdust = out.lir/1e3;
+    }
 
-    out.rfmag_disk.resize(ngal, rfbands.size());
-    out.rfmag_bulge.resize(ngal, rfbands.size());
+    // Pre-compute IGM absorption
+    // ---------------------------
 
     if (verbose) {
-        note("computing fluxes", (rffilters.empty() ? "" : " and absolute magnitudes"), "...");
+        note("generating IGM absorption");
     }
-
-    if (file::get_basename(ir_lib_file) == "ir_lib_cs17.fits") {
-        out.mdust.resize(ngal);
-    }
-
-    auto get_ir_sed = [&](uint_t i, vec1f& irlam, vec1f& irsed) {
-        uint_t s = out.ir_sed[i];
-
-        if (file::get_basename(ir_lib_file) == "ir_lib_cs17.fits") {
-            // My library
-
-            // Get exact fPAH
-            out.fpah[i] = clamp(1.0/(1.0 - (ir_lib_cs17.lir_pah[s] - ir_lib_cs17.l8_pah[s]*out.ir8[i])/
-                (ir_lib_cs17.lir_dust[s] - ir_lib_cs17.l8_dust[s]*out.ir8[i])), 0.0, 1.0);
-
-            // Build combined SED
-            irlam = ir_lib_cs17.lam(s,_);
-            irsed = ir_lib_cs17.dust(s,_)*(1.0 - out.fpah[i])
-                + ir_lib_cs17.pah(s,_)*out.fpah[i];
-
-            // SED is in unit Mdust, normalize it to our dust mass
-            out.mdust[i] = out.lir[i]/(ir_lib_cs17.lir_dust[s]*(1.0 - out.fpah[i])
-                + ir_lib_cs17.lir_pah[s]*out.fpah[i]);
-            irsed *= out.mdust[i];
-        } else {
-            // Generic library, SEDs in units of LIR
-            irlam = ir_lib.lam(s,_);
-            irsed = out.lir[i]*ir_lib.sed(s,_);
-        }
-    };
-
-    thread::worker sed_saver;
-    uint_t nsed = 0;
-    std::atomic<uint_t> nwritten(0);
-    std::ofstream seds_data;
-    vec1u save_sed_bulge_start, save_sed_bulge_nbyte;
-    vec1u save_sed_disk_start,  save_sed_disk_nbyte;
-
-    if (save_sed) {
-        seds_data.open(seds_file, std::ios::binary);
-        save_sed_bulge_start.resize(ngal);
-        save_sed_bulge_nbyte.resize(ngal);
-        save_sed_disk_start.resize(ngal);
-        save_sed_disk_nbyte.resize(ngal);
-    }
-
-    enum class component {
-        bulge, disk
-    };
 
     out.igm_abs.resize(ngal, 3);
-
-    auto apply_igm = [&](uint_t i, const vec1f& lam, vec1f& sed) {
+    for (uint_t i : range(ngal)) {
         double z = out.z[i];
 
         if (igm == "madau95") {
@@ -1767,28 +1735,276 @@ if (!no_flux) {
                 }
             }
         }
+    }
 
-        uint_t lz = lower_bound(lam, 0.0600);
-        uint_t l0 = lower_bound(lam, 0.0912);
-        uint_t l1 = lower_bound(lam, 0.1026);
-        uint_t l2 = lower_bound(lam, 0.1216);
+    // Generate emission lines
+    // -----------------------
 
-        for (uint_t l : range(lz)) {
-            sed.safe[l] = 0.0;
+    if (!no_nebular) {
+        if (verbose) {
+            note("generating emission lines");
         }
-        for (uint_t l : range(lz, l0)) {
-            sed.safe[l] *= out.igm_abs(i,0);
+
+        out.lines       = {"c2_157", "n2_205", "c1_609", "co10", "co21", "co32", "co43", "co54", "co65", "co76"};
+        out.line_lambda = {157.71,   205.18,   609.14,   2600.9, 1300.4, 867.0,  650.27, 520.24, 433.57, 371.66};
+
+        append(out.lines,       vec1s{"halpha", "hbeta", "hgamma", "hdelta", "n2_6583", "n2_6548", "o3_5007", "o3_4959", "o2_3727", "lyalpha"});
+        append(out.line_lambda, vec1f{0.65628,  0.48613, 0.43405,  0.41017,  0.65835,   0.65480,   0.50068,   0.49589,   0.37274,   0.12157});
+
+        out.line_lum_bulge.resize(ngal, out.lines.size());
+        out.line_lum_disk.resize(ngal, out.lines.size());
+
+        // Pre-compute some more properties
+        // Metallicity
+        vec1d metal = replicate(9.07, ngal);
+        vec1d mu32 = (out.m-0.2) - 0.32*(log10(out.sfr) - 0.2);
+        vec1u idl = where(mu32 < 10.36);
+        metal[idl] = 8.9 + 0.47*(mu32[idl] - 10);
+        metal = 569.4927 - 192.5182*metal + 21.91836*sqr(metal) - 0.827884*pow(metal,3);
+        metal -= 8.69; // in solar metalicity
+        // Broken FMR (Bethermin+16), tweaked to reproduce [OIII]/Hbeta @ z=2 (Dickey+16)
+        idl = where(out.z > 1);
+        metal[idl] -= 0.2*clamp(out.z[idl] - 1, 0.0, 1.0);
+        // Gas-to-dust ratio
+        vec1d gdr = 2.23 - metal;
+        if (!no_random) gdr += 0.04*randomn(seed, ngal);
+        // Gas masses
+        vec1d mgas = out.mdust*e10(gdr); // HI + H2
+        vec1d mh2 = mgas*0.3;
+        if (!no_random) mh2 *= e10(0.2*randomn(seed, ngal));
+        // Attenuation of lines (Pannella+15)
+        out.avlines_disk = log10(out.sfr/out.sfruv)*0.95
+            *interpolate(vec1d{1.7, 1.3, 1.0, 1.0}, vec1d{0,1,2,100}, out.z);
+        // out.avlines_disk = out.av_disk*interpolate(vec1d{1.7, 1.3, 1.0, 1.0}, vec1d{0,1,2,100}, out.z);
+        if (!no_random) out.avlines_disk += 0.2*randomn(seed, ngal);
+        out.avlines_bulge = out.av_bulge;
+        if (!no_random) out.avlines_bulge += 0.1*randomn(seed, ngal);
+        out.avlines_disk  = clamp(out.avlines_disk,  0.0, 6.0);
+        out.avlines_bulge = clamp(out.avlines_bulge, 0.0, 6.0);
+        // Ly-alpha escape fraction (Hayes+10)
+        vec1d fescape_disk = 0.445*e10(-0.4*(out.av_disk/4.05)*17.8);
+        // correction to avoid over-producing Ly-alpha at z~1-2
+        fescape_disk *= e10(interpolate(vec1d{-1.2, -1.2, -0.8, 0, 0}, vec1d{0.5, 1.2, 2.2, 3.0, 4.0}, out.z));
+        if (!no_random) fescape_disk *= e10(0.4*randomn(seed, ngal));
+        fescape_disk = clamp(fescape_disk, 0.0, 1.0);
+        // Velocity dispersion (Stott+16)
+        out.vdisp = e10(0.12*(out.m - 10) + 1.78);
+        if (!no_random) out.vdisp *= e10(0.3*randomn(seed, ngal));
+
+        uint_t l;
+
+        // Far IR lines
+
+        l = where_first(out.lines == "c2_157");
+        out.line_lum_bulge(_,l) = 0.0;
+        out.line_lum_disk(_,l) = e10(1.017*(log10(out.sfr)-0.2) + 7.13); // deLooze+11
+        if (!no_random) out.line_lum_disk(_,l) *= e10(0.27*randomn(seed, ngal));
+
+        l = where_first(out.lines == "n2_205");
+        out.line_lum_bulge(_,l) = 0.0;
+        out.line_lum_disk(_,l) = e10(1.053*(log10(out.sfr)-0.2) + 5.31); // Zhao+13
+        if (!no_random) out.line_lum_disk(_,l) *= e10(0.26*randomn(seed, ngal));
+
+        l = where_first(out.lines == "c1_609");
+        out.line_lum_bulge(_,l) = 0.0;
+        out.line_lum_disk(_,l) = 0.00246*mh2; // Bothwell+17
+
+        l = where_first(out.lines == "co10");
+        out.line_lum_bulge(_,l) = 0.0;
+        out.line_lum_disk(_,l) = 4.93e-5*mh2; // alphaCO = 4.6
+
+        // CO ladder
+        vec1d sled = {2.3, 3.7, 4.5, 7.5, 8.5, 8.3}; // Bothwell+13 SMGs
+        for (uint_t dl = 0; dl < 6; ++dl) {
+            out.line_lum_bulge(_,l+1+dl) = 0.0;
+            out.line_lum_disk(_,l+1+dl) = out.line_lum_disk(_,l)*sled[dl];
         }
-        for (uint_t l : range(l0, l1)) {
-            sed.safe[l] *= out.igm_abs(i,1);
+
+        // UV-optical lines
+
+        l = where_first(out.lines == "halpha");
+        out.line_lum_bulge(_,l) = 0.0;
+        out.line_lum_disk(_,l) = e10(log10(out.sfr) + 7.519); // Kennicutt+98
+        if (!no_random) out.line_lum_disk(_,l) *= e10(0.15*randomn(seed, ngal));
+
+        // Case B recombination
+        vec1d recomb = {0.35, 0.163, 0.0862};
+        for (uint_t dl = 0; dl < 3; ++dl) {
+            out.line_lum_bulge(_,l+1+dl) = 0.0;
+            out.line_lum_disk(_,l+1+dl) = out.line_lum_disk(_,l)*recomb[dl];
         }
-        for (uint_t l : range(l1, l2)) {
-            sed.safe[l] *= out.igm_abs(i,2);
+
+        // [NII]/Halpha, [OIII]/Hbeta calibrated vs Halpha, Hbeta and FMR metallicity in SDSS
+        // plus [NII]/Halpha offset from MOSDEF
+
+        vec1d lo3mn2 = -0.08498 - 1.0596*metal + 5.6728*sqr(metal) + 3.3829*pow(metal,3);
+        if (!no_random) {
+            lo3mn2 += (0.2666 - 0.21789*metal + 0.4402*sqr(metal) + 1.4570*pow(metal,3))*randomn(seed, ngal);
+        }
+        vec1d lo3pn2 = -0.6416 + 0.53526*lo3mn2 - 0.25321*sqr(lo3mn2) + 0.01177*pow(lo3mn2,3);
+        if (!no_random) {
+            lo3pn2 += (0.12 - 0.064*lo3mn2 + 0.0423*sqr(lo3mn2) - 0.00507*pow(lo3mn2,3))*randomn(seed,ngal);
+        }
+
+        vec1d lha = out.line_lum_disk(_,where_first(out.lines == "halpha"));
+        vec1d n2offset = interpolate(vec1d{0.0, 0.0, 0.3, 0.3}, vec1d{0.0, 1.0, 2.3, 2.4}, out.z)
+            *interpolate(vec1d{1.0, 1.0, 0.0, 0.0}, vec1d{9, 10.0, 10.5, 11.0}, out.m); // Shapley+15
+        vec1d ln2 = lha*e10(0.5*(lo3pn2 - lo3mn2) + n2offset);
+
+        l = where_first(out.lines == "n2_6583");
+        out.line_lum_bulge(_,l) = 0.0;
+        out.line_lum_disk(_,l) = 0.75*ln2;
+        l = where_first(out.lines == "n2_6548");
+        out.line_lum_bulge(_,l) = 0.0;
+        out.line_lum_disk(_,l) = 0.25*ln2;
+
+        vec1d lhb = out.line_lum_disk(_,where_first(out.lines == "hbeta"));
+        vec1d lo3 = lhb*e10(0.5*(lo3pn2 + lo3mn2));
+
+        l = where_first(out.lines == "o3_5007");
+        out.line_lum_bulge(_,l) = 0.0;
+        out.line_lum_disk(_,l) = 0.7*lo3;
+        l = where_first(out.lines == "o3_4959");
+        out.line_lum_bulge(_,l) = 0.0;
+        out.line_lum_disk(_,l) = 0.3*lo3;
+
+        // [OII] calibrated on Hbeta and [OIII]/Hbeta in SDSS
+
+        l = where_first(out.lines == "o2_3727");
+        vec1d o3hb = log10(lo3/lhb);
+        out.line_lum_bulge(_,l) = 0.0;
+        out.line_lum_disk(_,l) = lhb*e10(0.4967 + 0.3529*o3hb - 0.46*sqr(o3hb) -0.2208*pow(o3hb, 3));
+        if (!no_random) {
+            vec1d scatter = 0.07 - 0.02*o3hb + 0.0524*sqr(o3hb) + 0.0262*pow(o3hb, 3);
+            out.line_lum_disk(_,l) *= e10(scatter*randomn(seed, ngal));
+        }
+
+        // Ly-alpha based on Sobral+18
+
+        l = where_first(out.lines == "lyalpha");
+        out.line_lum_bulge(_,l) = 0.0;
+        out.line_lum_disk(_,l) = 8.7*lha*fescape_disk;
+
+        // Apply reddening and IGM
+
+        auto calzetti2000 = vectorize_lambda([&](double l) {
+            // http://adsabs.harvard.edu/abs/2000ApJ...533..682C
+
+            const double iRv = 1.0/3.33;
+
+            if (l <= 0.63) {
+                l = (2.659*iRv)*(-2.156 + 1.509/l - 0.198*pow(l, -2) + 0.011*pow(l, -3)) + 1.0;
+            } else {
+                l = (2.659*iRv)*(-1.857 + 1.040/l) + 1.0;
+            }
+
+            if (l < 0) l = 0;
+
+            return l;
+        });
+
+        vec1d dust_law = calzetti2000(out.line_lambda);
+        dust_law[where_first(out.lines == "lyalpha")] = 0; // extinction already folded in
+
+        for (uint_t i : range(ngal)) {
+            vec1d igm_lines(out.lines.size());
+            for (uint_t l : range(out.lines)) {
+                if (out.line_lambda[l] < 0.0600) {
+                    igm_lines[l] = 0.0;
+                } else if (out.line_lambda[l] < 0.0912) {
+                    igm_lines[l] = out.igm_abs(i,0);
+                } else if (out.line_lambda[l] < 0.1026) {
+                    igm_lines[l] = out.igm_abs(i,1);
+                } else if (out.line_lambda[l] < 0.1216) {
+                    igm_lines[l] = out.igm_abs(i,2);
+                } else {
+                    igm_lines[l] = 1.0;
+                }
+            }
+
+            out.line_lum_disk(i,_) *= e10(-0.4*out.avlines_disk[i]*dust_law)*igm_lines;
+            out.line_lum_bulge(i,_) *= e10(-0.4*out.avlines_bulge[i]*dust_law)*igm_lines;
+        }
+
+        // Compute total luminosities
+        out.line_lum = out.line_lum_bulge + out.line_lum_disk;
+    }
+
+if (!no_flux) {
+
+    // Compute fluxes
+    // --------------
+
+    out.flux_disk.resize(ngal, bands.size());
+    out.flux_bulge.resize(ngal, bands.size());
+
+    out.rfmag_disk.resize(ngal, rfbands.size());
+    out.rfmag_bulge.resize(ngal, rfbands.size());
+
+    if (verbose) {
+        note("computing fluxes", (rffilters.empty() ? "" : " and absolute magnitudes"), "...");
+    }
+
+    auto get_ir_sed = [&](uint_t i, vec1f& irlam, vec1f& irsed) {
+        uint_t s = out.ir_sed[i];
+
+        if (file::get_basename(ir_lib_file) == "ir_lib_cs17.fits") {
+            // My library
+
+            // Build combined SED
+            irlam = ir_lib_cs17.lam(s,_);
+            irsed = ir_lib_cs17.dust(s,_)*(1.0 - out.fpah[i])
+                + ir_lib_cs17.pah(s,_)*out.fpah[i];
+
+            // SED is in unit Mdust, normalize it to our dust mass
+            irsed *= out.mdust[i];
+        } else {
+            // Generic library, SEDs in units of LIR
+            irlam = ir_lib.lam(s,_);
+            irsed = out.lir[i]*ir_lib.sed(s,_);
         }
     };
 
-    auto get_flux = [&](const vec1f& m, const vec1u& optsed, vec2f& flux, vec2f& rfmag,
-        bool no_ir, component cmp) {
+    thread::worker sed_saver;
+    uint_t nsed = 0;
+    std::atomic<uint_t> nwritten(0);
+    std::ofstream seds_data;
+    vec1u save_sed_bulge_start, save_sed_bulge_nbyte;
+    vec1u save_sed_disk_start,  save_sed_disk_nbyte;
+
+    if (save_sed) {
+        seds_data.open(seds_file, std::ios::binary);
+        save_sed_bulge_start.resize(ngal);
+        save_sed_bulge_nbyte.resize(ngal);
+        save_sed_disk_start.resize(ngal);
+        save_sed_disk_nbyte.resize(ngal);
+    }
+
+    enum class component {
+        bulge, disk
+    };
+
+    auto add_emission_line = [&](const vec1f& lam, vec1f& sed, double l0, double lum, double vdisp) {
+        const uint_t n = lam.size();
+        double lw = l0*(vdisp/2.998e5);
+        auto b = bounds(lam, l0 - 10*lw, l0 + 10*lw);
+        if (b[1] == 0 || b[0] == n-1) return;
+        if (b[0] == npos) b[0] = 0;
+        if (b[1] == npos) b[1] = n-1;
+
+        vec1f llow(b[1]-b[0]+1);
+        vec1f lup(b[1]-b[0]+1);
+        for (uint_t i : range(llow)) {
+            uint_t l = b[0] + i;
+            llow[i] = (l != 0 ? 0.5*(lam[l-1]+lam[l]) : lam[l] - 0.5*(lam[l+1]-lam[l]));
+            lup[i] = (l != n-1 ? 0.5*(lam[l]+lam[l+1]) : lam[l] + 0.5*(lam[l]-lam[l-1]));
+        }
+
+        sed[b[0]-_-b[1]] += integrate_gauss(llow, lup, l0, lw, lum*l0);
+    };
+
+    auto get_flux = [&](const vec1f& m, const vec1u& optsed, const vec2f& llum,
+        vec2f& flux, vec2f& rfmag, bool no_ir, component cmp) {
 
         auto pg1 = progress_start(ngal);
         for (uint_t i : range(ngal)) {
@@ -1811,9 +2027,32 @@ if (!no_flux) {
                 merge_add(orlam, irlam, orsed, irsed, rlam, rsed);
             }
 
-            // Apply IGM absorption
+            // Apply IGM absorption to continuum
             if (igm != "none" && igm != "constant") {
-                apply_igm(i, rlam, rsed);
+                uint_t lz = lower_bound(rlam, 0.0600);
+                uint_t l0 = lower_bound(rlam, 0.0912);
+                uint_t l1 = lower_bound(rlam, 0.1026);
+                uint_t l2 = lower_bound(rlam, 0.1216);
+
+                for (uint_t l : range(lz)) {
+                    rsed.safe[l] = 0.0;
+                }
+                for (uint_t l : range(lz, l0)) {
+                    rsed.safe[l] *= out.igm_abs(i,0);
+                }
+                for (uint_t l : range(l0, l1)) {
+                    rsed.safe[l] *= out.igm_abs(i,1);
+                }
+                for (uint_t l : range(l1, l2)) {
+                    rsed.safe[l] *= out.igm_abs(i,2);
+                }
+            }
+
+            // Add emission lines
+            if (!no_nebular) {
+                for (uint_t l : range(out.lines)) {
+                    add_emission_line(rlam, rsed, out.line_lambda[l], llum(i,l), out.vdisp[i]);
+                }
             }
 
             // Obtain rest-frame magnitudes
@@ -1874,10 +2113,12 @@ if (!no_flux) {
 
     // Get flux for the bulge
     if (!no_stellar) {
-        get_flux(out.m_bulge, out.opt_sed_bulge, out.flux_bulge, out.rfmag_bulge, true, component::bulge);
+        get_flux(out.m_bulge, out.opt_sed_bulge, out.line_lum_bulge,
+            out.flux_bulge, out.rfmag_bulge, true, component::bulge);
     }
 
-    get_flux(out.m_disk,  out.opt_sed_disk,  out.flux_disk, out.rfmag_disk, no_dust, component::disk);
+    get_flux(out.m_disk, out.opt_sed_disk, out.line_lum_disk,
+        out.flux_disk, out.rfmag_disk, no_dust, component::disk);
 
     if (save_sed) {
         if (verbose) {
@@ -1938,6 +2179,14 @@ if (!no_flux) {
         ));
     }
 
+    if (!out.lines.empty()) {
+        fits::update_table(out_file, ftable(
+            out.vdisp, out.avlines_disk, out.avlines_bulge,
+            out.line_lum, out.line_lum_disk, out.line_lum_bulge,
+            out.lines, out.line_lambda
+        ));
+    }
+
     if (!rfbands.empty()) {
         fits::update_table(out_file, ftable(
             out.rfmag, out.rfmag_disk, out.rfmag_bulge,
@@ -1965,7 +2214,7 @@ void print_help() {
         }
     };
 
-    print("egg-gencat v1.3.1");
+    print("egg-gencat v1.4.0");
     print("usage: egg-gencat [options]\n");
 
     print("List of generic options:");
@@ -2007,6 +2256,7 @@ void print_help() {
     argdoc("no_pos", "[flag]", "do not generate galaxy positions on the sky");
     argdoc("no_clust", "[flag]", "do not generate clustering in galaxy positions");
     argdoc("no_flux", "[flag]", "do not generate fluxes");
+    argdoc("no_nebular", "[flag]", "do not generate emission lines");
     argdoc("no_random", "[flag]", "disable most randomization in the simulation, and use "
         "fully deterministic recipes");
     print("");
