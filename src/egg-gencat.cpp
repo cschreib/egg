@@ -87,6 +87,7 @@ int vif_main(int argc, char* argv[]) {
     // SED libraries
     std::string ir_lib_file = egg_share_dir+"ir_lib_cs17.fits";
     std::string opt_lib_file;
+    std::string opt_lib_imf = "salpeter";
 
     // Filter library
     std::string filter_db_file = filters_dir+"db.dat";
@@ -137,7 +138,7 @@ int vif_main(int argc, char* argv[]) {
         name(bin_dm, "dm"), ms_disp,
         no_pos, no_clust, no_flux, no_stellar, no_dust, no_passive_lir, no_random, no_nebular,
         save_sed, name(mass_func_file, "mass_func"),
-        name(ir_lib_file, "ir_lib"), name(opt_lib_file, "opt_lib"),
+        name(ir_lib_file, "ir_lib"), name(opt_lib_file, "opt_lib"), opt_lib_imf,
         name(out_file, "out"), name(filter_db_file, "filter_db"),
         verbose, name(tseed, "seed"), name(tcosmo, "cosmo"),
         name(input_cat_file, "input_cat"), selection_band, bands, rfbands, help, list_bands,
@@ -454,6 +455,14 @@ int vif_main(int argc, char* argv[]) {
     fits::read_table(opt_lib_file, ftable(
         opt_lib.lam, opt_lib.sed, opt_lib.use, opt_lib.av, opt_lib.bvj, opt_lib.buv
     ));
+
+    // Adjust IMF if necessary
+    if (opt_lib_imf == "chabrier" || opt_lib_imf == "kroupa") {
+        opt_lib.sed *= e10(-0.2);
+    } else if (opt_lib_imf != "salpeter") {
+        error("unknown IMF '", opt_lib_imf, "'");
+        return 1;
+    }
 
     // Make sure that it contains at least one valid SED
     if (count(opt_lib.use) == 0) {
