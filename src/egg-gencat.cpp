@@ -92,6 +92,7 @@ int vif_main(int argc, char* argv[]) {
     std::string filter_db_file = filters_dir+"db.dat";
     bool filter_flambda = false; // set to true to get equivalent of FAST FILTER_FORMAT=1
     bool filter_photons = false; // set to true to get equivalent of FAST FILTER_FORMAT=1
+    bool filter_normalize = true;
     bool trim_filters = false;
 
     // Output file
@@ -142,7 +143,7 @@ int vif_main(int argc, char* argv[]) {
         name(input_cat_file, "input_cat"), selection_band, bands, rfbands, help, list_bands,
         clust_r0, clust_r1, clust_lambda, clust_eta, clust_fclust_mlim, clust_fclust_lom,
         clust_fclust_him, clust_urnd_mlim, magdis_tdust, igm, naive_igm, filter_photons,
-        filter_flambda, trim_filters
+        filter_flambda, trim_filters, filter_normalize
     ));
 
     if (help) {
@@ -346,8 +347,11 @@ int vif_main(int argc, char* argv[]) {
         }
 
         // Re-normalize filter
-        fil.res /= integrate(fil.lam, fil.res);
-        fil.rlam = integrate(fil.lam, fil.lam*fil.res);
+        double norm = integrate(fil.lam, fil.res);
+        fil.rlam = integrate(fil.lam, fil.lam*fil.res)/norm;
+        if (filter_normalize) {
+            fil.res /= norm;
+        }
 
         return fil;
     });
