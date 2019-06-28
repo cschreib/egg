@@ -1776,11 +1776,10 @@ if (!no_stellar) {
         vec1d mgas = out.mdust*e10(gdr); // HI + H2
         vec1d mh2 = mgas*0.3;
         if (!no_random) mh2 *= e10(0.2*randomn(seed, ngal));
-        // Attenuation of lines (Pannella+15)
-        out.avlines_disk = log10(out.sfr/out.sfruv)*0.95
-            *interpolate(vec1d{1.7, 1.3, 1.0, 1.0}, vec1d{0,1,2,100}, out.z);
-        // out.avlines_disk = out.av_disk*interpolate(vec1d{1.7, 1.3, 1.0, 1.0}, vec1d{0,1,2,100}, out.z);
-        if (!no_random) out.avlines_disk += 0.2*randomn(seed, ngal);
+        // Attenuation of lines (Pannella+15 for redshift dependence)
+        out.avlines_disk = 0.5*(log10(out.sfr/out.sfruv)*0.95 + out.av_disk);
+        out.avlines_disk *= interpolate(vec1d{1.7, 1.3, 1.0, 1.0}, vec1d{0,1,2,100}, out.z);
+        if (!no_random) out.avlines_disk += 0.1*randomn(seed, ngal);
         out.avlines_bulge = out.av_bulge;
         if (!no_random) out.avlines_bulge += 0.1*randomn(seed, ngal);
         out.avlines_disk  = clamp(out.avlines_disk,  0.0, 6.0);
