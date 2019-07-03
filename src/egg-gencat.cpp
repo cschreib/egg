@@ -88,6 +88,7 @@ int vif_main(int argc, char* argv[]) {
     std::string ir_lib_file = egg_share_dir+"ir_lib_cs17.fits";
     std::string opt_lib_file;
     std::string opt_lib_imf = "salpeter";
+    double opt_lib_min_step = 0.001; // um
 
     // Filter library
     std::string filter_db_file = filters_dir+"db.dat";
@@ -144,7 +145,7 @@ int vif_main(int argc, char* argv[]) {
         name(input_cat_file, "input_cat"), selection_band, bands, rfbands, help, list_bands,
         clust_r0, clust_r1, clust_lambda, clust_eta, clust_fclust_mlim, clust_fclust_lom,
         clust_fclust_him, clust_urnd_mlim, magdis_tdust, igm, naive_igm, filter_photons,
-        filter_flambda, trim_filters, filter_normalize
+        filter_flambda, trim_filters, filter_normalize, opt_lib_min_step
     ));
 
     if (help) {
@@ -462,6 +463,74 @@ int vif_main(int argc, char* argv[]) {
     } else if (opt_lib_imf != "salpeter") {
         error("unknown IMF '", opt_lib_imf, "'");
         return 1;
+    }
+
+    // Adjust resolution if necessary
+    if (opt_lib_min_step > 0) {
+        if (verbose) {
+            note("rebinning optical library...");
+        }
+
+        // Make a copy of library
+        vec1u idf = mult_ids(opt_lib.use, where_first(opt_lib.use));
+        vec1d olam = opt_lib.lam(idf[0],idf[1],_);
+        vec3d osed = opt_lib.sed;
+
+        // Compute resolution of current grid
+        uint_t onpt = olam.size();
+        vec1d dlam(onpt);
+        dlam[0] = olam[1] - olam[0];
+        dlam[1-_-(onpt-2)] = 0.5*(olam[2-_] - olam[0-_-(onpt-3)]);
+        dlam[onpt-1] = olam[onpt-1] - olam[onpt-2];
+
+        // Find range where resolution is too high
+        uint_t id1 = where_first(dlam < opt_lib_min_step);
+        uint_t id2 = where_last(dlam < opt_lib_min_step);
+
+        if (id1 != npos) {
+            // Define new grid
+            vec1d nlam;
+
+            // Copy first elements that are already at low resolution
+            if (id1 != 0) {
+                append(nlam, olam[_-(id1-1)]);
+            }
+
+            // Create low resolution grid
+            uint_t nnew = floor((olam[id2] - olam[id1])/opt_lib_min_step) - 1;
+            vec1d newlam = olam[id1] + 0.5*opt_lib_min_step + opt_lib_min_step*indgen<double>(nnew);
+            append(nlam, newlam);
+            uint_t nid2 = nlam.size()-1;
+
+            // Copy last elements that are already at low resolution
+            if (id2 != onpt-1) {
+                append(nlam, olam[(id2+1)-_]);
+            }
+
+            if (verbose) {
+                note("reduced SED samples from ", olam.size(), " to ", nlam.size());
+            }
+
+            // Regrid SEDs
+            opt_lib.lam = replicate(0.0f, opt_lib.use.dims,nlam.size());
+            opt_lib.sed = replicate(0.0f, opt_lib.use.dims,nlam.size());
+            for (uint_t iuv : range(opt_lib.use.dims[0]))
+            for (uint_t ivj : range(opt_lib.use.dims[1])) {
+                if (!opt_lib.use(iuv,ivj)) continue;
+
+                opt_lib.lam(iuv,ivj,_) = nlam;
+                if (id1 != 0) {
+                    opt_lib.sed(iuv,ivj,_-(id1-1)) = osed(iuv,ivj,_-(id1-1));
+                }
+                for (uint_t l : range(newlam)) {
+                    opt_lib.sed(iuv,ivj,id1+l) = integrate(olam, osed(iuv,ivj,_),
+                        newlam[l]-0.5*opt_lib_min_step, newlam[l]+0.5*opt_lib_min_step)/opt_lib_min_step;
+                }
+                if (id2 != onpt-1) {
+                    opt_lib.sed(iuv,ivj,(nid2+1)-_) = osed(iuv,ivj,(id2+1)-_);
+                }
+            }
+        }
     }
 
     // Make sure that it contains at least one valid SED
