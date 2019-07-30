@@ -1836,17 +1836,19 @@ if (!no_stellar) {
         out.line_lum_bulge.resize(ngal, out.lines.size());
         out.line_lum_disk.resize(ngal, out.lines.size());
 
+        // TODO: compare to Francesco's paper
+
         // Pre-compute some more properties
         // Metallicity
         vec1d metal = replicate(9.07, ngal);
         vec1d mu32 = (out.m-0.2) - 0.32*(log10(out.sfr) - 0.2);
         vec1u idl = where(mu32 < 10.36);
         metal[idl] = 8.9 + 0.47*(mu32[idl] - 10);
-        metal = 569.4927 - 192.5182*metal + 21.91836*sqr(metal) - 0.827884*pow(metal,3);
         metal -= 8.69; // in solar metalicity
         // Broken FMR (Bethermin+16), tweaked to reproduce [OIII]/Hbeta @ z=2 (Dickey+16)
         idl = where(out.z > 1);
         metal[idl] -= 0.2*clamp(out.z[idl] - 1, 0.0, 1.0);
+        metal = clamp(metal, -0.6, 1.0);
         // Gas-to-dust ratio
         vec1d gdr = 2.23 - metal;
         if (!no_random) gdr += 0.04*randomn(seed, ngal);
@@ -1918,13 +1920,17 @@ if (!no_stellar) {
         // [NII]/Halpha, [OIII]/Hbeta calibrated vs Halpha, Hbeta and FMR metallicity in SDSS
         // plus [NII]/Halpha offset from MOSDEF
 
-        vec1d lo3mn2 = -0.08498 - 1.0596*metal + 5.6728*sqr(metal) + 3.3829*pow(metal,3);
+        auto poly3 = [](const vec1d& x, const vec1d& coef) {
+            return coef[0] + x*coef[1] + sqr(x)*coef[2] + pow(x,3)*coef[3];
+        };
+
+        vec1d lo3mn2 = poly3(metal, {0.59518604, -2.7283054, -0.23229248, 2.0151786});
         if (!no_random) {
-            lo3mn2 += (0.2666 - 0.21789*metal + 0.4402*sqr(metal) + 1.4570*pow(metal,3))*randomn(seed, ngal);
+            lo3mn2 += poly3(metal, {0.32970659, 0.043645415, -1.2231136, -2.4836792})*randomn(seed, ngal);
         }
-        vec1d lo3pn2 = -0.6416 + 0.53526*lo3mn2 - 0.25321*sqr(lo3mn2) + 0.01177*pow(lo3mn2,3);
+        vec1d lo3pn2 = poly3(lo3mn2, {-0.69337981, 0.66460936, -0.37040100, 0.047935498});
         if (!no_random) {
-            lo3pn2 += (0.12 - 0.064*lo3mn2 + 0.0423*sqr(lo3mn2) - 0.00507*pow(lo3mn2,3))*randomn(seed,ngal);
+            lo3pn2 += poly3(lo3mn2, {0.086819227, -0.078283561, 0.093276637, -0.025069864})*randomn(seed,ngal);
         }
 
         vec1d lha = out.line_lum_disk(_,where_first(out.lines == "halpha"));
@@ -1954,9 +1960,9 @@ if (!no_stellar) {
         l = where_first(out.lines == "o2_3727");
         vec1d o3hb = log10(lo3/lhb);
         out.line_lum_bulge(_,l) = 0.0;
-        out.line_lum_disk(_,l) = lhb*e10(0.4967 + 0.3529*o3hb - 0.46*sqr(o3hb) -0.2208*pow(o3hb, 3));
+        out.line_lum_disk(_,l) = lhb*e10(poly3(o3hb, {0.51869283, 0.29843257, -0.49610294, -0.11728400}));
         if (!no_random) {
-            vec1d scatter = 0.07 - 0.02*o3hb + 0.0524*sqr(o3hb) + 0.0262*pow(o3hb, 3);
+            vec1d scatter = poly3(o3hb, {0.061403650, -0.0081335335, 0.078420795, -0.032656826});
             out.line_lum_disk(_,l) *= e10(scatter*randomn(seed, ngal));
         }
 
