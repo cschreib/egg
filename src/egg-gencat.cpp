@@ -1104,6 +1104,10 @@ int vif_main(int argc, char* argv[]) {
             idl = where(inz && out.passive);
             m = random_pdf_bin(mf.mb(_,idm), mf.mx[idm], mf.mz_passive(iz,idm), idl.size());
             out.m[idl] = m;
+
+            // Cleanup
+            idl = where(inz and out.m < z_mmin[iz]);
+            out.m[idl] = z_mmin[iz];
         }
 
         // Generate random positions
