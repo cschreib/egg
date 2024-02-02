@@ -1954,10 +1954,10 @@ if (!no_stellar) {
 
         l = where_first(out.lines == "o3_5007");
         out.line_lum_bulge(_,l) = 0.0;
-        out.line_lum_disk(_,l) = 0.7*lo3;
+        out.line_lum_disk(_,l) = 0.75*lo3;
         l = where_first(out.lines == "o3_4959");
         out.line_lum_bulge(_,l) = 0.0;
-        out.line_lum_disk(_,l) = 0.3*lo3;
+        out.line_lum_disk(_,l) = 0.25*lo3;
 
         // [OII] calibrated on Hbeta and [OIII]/Hbeta in SDSS
 
